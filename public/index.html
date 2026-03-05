@@ -4,113 +4,128 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>加班 Order 飯系統</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            pbnavy: '#0f2f57',
+            pbnavystrong: '#0b2442',
+            pborange: '#f58220',
+            pborangestrong: '#dd6f12'
+          },
+          boxShadow: {
+            card: '0 3px 10px rgba(15, 47, 87, 0.08)'
+          }
+        }
+      }
+    };
+  </script>
 </head>
-<body>
-  <main class="shell">
-    <header class="hero">
+<body class="min-h-screen bg-[#0f5f8b] text-slate-800">
+  <main class="mx-auto max-w-6xl px-4 pb-10 pt-4 md:pt-5">
+    <header class="mb-4 rounded-xl border border-white/20 bg-gradient-to-r from-pbnavy to-pbnavystrong p-3 text-white shadow-card md:flex md:items-end md:justify-between">
       <div>
-        <h1 data-i18n="appTitle">加班 Order 飯系統</h1>
-        <p id="dateText">日期：--</p>
+        <h1 class="m-0 text-2xl font-bold tracking-tight md:text-3xl" data-i18n="appTitle">加班 Order 飯系統</h1>
+        <p id="dateText" class="mt-1 text-sm text-white/85">日期：--</p>
       </div>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <button class="btn btn-ghost" id="langTc" type="button">繁中</button>
-        <button class="btn btn-ghost" id="langSc" type="button">简中</button>
-        <button class="btn btn-ghost" id="langEn" type="button">EN</button>
-        <a class="btn btn-ghost" href="/api/export/csv" data-i18n="exportCsv">匯出 CSV</a>
-        <button class="btn btn-ghost" id="exportXlsxBtn" type="button" data-i18n="exportExcel">匯出 XLSX</button>
+      <div class="mt-3 flex flex-wrap items-center gap-2 md:mt-0">
+        <button class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" id="langTc" type="button">繁中</button>
+        <button class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" id="langSc" type="button">简中</button>
+        <button class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" id="langEn" type="button">EN</button>
+        <a class="rounded-md bg-pborange px-3 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" href="/api/export/csv" data-i18n="exportCsv">匯出 CSV</a>
+        <button class="rounded-md bg-pborange px-3 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="exportXlsxBtn" type="button" data-i18n="exportExcel">匯出 XLSX</button>
       </div>
     </header>
 
-    <section class="card">
-      <h2 data-i18n="secRestaurant">1) 今日餐廳</h2>
-      <div class="row">
-        <select id="restaurantSelect"></select>
-        <button class="btn" id="setRestaurantBtn" data-i18n="setRestaurant">設定餐廳</button>
+    <section class="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
+      <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secRestaurant">1) 今日餐廳</h2>
+      <div class="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+        <select id="restaurantSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
+        <button class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong disabled:cursor-not-allowed disabled:opacity-50" id="setRestaurantBtn" data-i18n="setRestaurant">設定餐廳</button>
       </div>
-      <div class="row mt8">
-        <button class="btn btn-danger" id="forceChangeBtn" data-i18n="forceChange">改餐廳並清單</button>
+      <div class="mt-2 grid grid-cols-1 gap-2">
+        <button class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700" id="forceChangeBtn" data-i18n="forceChange">改餐廳並清單</button>
       </div>
-      <p class="muted" id="currentRestaurantText">目前：未設定</p>
+      <p class="mt-2 text-sm text-slate-500" id="currentRestaurantText">目前：未設定</p>
     </section>
 
-    <section class="card">
-      <h2 data-i18n="secOrder">2) 填寫訂單</h2>
-      <form id="orderForm" class="grid">
-        <label>
+    <section class="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
+      <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secOrder">2) 填寫訂單</h2>
+      <form id="orderForm" class="grid grid-cols-1 gap-2 md:grid-cols-2">
+        <label class="grid gap-1 text-sm text-slate-600">
           <span data-i18n="dept">部門</span>
-          <select id="deptSelect" required></select>
+          <select id="deptSelect" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
-        <label>
+        <label class="grid gap-1 text-sm text-slate-600">
           <span data-i18n="name">同事</span>
-          <select id="nameSelect" required></select>
+          <select id="nameSelect" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
-        <label>
+        <label class="grid gap-1 text-sm text-slate-600">
           <span data-i18n="category">分類</span>
-          <select id="categorySelect" required></select>
+          <select id="categorySelect" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
-        <label>
+        <label class="grid gap-1 text-sm text-slate-600">
           <span data-i18n="food">餐點</span>
-          <select id="foodSelect" required></select>
+          <select id="foodSelect" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
-        <label>
+        <label class="grid gap-1 text-sm text-slate-600">
           <span data-i18n="price">價錢</span>
-          <input id="priceInput" type="number" step="0.01" min="0" required />
+          <input id="priceInput" type="number" step="0.01" min="0" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
         </label>
-        <label>
+        <label class="grid gap-1 text-sm text-slate-600">
           <span data-i18n="drink">飲品</span>
-          <select id="drinkSelect"></select>
+          <select id="drinkSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
-        <label class="wide">
+        <label class="col-span-1 grid gap-1 text-sm text-slate-600 md:col-span-2">
           <span data-i18n="addon">加配</span>
-          <input id="addonInput" type="text" data-i18n-placeholder="addonHint" placeholder="例如：走蔥、加飯" />
+          <input id="addonInput" type="text" data-i18n-placeholder="addonHint" placeholder="例如：走蔥、加飯" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
         </label>
-        <button class="btn wide" type="submit" data-i18n="submitOrder">提交訂單</button>
+        <button class="col-span-1 rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong md:col-span-2" type="submit" data-i18n="submitOrder">提交訂單</button>
       </form>
     </section>
 
-    <section class="card">
-      <h2 data-i18n="secOrders">3) 今日訂單</h2>
-      <div class="table-wrap">
-        <table>
+    <section class="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
+      <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secOrders">3) 今日訂單</h2>
+      <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table class="min-w-full border-collapse text-sm">
           <thead>
-            <tr>
-              <th>#</th>
-              <th data-i18n="dept">部門</th>
-              <th data-i18n="name">同事</th>
-              <th data-i18n="food">餐點</th>
-              <th data-i18n="addon">加配</th>
-              <th data-i18n="drink">飲品</th>
-              <th data-i18n="price">價錢</th>
+            <tr class="bg-slate-50 text-left text-pbnavy">
+              <th class="border-b border-slate-200 px-3 py-2">#</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="dept">部門</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="name">同事</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="food">餐點</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="addon">加配</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="drink">飲品</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="price">價錢</th>
             </tr>
           </thead>
           <tbody id="ordersBody"></tbody>
           <tfoot>
-            <tr>
-              <td colspan="6" data-i18n="total">總計</td>
-              <td id="totalPrice">0</td>
+            <tr class="bg-slate-50 font-bold">
+              <td class="border-t-2 border-slate-200 px-3 py-2" colspan="6" data-i18n="total">總計</td>
+              <td class="border-t-2 border-slate-200 px-3 py-2" id="totalPrice">0</td>
             </tr>
           </tfoot>
         </table>
       </div>
-      <div id="drinkSummary" class="summary"></div>
+      <div id="drinkSummary" class="mt-2 text-sm text-slate-500"></div>
     </section>
 
-    <section class="card">
-      <h2 data-i18n="secImport">4) 匯入資料 (Excel/CSV/JSON)</h2>
-      <div class="row">
-        <input id="importFile" type="file" accept=".xlsx,.xls,.csv,.json" />
-        <button class="btn" id="importBtn" type="button" data-i18n="importData">匯入覆蓋資料</button>
+    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
+      <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secImport">4) 匯入資料 (Excel/CSV/JSON)</h2>
+      <div class="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+        <input id="importFile" type="file" accept=".xlsx,.xls,.csv,.json" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200" />
+        <button class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="importBtn" type="button" data-i18n="importData">匯入覆蓋資料</button>
       </div>
-      <p class="muted" data-i18n="importHint">Excel/CSV 標題欄需包含：type, restaurant, category, item, price, dept, name, drink</p>
+      <p class="mt-2 text-sm text-slate-500" data-i18n="importHint">Excel/CSV 標題欄需包含：type, restaurant, category, item, price, dept, name, drink</p>
     </section>
   </main>
 
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" class="toast hidden fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full bg-pbnavy px-4 py-2 text-sm text-white shadow-lg"></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
-
-
 

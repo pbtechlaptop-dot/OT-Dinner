@@ -1,8 +1,9 @@
-﻿# Overtime Meal Web (No Google Apps Script)
+﻿# Overtime Meal Web (Deploy Ready)
 
-## Run
+## Local Run
 
 ```bash
+npm install
 npm start
 ```
 
@@ -12,47 +13,85 @@ Open: `http://127.0.0.1:3000`
 
 - `PORT` (default: `3000`)
 - `CHANGE_PASSWORD` (default: `1234`)
+- `ADMIN_PASSWORD` (default: same as `CHANGE_PASSWORD`)
 
-Example:
+## Storage Modes
 
-```bash
-set CHANGE_PASSWORD=yourpass
-npm start
+### 1) Local mode (default)
+No Supabase env set -> use local files:
+- `data/seed.json`
+- `data/state.json`
+
+### 2) Supabase mode (for Vercel)
+Set both env vars:
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Optional:
+- `SUPABASE_STORE_TABLE` (default: `app_kv`)
+
+## Supabase SQL (run once)
+
+```sql
+create table if not exists public.app_kv (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+create or replace function public.touch_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger trg_app_kv_updated_at
+before update on public.app_kv
+for each row execute function public.touch_updated_at();
 ```
 
-## Data Files
+## Web Pages
 
-- `data/seed.json`: restaurants, staff, drinks, menu source data
-- `data/state.json`: today's selected restaurant + today's orders (auto reset by date)
+- Frontend: `/`
+- Admin backend UI: `/admin.html`
 
-## Current Features
+Admin UI can manage:
+- restaurants
+- drinks (tc/sc/en)
+- departments + staff
+- menus (restaurant/category/items)
 
-- Set today's restaurant
-- Force-change restaurant with password and clear existing orders
-- Submit order (upsert by dept + name)
-- Order table + total amount
-- Drink summary
-- Export CSV
+## APIs
+
+- `GET /api/bootstrap`
+- `GET /api/menu?restaurant=...`
+- `POST /api/restaurant`
+- `GET /api/orders`
+- `POST /api/orders`
+- `GET /api/export/csv`
+- `POST /api/import/seed`
+
+Admin:
+- `GET /api/admin/seed?password=...`
+- `POST /api/admin/seed` with `{ password, seed }`
+- `POST /api/admin/reset-day` with `{ password }`
+
+## Vercel Deployment
+
+1. Push this repo to GitHub.
+2. In Vercel, import the repo.
+3. Add Environment Variables in Vercel Project Settings:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `CHANGE_PASSWORD`
+   - `ADMIN_PASSWORD`
+4. Deploy.
+
+Project already includes `vercel.json` and `api/index.js` for Vercel routing.
 
 ## Notes
 
-- This version is standalone and does not depend on Google Apps Script.
-- If you need Google Sheets sync, we can add it as a next step via Sheets API.
-
-## Import Data (Excel/CSV/JSON)
-
-You can import from web page section "匯入資料".
-
-Supported files:
-- `.json`: same structure as `data/seed.json`
-- `.xlsx/.xls/.csv`: first sheet must include headers:
-  - `type, restaurant, category, item, price, dept, name, drink`
-
-Row mapping:
-- `type=RESTAURANT`: use `restaurant`
-- `type=STAFF`: use `dept`, `name`
-- `type=DRINK`: use `drink`
-- `type=MENU`: use `restaurant`, `category`, `item`, `price`
-
-Important:
-- Import will overwrite seed data and reset today's restaurant/orders.
+- `.xlsx` export is generated on browser side (button: 匯出 XLSX).
+- CSV export includes UTF-8 BOM (no Chinese garbled text in Excel).

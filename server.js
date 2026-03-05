@@ -3,15 +3,30 @@ const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 
+let createClient = null;
+try {
+  ({ createClient } = require('@supabase/supabase-js'));
+} catch {
+  createClient = null;
+}
+
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.PORT || 3000);
 const CHANGE_PASSWORD = process.env.CHANGE_PASSWORD || '1234';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || CHANGE_PASSWORD;
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const SEED_FILE = path.join(DATA_DIR, 'seed.json');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
+
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const STORE_TABLE = process.env.SUPABASE_STORE_TABLE || 'app_kv';
+
+const USE_SUPABASE = Boolean(createClient && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+const supabase = USE_SUPABASE ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } }) : null;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -39,39 +54,22 @@ function writeJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
+function defaultSeed() {
+  return { restaurants: [], staff: {}, drinks: [], menus: {} };
+}
+
+function defaultState() {
+  return { date: todayISO(), restaurant: null, orders: [] };
+}
+
 function ensureDataFiles() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
   const seed = readJsonSafe(SEED_FILE, null);
-  if (!seed) throw new Error('Missing data/seed.json');
+  if (!seed) writeJson(SEED_FILE, defaultSeed());
 
   const state = readJsonSafe(STATE_FILE, null);
-  if (!state) {
-    writeJson(STATE_FILE, { date: todayISO(), restaurant: null, orders: [] });
-  }
-}
-
-function getSeed() {
-  return readJsonSafe(SEED_FILE, {
-    restaurants: [],
-    staff: {},
-    drinks: [],
-    menus: {}
-  });
-}
-
-function getState() {
-  const state = readJsonSafe(STATE_FILE, { date: todayISO(), restaurant: null, orders: [] });
-  if (state.date !== todayISO()) {
-    const reset = { date: todayISO(), restaurant: null, orders: [] };
-    writeJson(STATE_FILE, reset);
-    return reset;
-  }
-  return state;
-}
-
-function saveState(state) {
-  writeJson(STATE_FILE, state);
+  if (!state) writeJson(STATE_FILE, defaultState());
 }
 
 function normText(v) {
@@ -99,6 +97,103 @@ function normalizeMenuItem(item) {
   const price = Number(item.price);
   if (!nameTc || !Number.isFinite(price) || price < 0) return null;
   return { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price };
+}
+
+function normalizeSeed(nextSeed) {
+  const restaurants = Array.isArray(nextSeed.restaurants) ? nextSeed.restaurants : [];
+  const staff = nextSeed.staff && typeof nextSeed.staff === 'object' ? nextSeed.staff : {};
+  const drinks = Array.isArray(nextSeed.drinks) ? nextSeed.drinks : [];
+  const menus = nextSeed.menus && typeof nextSeed.menus === 'object' ? nextSeed.menus : {};
+
+  const normalized = {
+    restaurants: [...new Set(restaurants.map(normText).filter(Boolean))],
+    staff: {},
+    drinks: [],
+    menus: {}
+  };
+
+  Object.keys(staff).forEach(dept => {
+    const cleanDept = normText(dept);
+    if (!cleanDept) return;
+    const names = Array.isArray(staff[dept]) ? staff[dept] : [];
+    normalized.staff[cleanDept] = [...new Set(names.map(normText).filter(Boolean))];
+  });
+
+  const drinkSet = new Set();
+  drinks.map(normalizeDrinkItem).filter(Boolean).forEach(d => {
+    const key = `${d.tc}|${d.sc}|${d.en}`;
+    if (!drinkSet.has(key)) {
+      drinkSet.add(key);
+      normalized.drinks.push(d);
+    }
+  });
+
+  Object.keys(menus).forEach(rest => {
+    const cleanRest = normText(rest);
+    if (!cleanRest) return;
+    normalized.menus[cleanRest] = {};
+    const cats = menus[rest] && typeof menus[rest] === 'object' ? menus[rest] : {};
+    Object.keys(cats).forEach(cat => {
+      const cleanCat = normText(cat);
+      if (!cleanCat) return;
+      const items = Array.isArray(cats[cat]) ? cats[cat] : [];
+      normalized.menus[cleanRest][cleanCat] = items.map(normalizeMenuItem).filter(Boolean);
+    });
+  });
+
+  return normalized;
+}
+
+async function kvGet(key, fallback) {
+  if (!USE_SUPABASE) return readJsonSafe(key === 'seed' ? SEED_FILE : STATE_FILE, fallback);
+
+  const { data, error } = await supabase
+    .from(STORE_TABLE)
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
+
+  if (error) throw new Error(`Supabase read error (${key}): ${error.message}`);
+  if (data && data.value !== undefined && data.value !== null) return data.value;
+
+  await kvSet(key, fallback);
+  return fallback;
+}
+
+async function kvSet(key, value) {
+  if (!USE_SUPABASE) {
+    writeJson(key === 'seed' ? SEED_FILE : STATE_FILE, value);
+    return;
+  }
+
+  const { error } = await supabase
+    .from(STORE_TABLE)
+    .upsert({ key, value }, { onConflict: 'key' });
+
+  if (error) throw new Error(`Supabase write error (${key}): ${error.message}`);
+}
+
+async function getSeed() {
+  const seed = await kvGet('seed', defaultSeed());
+  return normalizeSeed(seed || defaultSeed());
+}
+
+async function getState() {
+  const state = await kvGet('state', defaultState());
+  if (!state || state.date !== todayISO()) {
+    const reset = defaultState();
+    await kvSet('state', reset);
+    return reset;
+  }
+  return state;
+}
+
+async function saveSeed(seed) {
+  await kvSet('seed', normalizeSeed(seed));
+}
+
+async function saveState(state) {
+  await kvSet('state', state);
 }
 
 function json(res, status, payload) {
@@ -156,45 +251,8 @@ function toCsv(orders) {
   return lines.join('\n');
 }
 
-function escapeXml(v) {
-  return String(v ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-function toExcelXml(orders) {
-  const header = ['No', 'Dept', 'Name', 'Food', 'Addon', 'Drink', 'Price'];
-  const totalRows = orders.length + 1;
-
-  const headerRow = '<Row>' + header.map(h => '<Cell><Data ss:Type="String">' + escapeXml(h) + '</Data></Cell>').join('') + '</Row>';
-  const dataRows = orders.map((o, i) => {
-    const p = Number(o.price || 0);
-    return '<Row>'
-      + '<Cell><Data ss:Type="Number">' + (i + 1) + '</Data></Cell>'
-      + '<Cell><Data ss:Type="String">' + escapeXml(o.dept) + '</Data></Cell>'
-      + '<Cell><Data ss:Type="String">' + escapeXml(o.name) + '</Data></Cell>'
-      + '<Cell><Data ss:Type="String">' + escapeXml(o.food) + '</Data></Cell>'
-      + '<Cell><Data ss:Type="String">' + escapeXml(o.addon || '') + '</Data></Cell>'
-      + '<Cell><Data ss:Type="String">' + escapeXml(o.drink || '') + '</Data></Cell>'
-      + '<Cell><Data ss:Type="Number">' + (Number.isFinite(p) ? p : 0) + '</Data></Cell>'
-      + '</Row>';
-  }).join('');
-
-  return '<?xml version="1.0" encoding="UTF-8"?>'
-    + '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
-    + '<Worksheet ss:Name="Orders">'
-    + '<Table>' + headerRow + dataRows + '</Table>'
-    + '<AutoFilter x:Range="R1C1:R' + totalRows + 'C7" xmlns="urn:schemas-microsoft-com:office:excel"/>'
-    + '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><Selected/></WorksheetOptions>'
-    + '</Worksheet>'
-    + '</Workbook>';
-}
-
 function serveStatic(reqPath, res) {
-  let safePath = reqPath === '/' ? '/index.html' : reqPath;
+  let safePath = reqPath === '/' ? '/index.html' : (reqPath === '/admin' ? '/admin.html' : reqPath);
   safePath = path.normalize(safePath).replace(/^\.\.(\\|\/|$)/, '');
   const filePath = path.join(PUBLIC_DIR, safePath);
   if (!filePath.startsWith(PUBLIC_DIR)) return text(res, 403, 'Forbidden');
@@ -207,9 +265,13 @@ function serveStatic(reqPath, res) {
   });
 }
 
+function isAdminAuthorized(password) {
+  return normText(password) && normText(password) === ADMIN_PASSWORD;
+}
+
 async function handleApi(req, res, urlObj) {
-  const seed = getSeed();
-  const state = getState();
+  const seed = await getSeed();
+  const state = await getState();
   const pathname = (urlObj.pathname || '/').replace(/\/+$/, '') || '/';
 
   if (req.method === 'GET' && pathname === '/api/bootstrap') {
@@ -245,7 +307,7 @@ async function handleApi(req, res, urlObj) {
 
     state.restaurant = restaurant;
     if (forceChange) state.orders = [];
-    saveState(state);
+    await saveState(state);
     return json(res, 200, { ok: true, currentRestaurant: state.restaurant, cleared: forceChange });
   }
 
@@ -274,12 +336,15 @@ async function handleApi(req, res, urlObj) {
     }
 
     state.orders = state.orders.map((o, i) => ({ id: i + 1, ...o }));
-    saveState(state);
+    await saveState(state);
     return json(res, 200, { ok: true, updated, orders: state.orders });
   }
 
   if (req.method === 'GET' && pathname === '/api/orders') {
-    return json(res, 200, { orders: state.orders, total: state.orders.reduce((sum, o) => sum + Number(o.price || 0), 0) });
+    return json(res, 200, {
+      orders: state.orders,
+      total: state.orders.reduce((sum, o) => sum + Number(o.price || 0), 0)
+    });
   }
 
   if (req.method === 'GET' && pathname === '/api/export/csv') {
@@ -292,88 +357,68 @@ async function handleApi(req, res, urlObj) {
     return res.end('\uFEFF' + csv);
   }
 
-  if (req.method === 'GET' && pathname === '/api/export/xls') {
-    const xml = toExcelXml(state.orders);
-    const fileName = `orders-${state.date}.xml`;
-    res.writeHead(200, {
-      'Content-Type': 'application/xml; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${fileName}"`
-    });
-    return res.end(xml);
-  }
-
   if (req.method === 'POST' && pathname === '/api/import/seed') {
     const body = await parseBody(req);
     const nextSeed = body && body.seed ? body.seed : null;
     if (!nextSeed || typeof nextSeed !== 'object') return json(res, 400, { error: 'seed payload is required' });
 
-    const restaurants = Array.isArray(nextSeed.restaurants) ? nextSeed.restaurants : [];
-    const staff = nextSeed.staff && typeof nextSeed.staff === 'object' ? nextSeed.staff : {};
-    const drinks = Array.isArray(nextSeed.drinks) ? nextSeed.drinks : [];
-    const menus = nextSeed.menus && typeof nextSeed.menus === 'object' ? nextSeed.menus : {};
+    await saveSeed(nextSeed);
+    await saveState(defaultState());
+    return json(res, 200, { ok: true });
+  }
 
-    const normalized = {
-      restaurants: [...new Set(restaurants.map(normText).filter(Boolean))],
-      staff: {},
-      drinks: [],
-      menus: {}
-    };
+  if (req.method === 'GET' && pathname === '/api/admin/seed') {
+    const password = normText(urlObj.searchParams.get('password'));
+    if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
+    return json(res, 200, { seed });
+  }
 
-    Object.keys(staff).forEach(dept => {
-      const cleanDept = normText(dept);
-      if (!cleanDept) return;
-      const names = Array.isArray(staff[dept]) ? staff[dept] : [];
-      normalized.staff[cleanDept] = [...new Set(names.map(normText).filter(Boolean))];
-    });
+  if (req.method === 'POST' && pathname === '/api/admin/seed') {
+    const body = await parseBody(req);
+    const password = normText(body.password);
+    const nextSeed = body && body.seed ? body.seed : null;
+    if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
+    if (!nextSeed || typeof nextSeed !== 'object') return json(res, 400, { error: 'seed payload is required' });
 
-    const drinkSet = new Set();
-    drinks.map(normalizeDrinkItem).filter(Boolean).forEach(d => {
-      const key = `${d.tc}|${d.sc}|${d.en}`;
-      if (!drinkSet.has(key)) {
-        drinkSet.add(key);
-        normalized.drinks.push(d);
-      }
-    });
+    await saveSeed(nextSeed);
+    return json(res, 200, { ok: true });
+  }
 
-    Object.keys(menus).forEach(rest => {
-      const cleanRest = normText(rest);
-      if (!cleanRest) return;
-      normalized.menus[cleanRest] = {};
-      const cats = menus[rest] && typeof menus[rest] === 'object' ? menus[rest] : {};
-      Object.keys(cats).forEach(cat => {
-        const cleanCat = normText(cat);
-        if (!cleanCat) return;
-        const items = Array.isArray(cats[cat]) ? cats[cat] : [];
-        normalized.menus[cleanRest][cleanCat] = items.map(normalizeMenuItem).filter(Boolean);
-      });
-    });
-
-    writeJson(SEED_FILE, normalized);
-    saveState({ date: todayISO(), restaurant: null, orders: [] });
+  if (req.method === 'POST' && pathname === '/api/admin/reset-day') {
+    const body = await parseBody(req);
+    const password = normText(body.password);
+    if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
+    await saveState(defaultState());
     return json(res, 200, { ok: true });
   }
 
   return json(res, 404, { error: 'API route not found', method: req.method, path: pathname });
 }
 
-ensureDataFiles();
+function createHandler() {
+  return async function handler(req, res) {
+    try {
+      const host = req.headers.host || `${HOST}:${PORT}`;
+      const urlObj = new URL(req.url, `http://${host}`);
+      if (urlObj.pathname.startsWith('/api/')) return await handleApi(req, res, urlObj);
+      return serveStatic(urlObj.pathname, res);
+    } catch (err) {
+      const message = err && err.message ? err.message : 'Server error';
+      return json(res, 500, { error: message });
+    }
+  };
+}
 
-const server = http.createServer(async (req, res) => {
-  try {
-    const urlObj = new URL(req.url, `http://${req.headers.host}`);
-    if (urlObj.pathname.startsWith('/api/')) return await handleApi(req, res, urlObj);
-    return serveStatic(urlObj.pathname, res);
-  } catch (err) {
-    const message = err && err.message ? err.message : 'Server error';
-    return json(res, 500, { error: message });
-  }
-});
+if (!USE_SUPABASE) ensureDataFiles();
 
-server.listen(PORT, HOST, () => {
-  console.log(`Overtime meal app running at http://${HOST}:${PORT}`);
-});
+if (require.main === module) {
+  const server = http.createServer(createHandler());
+  server.listen(PORT, HOST, () => {
+    console.log(`Overtime meal app running at http://${HOST}:${PORT}`);
+    if (USE_SUPABASE) console.log('Storage mode: Supabase');
+    if (!USE_SUPABASE) console.log('Storage mode: Local files');
+  });
+}
 
-
-
-
+module.exports = { createHandler };
 

@@ -5,5 +5,8 @@
   "description": "Overtime meal ordering web app (Node + vanilla JS)",
   "scripts": {
     "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4"
   }
 }
