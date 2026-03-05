@@ -1,0 +1,9 @@
+﻿{
+  "name": "overtime-meal-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Overtime meal ordering web app (Node + vanilla JS)",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

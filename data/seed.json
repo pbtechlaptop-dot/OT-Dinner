@@ -1,0 +1,3732 @@
+{
+  "restaurants": [
+    "Bento Bowl 日本餐",
+    "爾與我炸",
+    "太和",
+    "大鼓米綫",
+    "四海一家",
+    "德記",
+    "路客食堂",
+    "源福記",
+    "御唐府",
+    "廣興",
+    "Mcdonalds",
+    "KFC",
+    "LoveAsia"
+  ],
+  "staff": {
+    "HQ": [
+      "Alan Duan",
+      "Ben Jung",
+      "Ben Lai",
+      "Cheryl",
+      "Cleveland Lee",
+      "Edward",
+      "Frank",
+      "Jachael",
+      "Jacky",
+      "Kin",
+      "Leon",
+      "Percy",
+      "Simon",
+      "Simon Yip",
+      "Tony"
+    ],
+    "Lady Ruby": [
+      "Albert",
+      "Allen",
+      "Bowen",
+      "Cory",
+      "Ethan",
+      "Gilbert",
+      "Jake",
+      "Jerry",
+      "John",
+      "Klaus",
+      "Lin",
+      "Mark",
+      "Martin",
+      "Monica",
+      "Oscar",
+      "Red",
+      "Simon",
+      "Steve",
+      "Tayler",
+      "Will Liu",
+      "Will Mo",
+      "XiaoWu",
+      "Xiaoyu",
+      "Yang",
+      "Yang Fan",
+      "Ying"
+    ],
+    "Lambie": [
+      "Alan Xu",
+      "Jane"
+    ],
+    "Services": [
+      "Athena Wang",
+      "Ben Gao",
+      "Bobby Xu",
+      "Di Chen",
+      "Harry Luo",
+      "Hongyu Du",
+      "james Lao",
+      "jerry Zhao",
+      "Ken Cen",
+      "Leon Wang",
+      "Leslie Lau",
+      "Michael Meng",
+      "Michelle Jin",
+      "Mintao Pan",
+      "Paul Luo",
+      "Pauline Yang",
+      "Peng Wang",
+      "Peter Paraha",
+      "Ruiqi Xie",
+      "Ryan Lin",
+      "Sam Zhang",
+      "Sean Kim",
+      "Snedan Lopes",
+      "Vinay Patel",
+      "Vui Ken Li",
+      "Xian Kong",
+      "Sian Kong",
+      "Zhicheng Lei",
+      "Zichao Wang",
+      "Zita Ye"
+    ]
+  },
+  "drinks": [
+    {
+      "tc": "阿薩姆 芋香奶茶",
+      "sc": "阿萨姆 芋香奶茶",
+      "en": "Assam Taro Milk Tea"
+    },
+    {
+      "tc": "阿薩姆 奶茶",
+      "sc": "阿萨姆 奶茶",
+      "en": "Assam Milk Tea"
+    },
+    {
+      "tc": "阿薩姆 綠茶",
+      "sc": "阿萨姆 绿茶",
+      "en": "Assam Green Tea"
+    },
+    {
+      "tc": "阿薩姆 鐵觀音",
+      "sc": "阿萨姆 铁观音",
+      "en": "Assam Oolong Milk Tea"
+    },
+    {
+      "tc": "阿薩姆 草莓",
+      "sc": "阿萨姆 草莓",
+      "en": "Assam strawberry Milk Tea"
+    },
+    {
+      "tc": "可樂 零糖",
+      "sc": "可乐 零糖",
+      "en": "Coke zero"
+    },
+    {
+      "tc": "可樂",
+      "sc": "可乐",
+      "en": "Coke"
+    },
+    {
+      "tc": "芬達",
+      "sc": "芬达",
+      "en": "Fanta"
+    },
+    {
+      "tc": "雪碧",
+      "sc": "雪碧",
+      "en": "Sprite"
+    },
+    {
+      "tc": "雪碧 零糖",
+      "sc": "雪碧 零糖",
+      "en": "Sprite zero"
+    },
+    {
+      "tc": "王老吉",
+      "sc": "王老吉",
+      "en": "Wong Lo Kat"
+    },
+    {
+      "tc": "維他檸檬茶",
+      "sc": "维他柠檬茶",
+      "en": "Vita Lemon Tea"
+    },
+    {
+      "tc": "水",
+      "sc": "水",
+      "en": "Water"
+    },
+    {
+      "tc": "汽泡水",
+      "sc": "汽泡水",
+      "en": "Sparkling water"
+    },
+    {
+      "tc": "伯朗咖啡 -Vanilla Coffee",
+      "sc": "伯朗咖啡 -Vanilla Coffee",
+      "en": "MR. BROWN (Vanilla Coffee)"
+    },
+    {
+      "tc": "伯朗咖啡 -Black Coffee",
+      "sc": "伯朗咖啡 -Black Coffee",
+      "en": "MR. BROWN (Black Coffee)"
+    },
+    {
+      "tc": "天然椰奶",
+      "sc": "天然椰奶",
+      "en": "Coconut milk Drink"
+    },
+    {
+      "tc": "青提烏龍茶",
+      "sc": "青提乌龙茶",
+      "en": "Green Grape Oolong Tea"
+    },
+    {
+      "tc": "柚子綠茶",
+      "sc": "柚子绿茶",
+      "en": "Pomelo Green Tea"
+    },
+    {
+      "tc": "蜜桃烏龍茶",
+      "sc": "蜜桃乌龙茶",
+      "en": "Peach Oolong Tea"
+    }
+  ],
+  "menus": {
+    "Bento Bowl 日本餐": {
+      "飯類 / Rice": [
+        {
+          "nameTc": "日式炸雞飯（大）",
+          "nameSc": "日式炸雞飯（大）",
+          "nameEn": "Katsu Chicken Bowl (Large)",
+          "price": 20.9
+        },
+        {
+          "nameTc": "超脆雞肉飯（大）",
+          "nameSc": "超脆雞肉飯（大）",
+          "nameEn": "Super Crunchy Chicken Bowl (Large)",
+          "price": 20.9
+        },
+        {
+          "nameTc": "照燒雞肉飯（大）",
+          "nameSc": "照燒雞肉飯（大）",
+          "nameEn": "Teriyaki Chicken Bowl (Large)",
+          "price": 20.9
+        },
+        {
+          "nameTc": "日式炸雞飯（大）",
+          "nameSc": "日式炸雞飯（大）",
+          "nameEn": "karaage Fried Chicken Bowl (Large)",
+          "price": 20.9
+        },
+        {
+          "nameTc": "天婦羅蔬菜飯",
+          "nameSc": "天婦羅蔬菜飯",
+          "nameEn": "Tempura Vegetable Bowl",
+          "price": 13.5
+        },
+        {
+          "nameTc": "天婦羅蔬菜豆腐飯",
+          "nameSc": "天婦羅蔬菜豆腐飯",
+          "nameEn": "Tempura Vege and Tofu Bowl",
+          "price": 16.9
+        },
+        {
+          "nameTc": "照燒豆腐飯",
+          "nameSc": "照燒豆腐飯",
+          "nameEn": "Teriyaki Tofu Bowl",
+          "price": 13.5
+        },
+        {
+          "nameTc": "照燒牛肉飯",
+          "nameSc": "照燒牛肉飯",
+          "nameEn": "Teriyaki Beef Bowl",
+          "price": 18
+        },
+        {
+          "nameTc": "照燒鮭魚飯",
+          "nameSc": "照燒鮭魚飯",
+          "nameEn": "Teriyaki Salmon Bowl",
+          "price": 20.9
+        },
+        {
+          "nameTc": "日式炸雞咖哩飯（大）",
+          "nameSc": "日式炸雞咖哩飯（大）",
+          "nameEn": "Katsu Chicken Curry Rice (Large)",
+          "price": 20.9
+        },
+        {
+          "nameTc": "咖哩豆腐（大）",
+          "nameSc": "咖哩豆腐（大）",
+          "nameEn": "Curry Tofu (Large)",
+          "price": 16.9
+        }
+      ],
+      "拉麵, 烏冬 / Ramen, Udon": [
+        {
+          "nameTc": "照燒雞肉烏龍麵",
+          "nameSc": "照燒雞肉烏龍麵",
+          "nameEn": "Teriyaki Chicken Udon",
+          "price": 15.5
+        },
+        {
+          "nameTc": "日式炸雞拉麵",
+          "nameSc": "日式炸雞拉麵",
+          "nameEn": "Karaage Fried Chicken Ramen",
+          "price": 17.9
+        },
+        {
+          "nameTc": "日式炸雞烏龍麵",
+          "nameSc": "日式炸雞烏龍麵",
+          "nameEn": "Katsu Chicken Udon",
+          "price": 15.5
+        },
+        {
+          "nameTc": "蔬菜烏龍麵",
+          "nameSc": "蔬菜烏龍麵",
+          "nameEn": "Vegetable Udon",
+          "price": 13.5
+        },
+        {
+          "nameTc": "照燒雞肉拉麵",
+          "nameSc": "照燒雞肉拉麵",
+          "nameEn": "Teriyaki Chicken Ramen",
+          "price": 17.9
+        }
+      ]
+    },
+    "爾與我炸": {
+      "飯類 (RICE)": [
+        {
+          "nameTc": "青椒炒肉飯",
+          "nameSc": "青椒炒肉飯",
+          "nameEn": "Stir-fried Pork with Green Peppers over Rice",
+          "price": 16.99
+        },
+        {
+          "nameTc": "麻婆豆腐飯",
+          "nameSc": "麻婆豆腐飯",
+          "nameEn": "Mapo Tofu with Rice",
+          "price": 16.99
+        },
+        {
+          "nameTc": "鮮茄炒蛋飯",
+          "nameSc": "鮮茄炒蛋飯",
+          "nameEn": "Tomato and Egg Stir-fry with Rice",
+          "price": 16.99
+        },
+        {
+          "nameTc": "蛋炒飯 (雞/牛肉/豬肉)",
+          "nameSc": "蛋炒飯 (雞/牛肉/豬肉)",
+          "nameEn": "Egg Fried Rice (Choice of Chicken, Beef, Pork)",
+          "price": 16.99
+        },
+        {
+          "nameTc": "咖哩(豬排 / 雞排) 飯",
+          "nameSc": "咖哩(豬排 / 雞排) 飯",
+          "nameEn": "Crispy Curry (Pork or Chicken Cutlet) on Rice",
+          "price": 19.99
+        },
+        {
+          "nameTc": "把子肉飯",
+          "nameSc": "把子肉飯",
+          "nameEn": "Braised Pork Belly with Rice",
+          "price": 19.99
+        },
+        {
+          "nameTc": "回鍋肉飯",
+          "nameSc": "回鍋肉飯",
+          "nameEn": "Sichuan Style Double-Cooked Pork Belly on Rice",
+          "price": 19.99
+        },
+        {
+          "nameTc": "黑椒牛柳飯",
+          "nameSc": "黑椒牛柳飯",
+          "nameEn": "Black Pepper Beef with Onions on Rice",
+          "price": 19.99
+        },
+        {
+          "nameTc": "柱侯牛腩飯",
+          "nameSc": "柱侯牛腩飯",
+          "nameEn": "Chu Hou Braised Beef Brisket with Rice",
+          "price": 19.99
+        },
+        {
+          "nameTc": "黑椒(豬排 / 雞排) 飯",
+          "nameSc": "黑椒(豬排 / 雞排) 飯",
+          "nameEn": "Crispy Black Pepper (Pork or Chicken Cutlet) on Rice",
+          "price": 19.99
+        },
+        {
+          "nameTc": "魚香肉絲飯",
+          "nameSc": "魚香肉絲飯",
+          "nameEn": "Sweet And Sour Shredded Pork With Rice",
+          "price": 19.99
+        },
+        {
+          "nameTc": "紅燒排骨飯",
+          "nameSc": "紅燒排骨飯",
+          "nameEn": "Braised Pork Ribs on Rice",
+          "price": 19.99
+        },
+        {
+          "nameTc": "咖哩牛腩飯",
+          "nameSc": "咖哩牛腩飯",
+          "nameEn": "Curry Beef Brisket on Rice",
+          "price": 19.99
+        },
+        {
+          "nameTc": "官保雞丁飯",
+          "nameSc": "官保雞丁飯",
+          "nameEn": "Kung Pao Chicken on Rice",
+          "price": 19.99
+        }
+      ]
+    },
+    "太和": {
+      "炒麵, 米粉,河粉 / Wok Fried Noodles , Fried Rice Vermicelli, Rice Noodles": [
+        {
+          "nameTc": "乾燒伊麵",
+          "nameSc": "乾燒伊麵",
+          "nameEn": "Braised noodle with Mushrooms in Oyster squce",
+          "price": 22
+        },
+        {
+          "nameTc": "雪菜鴨絲炆米",
+          "nameSc": "雪菜鴨絲炆米",
+          "nameEn": "Rice Vermicelli with Gravy, Duck Strips and Pickled",
+          "price": 22
+        },
+        {
+          "nameTc": "炒叉燒河",
+          "nameSc": "炒叉燒河",
+          "nameEn": "Fried Flat Rice Noodles with BBQ Pork",
+          "price": 22
+        },
+        {
+          "nameTc": "星洲炒米",
+          "nameSc": "星洲炒米",
+          "nameEn": "Singapore Style Fried Rice Vermicelli",
+          "price": 22
+        },
+        {
+          "nameTc": "家鄉炒米",
+          "nameSc": "家鄉炒米",
+          "nameEn": "Cantonses Style Fried Rice Vermicelli",
+          "price": 22
+        },
+        {
+          "nameTc": "雞/豬/牛肉 乾炒米",
+          "nameSc": "雞/豬/牛肉 乾炒米",
+          "nameEn": "Chicken / Pork / Beef Fried Rice Vermicelli",
+          "price": 22
+        },
+        {
+          "nameTc": "雞/豬/牛肉 濕炒米",
+          "nameSc": "雞/豬/牛肉 濕炒米",
+          "nameEn": "Chicken / Pork / Beef Fried Rice Vermicelli with Gravy",
+          "price": 22
+        },
+        {
+          "nameTc": "乾炒牛河",
+          "nameSc": "乾炒牛河",
+          "nameEn": "Fried Flat Rice Noodles with Beef",
+          "price": 22
+        },
+        {
+          "nameTc": "豉椒牛河",
+          "nameSc": "豉椒牛河",
+          "nameEn": "Fried Flat Rice Noodles with Beef in Black Bean Sauce",
+          "price": 22
+        },
+        {
+          "nameTc": "滑蛋牛河",
+          "nameSc": "滑蛋牛河",
+          "nameEn": "Fried Flat Rice Noodles with Beef & Egg in Gravy",
+          "price": 22
+        },
+        {
+          "nameTc": "時菜豬肉炒河",
+          "nameSc": "時菜豬肉炒河",
+          "nameEn": "Fried Flat Rice Noodles with Pork & Veg in Gravy",
+          "price": 22
+        },
+        {
+          "nameTc": "雞/豬/牛肉 炒麵",
+          "nameSc": "雞/豬/牛肉 炒麵",
+          "nameEn": "Fried Noodles with Chicken / Pork / Beef",
+          "price": 22
+        },
+        {
+          "nameTc": "羅漢齋炒麵",
+          "nameSc": "羅漢齋炒麵",
+          "nameEn": "Vegetarian Fried Noodles in Gravy",
+          "price": 22
+        },
+        {
+          "nameTc": "豉油王炒麵",
+          "nameSc": "豉油王炒麵",
+          "nameEn": "Chinese Style Fried Noodles",
+          "price": 22
+        },
+        {
+          "nameTc": "上海粗炒",
+          "nameSc": "上海粗炒",
+          "nameEn": "Shanghai style Fried Noodles",
+          "price": 22
+        },
+        {
+          "nameTc": "馬來炒麵(辣)",
+          "nameSc": "馬來炒麵(辣)",
+          "nameEn": "Mee Goreng",
+          "price": 22
+        }
+      ],
+      "炒飯類 /Fried Rice": [
+        {
+          "nameTc": "陽州炒飯",
+          "nameSc": "陽州炒飯",
+          "nameEn": "Tangzho Style Fried Rice",
+          "price": 22
+        },
+        {
+          "nameTc": "欖角雞粒炒飯",
+          "nameSc": "欖角雞粒炒飯",
+          "nameEn": "Fried Rice wth Diced Chicken & Olives",
+          "price": 22
+        },
+        {
+          "nameTc": "咸魚雞粒炒飯",
+          "nameSc": "咸魚雞粒炒飯",
+          "nameEn": "Fried Rice with Diced Chicken & Salted Fish",
+          "price": 22
+        },
+        {
+          "nameTc": "蝦醬火腩炒飯",
+          "nameSc": "蝦醬火腩炒飯",
+          "nameEn": "Fried Rice with Roast Pork & Shrimp Paste",
+          "price": 22
+        }
+      ],
+      "燒味飯,麵 /BBQ Meats Rice or Noodles": [
+        {
+          "nameTc": "鴨比飯",
+          "nameSc": "鴨比飯",
+          "nameEn": "Roast Duck Leg Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "鴨飯",
+          "nameSc": "鴨飯",
+          "nameEn": "Roast Duck Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "豉油雞飯",
+          "nameSc": "豉油雞飯",
+          "nameEn": "Soy Chicken Leg Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "叉燒飯",
+          "nameSc": "叉燒飯",
+          "nameEn": "BBQ Pork Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "燒肉飯",
+          "nameSc": "燒肉飯",
+          "nameEn": "Roast Pork Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "各式雙拼飯",
+          "nameSc": "各式雙拼飯",
+          "nameEn": "Rice with 2 Kinds of Meats",
+          "price": 21
+        },
+        {
+          "nameTc": "鴨比麵",
+          "nameSc": "鴨比麵",
+          "nameEn": "Roast Duck Leg Noodle",
+          "price": 19
+        },
+        {
+          "nameTc": "鴨麵",
+          "nameSc": "鴨麵",
+          "nameEn": "Roast Duck Noodle",
+          "price": 18
+        },
+        {
+          "nameTc": "豉油雞麵",
+          "nameSc": "豉油雞麵",
+          "nameEn": "Soy Chicken Leg Noodle",
+          "price": 18
+        },
+        {
+          "nameTc": "叉燒麵",
+          "nameSc": "叉燒麵",
+          "nameEn": "BBQ Pork Noodle",
+          "price": 18
+        },
+        {
+          "nameTc": "燒肉麵",
+          "nameSc": "燒肉麵",
+          "nameEn": "Roast Pork Noodle",
+          "price": 18
+        },
+        {
+          "nameTc": "各式雙拼麵",
+          "nameSc": "各式雙拼麵",
+          "nameEn": "Noodle with 2 Kinds of Meats",
+          "price": 21
+        }
+      ]
+    },
+    "大鼓米綫": {
+      "米綫 / Rice Noodles": [
+        {
+          "nameTc": "蕃茄肥牛米綫",
+          "nameSc": "蕃茄肥牛米綫",
+          "nameEn": "Tomato Soup Rice Noodles with Sliced Beef",
+          "price": 19.9
+        },
+        {
+          "nameTc": "一品牛肉米綫",
+          "nameSc": "一品牛肉米綫",
+          "nameEn": "Premium Beef Rice Noodles",
+          "price": 21.9
+        },
+        {
+          "nameTc": "招聘雞米綫",
+          "nameSc": "招聘雞米綫",
+          "nameEn": "Bone-in Chicken Rice Noodles",
+          "price": 21.9
+        },
+        {
+          "nameTc": "至尊海鮮米綫",
+          "nameSc": "至尊海鮮米綫",
+          "nameEn": "Super Seafood Rice Noodles",
+          "price": 19.9
+        },
+        {
+          "nameTc": "酸湯肥牛米綫",
+          "nameSc": "酸湯肥牛米綫",
+          "nameEn": "Spicy and SourSoup Rice Noodles with Sliced Beef",
+          "price": 21.9
+        },
+        {
+          "nameTc": "酸菜魚米綫",
+          "nameSc": "酸菜魚米綫",
+          "nameEn": "Pickled Cabbage Rice Noodles with Sliced Fish Fillet (Spicy)",
+          "price": 21.9
+        },
+        {
+          "nameTc": "雲南野生菌湯米綫",
+          "nameSc": "雲南野生菌湯米綫",
+          "nameEn": "Mixed Mushroom Rice Noodles",
+          "price": 21.9
+        },
+        {
+          "nameTc": "豬肚雞米綫",
+          "nameSc": "豬肚雞米綫",
+          "nameEn": "White Pepper Chicken and Pork Tripe Rice Noodles",
+          "price": 21.9
+        },
+        {
+          "nameTc": "元氣大骨米綫",
+          "nameSc": "元氣大骨米綫",
+          "nameEn": "Signature Rice Noodles with Braised Boen-in Pork/ Beef Rib",
+          "price": 21.9
+        },
+        {
+          "nameTc": "過橋罐罐米綫",
+          "nameSc": "過橋罐罐米綫",
+          "nameEn": "Original / Tomato Soup Cross-Bridge Rice Noodles",
+          "price": 22.9
+        },
+        {
+          "nameTc": "慢炖醬骨米綫",
+          "nameSc": "慢炖醬骨米綫",
+          "nameEn": "Marinated Pork Rib Rice Noodles",
+          "price": 22.9
+        },
+        {
+          "nameTc": "泡菜肥牛米綫",
+          "nameSc": "泡菜肥牛米綫",
+          "nameEn": "Kimchi Soup Rice Noodles with Sliced Beef",
+          "price": 22.9
+        },
+        {
+          "nameTc": "豆花牛肉米綫",
+          "nameSc": "豆花牛肉米綫",
+          "nameEn": "Spicy Rice Noodles with marinated Beef and Tofu Pudding",
+          "price": 20.9
+        },
+        {
+          "nameTc": "大鼓招牌炒雞肉米綫",
+          "nameSc": "大鼓招牌炒雞肉米綫",
+          "nameEn": "Dagu Signature Fried Rice Noodles (with Chicken)",
+          "price": 21.9
+        },
+        {
+          "nameTc": "大鼓招牌炒牛肉米綫",
+          "nameSc": "大鼓招牌炒牛肉米綫",
+          "nameEn": "Dagu Signature Fried Rice Noodles (with Beef)",
+          "price": 21.9
+        },
+        {
+          "nameTc": "大鼓招牌炒海鮮米綫",
+          "nameSc": "大鼓招牌炒海鮮米綫",
+          "nameEn": "Dagu Signature Fried Rice Noodles (with Mixed Seafood)",
+          "price": 22.9
+        },
+        {
+          "nameTc": "大鼓招牌炒純素米綫",
+          "nameSc": "大鼓招牌炒純素米綫",
+          "nameEn": "Dagu Signature Fried Rice Noodles (with Vegetable only)",
+          "price": 19.9
+        },
+        {
+          "nameTc": "酸辣雞雜拌粉",
+          "nameSc": "酸辣雞雜拌粉",
+          "nameEn": "Spicy and Sour Rice Noodles with Chicken Giblets (No soup)",
+          "price": 18.9
+        },
+        {
+          "nameTc": "南昌牛肉拌粉",
+          "nameSc": "南昌牛肉拌粉",
+          "nameEn": "Braised Beef Mixed Rice Noodles (No soup)",
+          "price": 18.9
+        },
+        {
+          "nameTc": "麻麻辣辣米綫",
+          "nameSc": "麻麻辣辣米綫",
+          "nameEn": "Spicy Rice Noodles with Sliced Beef and Chicken Fillet",
+          "price": 21.9
+        },
+        {
+          "nameTc": "辣肥腸米綫",
+          "nameSc": "辣肥腸米綫",
+          "nameEn": "Spicy Rice Noodles with Pork Intestines and Tofu",
+          "price": 22.9
+        },
+        {
+          "nameTc": "豬腳米綫",
+          "nameSc": "豬腳米綫",
+          "nameEn": "Braised Pork Trotters Rice Noodles",
+          "price": 19.9
+        },
+        {
+          "nameTc": "骨湯酸辣粉",
+          "nameSc": "骨湯酸辣粉",
+          "nameEn": "Spicy and Sour Kumara Noodle with pork mince topping",
+          "price": 17.9
+        }
+      ],
+      "炒飯, 餃子/ Fried Rice , Fried Dumplings": [
+        {
+          "nameTc": "手工煎餃(1.豬肉韭菜蝦仁 2.豬肉白菜 3.雞肉蔬菜)",
+          "nameSc": "手工煎餃(1.豬肉韭菜蝦仁 2.豬肉白菜 3.雞肉蔬菜)",
+          "nameEn": "Pan Fried Dumplings (12 pieces) 1.Pork,Chives & Prawn 2.Pork & Vege 3. Chicken &Veged",
+          "price": 13.9
+        },
+        {
+          "nameTc": "至尊海鮮炒飯",
+          "nameSc": "至尊海鮮炒飯",
+          "nameEn": "Fresh and fragrant, full of seafood flavor",
+          "price": 22.9
+        },
+        {
+          "nameTc": "醬骨功夫飯套餐",
+          "nameSc": "醬骨功夫飯套餐",
+          "nameEn": "Rich bone aroma soft and tasty",
+          "price": 22.9
+        },
+        {
+          "nameTc": "麻辣肥腸炒飯",
+          "nameSc": "麻辣肥腸炒飯",
+          "nameEn": "Roasted Pork Intestine Fried Rce",
+          "price": 22.9
+        },
+        {
+          "nameTc": "麻麻辣辣牛肉炒飯",
+          "nameSc": "麻麻辣辣牛肉炒飯",
+          "nameEn": "Spicy Beef Fried Rice",
+          "price": 20.9
+        },
+        {
+          "nameTc": "素炒飯/雞肉炒飯",
+          "nameSc": "素炒飯/雞肉炒飯",
+          "nameEn": "Vegetable / Chicken Fried Rice",
+          "price": 19.9
+        },
+        {
+          "nameTc": "石鍋肥牛飯",
+          "nameSc": "石鍋肥牛飯",
+          "nameEn": "Beef Rice Bowl",
+          "price": 20.9
+        }
+      ],
+      "小食 /  Canapes": [
+        {
+          "nameTc": "大鼓雞排",
+          "nameSc": "大鼓雞排",
+          "nameEn": "DAGU Signature Chicken Steak (Original/Spicy/Plum)",
+          "price": 15.9
+        },
+        {
+          "nameTc": "夫妻肺片",
+          "nameSc": "夫妻肺片",
+          "nameEn": "Beef and Ox Tripe in Chilli Sauce (Spicy)",
+          "price": 12.9
+        },
+        {
+          "nameTc": "泰式青木瓜沙拉",
+          "nameSc": "泰式青木瓜沙拉",
+          "nameEn": "Green Papaya Salad (Thai Style)",
+          "price": 12.9
+        },
+        {
+          "nameTc": "泰式海鮮沙拉",
+          "nameSc": "泰式海鮮沙拉",
+          "nameEn": "Seafood Salad (Thai Style)",
+          "price": 15.9
+        },
+        {
+          "nameTc": "軟炸里脊",
+          "nameSc": "軟炸里脊",
+          "nameEn": "Deep Fried Pork Fillet",
+          "price": 12.9
+        },
+        {
+          "nameTc": "我叫西蘭花",
+          "nameSc": "我叫西蘭花",
+          "nameEn": "Broccoli Salad with Sesame Oil",
+          "price": 10.9
+        },
+        {
+          "nameTc": "鹵蛋",
+          "nameSc": "鹵蛋",
+          "nameEn": "Marinated Egg",
+          "price": 2.5
+        },
+        {
+          "nameTc": "傷心凉粉",
+          "nameSc": "傷心凉粉",
+          "nameEn": "Jelly Noodles in SiChuan Chilli Sauce",
+          "price": 9.9
+        },
+        {
+          "nameTc": "土豆絲",
+          "nameSc": "土豆絲",
+          "nameEn": "Shredded Potato Salad",
+          "price": 9.9
+        },
+        {
+          "nameTc": "蒜泥黃瓜",
+          "nameSc": "蒜泥黃瓜",
+          "nameEn": "Grarlic Cucumber Salad",
+          "price": 10.9
+        },
+        {
+          "nameTc": "包漿豆腐",
+          "nameSc": "包漿豆腐",
+          "nameEn": "Deep Fried Tofu",
+          "price": 10.9
+        },
+        {
+          "nameTc": "牙簽牛肉",
+          "nameSc": "牙簽牛肉",
+          "nameEn": "Fried Marinated Beef",
+          "price": 10.9
+        },
+        {
+          "nameTc": "香芋地瓜球 (7個)",
+          "nameSc": "香芋地瓜球 (7個)",
+          "nameEn": "Taro and Sweet Potato Balls (7 pieces)",
+          "price": 9.9
+        },
+        {
+          "nameTc": "炸薯條",
+          "nameSc": "炸薯條",
+          "nameEn": "French Fries",
+          "price": 6.9
+        },
+        {
+          "nameTc": "紅糖糍粑(8個)",
+          "nameSc": "紅糖糍粑(8個)",
+          "nameEn": "Giutious Rice Cake with Brown Sugar (8 pieces)",
+          "price": 9.9
+        },
+        {
+          "nameTc": "南瓜餅(4個)",
+          "nameSc": "南瓜餅(4個)",
+          "nameEn": "Chinese Pumpkin Pie (4 pieces)",
+          "price": 9.9
+        },
+        {
+          "nameTc": "絕味拌菜",
+          "nameSc": "絕味拌菜",
+          "nameEn": "Mixed Vegetables Salad",
+          "price": 9.9
+        },
+        {
+          "nameTc": "老式辣豆皮",
+          "nameSc": "老式辣豆皮",
+          "nameEn": "Tofu Skin Saland wiht Chilli Sauce",
+          "price": 9.9
+        },
+        {
+          "nameTc": "凉拌三絲",
+          "nameSc": "凉拌三絲",
+          "nameEn": "Beancurd Strip Salad",
+          "price": 9.9
+        },
+        {
+          "nameTc": "土匪雞翅",
+          "nameSc": "土匪雞翅",
+          "nameEn": "Fried Marinated Chicken Wing",
+          "price": 5.9
+        },
+        {
+          "nameTc": "口水雞",
+          "nameSc": "口水雞",
+          "nameEn": "Steamed Chicken with Chilli Sauce",
+          "price": 12.9
+        }
+      ]
+    },
+    "四海一家": {
+      "粥類 (CONGEE)": [
+        {
+          "nameTc": "火鴨粥",
+          "nameSc": "火鴨粥",
+          "nameEn": "Roast Duck Congee",
+          "price": 17.5
+        },
+        {
+          "nameTc": "雞粥",
+          "nameSc": "雞粥",
+          "nameEn": "Chicken Congee",
+          "price": 17.5
+        },
+        {
+          "nameTc": "魚片粥",
+          "nameSc": "魚片粥",
+          "nameEn": "Fish Congee",
+          "price": 17.5
+        },
+        {
+          "nameTc": "皮蛋瘦肉粥",
+          "nameSc": "皮蛋瘦肉粥",
+          "nameEn": "Preserved Egg & Pork Congee",
+          "price": 17.5
+        },
+        {
+          "nameTc": "柴魚花生粥",
+          "nameSc": "柴魚花生粥",
+          "nameEn": "Shredded Pork & Veg. Congee",
+          "price": 17.5
+        },
+        {
+          "nameTc": "艇仔粥",
+          "nameSc": "艇仔粥",
+          "nameEn": "Cantonese Style Congee",
+          "price": 17.5
+        },
+        {
+          "nameTc": "大蝦粥",
+          "nameSc": "大蝦粥",
+          "nameEn": "Prawn Congee",
+          "price": 17.5
+        },
+        {
+          "nameTc": "白菜鹹豬排骨粥",
+          "nameSc": "白菜鹹豬排骨粥",
+          "nameEn": "Pork Bone & Vege Congee",
+          "price": 17.5
+        }
+      ],
+      "炒粉麵 (FRIED NOODLES)": [
+        {
+          "nameTc": "豉油皇炒面",
+          "nameSc": "豉油皇炒面",
+          "nameEn": "Fried Noodles with Soya Sauce",
+          "price": 17.5
+        },
+        {
+          "nameTc": "炒貴刁",
+          "nameSc": "炒貴刁",
+          "nameEn": "Fried Kew Duc Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "X.O.醬炒河",
+          "nameSc": "X.O.醬炒河",
+          "nameEn": "Fried Rice Noodles with XO Sauce",
+          "price": 17.5
+        },
+        {
+          "nameTc": "干炒牛河",
+          "nameSc": "干炒牛河",
+          "nameEn": "Beef Stir-Fried Rice Noodles with Soya Sauce",
+          "price": 17.5
+        },
+        {
+          "nameTc": "滑蛋炒河",
+          "nameSc": "滑蛋炒河",
+          "nameEn": "Fried Rice Noodles with Egg Gravy",
+          "price": 17.5
+        },
+        {
+          "nameTc": "金牌炒米粉",
+          "nameSc": "金牌炒米粉",
+          "nameEn": "Combination Fried  Vermicelli",
+          "price": 17.5
+        },
+        {
+          "nameTc": "星洲炒米",
+          "nameSc": "星洲炒米",
+          "nameEn": "Singapore Fried Vermicelli",
+          "price": 17.5
+        },
+        {
+          "nameTc": "家鄉炒米粉",
+          "nameSc": "家鄉炒米粉",
+          "nameEn": "Home-made Fried Vermicelli",
+          "price": 17.5
+        },
+        {
+          "nameTc": "廈門炒米",
+          "nameSc": "廈門炒米",
+          "nameEn": "Xia Men Style Fried Vermicelli",
+          "price": 17.5
+        },
+        {
+          "nameTc": "雪菜火鴨絲炆米",
+          "nameSc": "雪菜火鴨絲炆米",
+          "nameEn": "Roast Duck & Preserved Vege Fried Vermicelli",
+          "price": 17.5
+        },
+        {
+          "nameTc": "八珍炒麵",
+          "nameSc": "八珍炒麵",
+          "nameEn": "Dried Fried E-Fu Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "上海炒麵",
+          "nameSc": "上海炒麵",
+          "nameEn": "Shanghai Style Fried Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "海鮮炒麵",
+          "nameSc": "海鮮炒麵",
+          "nameEn": "Seafood Fried Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "X.O.醬炒粗麵",
+          "nameSc": "X.O.醬炒粗麵",
+          "nameEn": "Fried Noodles with X.O. Sauce",
+          "price": 17.5
+        },
+        {
+          "nameTc": "羅漢齋炒麵",
+          "nameSc": "羅漢齋炒麵",
+          "nameEn": "Vegetarian Fried Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "排骨蒸腸粉",
+          "nameSc": "排骨蒸腸粉",
+          "nameEn": "Beef Brisket Ribs Steamed Rice Roll",
+          "price": 17.5
+        },
+        {
+          "nameTc": "牛腩蒸腸粉",
+          "nameSc": "牛腩蒸腸粉",
+          "nameEn": "Beef Brisket Steamed Rice Roll",
+          "price": 17.5
+        },
+        {
+          "nameTc": "肉片炒麵",
+          "nameSc": "肉片炒麵",
+          "nameEn": "Sliced Pork Fried Noodles",
+          "price": 17.5
+        }
+      ],
+      "湯麵類 (NOODLE SOUP)": [
+        {
+          "nameTc": "切雞湯粉/麵",
+          "nameSc": "切雞湯粉/麵",
+          "nameEn": "Steamed Chicken Noodle Soup",
+          "price": 17.5
+        },
+        {
+          "nameTc": "燒鴨湯粉/麵",
+          "nameSc": "燒鴨湯粉/麵",
+          "nameEn": "Roast Duck Noodle Soup",
+          "price": 17.5
+        },
+        {
+          "nameTc": "燒肉湯粉/麵",
+          "nameSc": "燒肉湯粉/麵",
+          "nameEn": "Roast Pork Noodle Soup",
+          "price": 17.5
+        },
+        {
+          "nameTc": "叉燒湯粉/麵",
+          "nameSc": "叉燒湯粉/麵",
+          "nameEn": "BBQ Pork Noodle Soup",
+          "price": 17.5
+        },
+        {
+          "nameTc": "鮮蝦雲吞湯",
+          "nameSc": "鮮蝦雲吞湯",
+          "nameEn": "Fresh Prawn Wonton Soup",
+          "price": 17.5
+        },
+        {
+          "nameTc": "鮮蝦雲吞湯麵",
+          "nameSc": "鮮蝦雲吞湯麵",
+          "nameEn": "Fresh Prawn Wonton Noodle Soup",
+          "price": 17.5
+        },
+        {
+          "nameTc": "秘製牛腩湯粉/麵",
+          "nameSc": "秘製牛腩湯粉/麵",
+          "nameEn": "Beef Brisket Noodle Soup",
+          "price": 17.5
+        },
+        {
+          "nameTc": "雪菜肉片湯麵",
+          "nameSc": "雪菜肉片湯麵",
+          "nameEn": "Sliced Meat & Preserved Vegan Noodle Soup",
+          "price": 17.5
+        }
+      ],
+      "撈麵類 (DRY NOODLES)": [
+        {
+          "nameTc": "燒鴨撈麵",
+          "nameSc": "燒鴨撈麵",
+          "nameEn": "Roast Duck with Dry Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "燒腩撈麵",
+          "nameSc": "燒腩撈麵",
+          "nameEn": "Roast Pork with Dry Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "叉燒撈麵",
+          "nameSc": "叉燒撈麵",
+          "nameEn": "BBQ Pork with Dry Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "雙拼撈麵",
+          "nameSc": "雙拼撈麵",
+          "nameEn": "Any 2 BBQ Meat with Dry Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "三拼撈麵",
+          "nameSc": "三拼撈麵",
+          "nameEn": "Any 3 BBQ Meat with Dry Noodles",
+          "price": 17.5
+        },
+        {
+          "nameTc": "牛腩撈麵",
+          "nameSc": "牛腩撈麵",
+          "nameEn": "Beef Brisket with Dry Noodles",
+          "price": 17.5
+        }
+      ],
+      "飯類 (RICE)": [
+        {
+          "nameTc": "切雞飯",
+          "nameSc": "切雞飯",
+          "nameEn": "Poached Chicken on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "燒鴨飯",
+          "nameSc": "燒鴨飯",
+          "nameEn": "Roast Duck on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "燒肉飯",
+          "nameSc": "燒肉飯",
+          "nameEn": "Roast Pork on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "叉燒飯",
+          "nameSc": "叉燒飯",
+          "nameEn": "BBQ Pork on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "雙拼飯",
+          "nameSc": "雙拼飯",
+          "nameEn": "Combination of 2 BBQ Meats on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "三拼飯",
+          "nameSc": "三拼飯",
+          "nameEn": "Combination of 3 BBQ Meats on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "黑椒牛肉飯",
+          "nameSc": "黑椒牛肉飯",
+          "nameEn": "Beef with Black Pepper Sauce on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "火腩豆腐飯",
+          "nameSc": "火腩豆腐飯",
+          "nameEn": "Roast Pork & Tofu on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "牛腩燴飯",
+          "nameSc": "牛腩燴飯",
+          "nameEn": "Beef Brisket on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "鮮茄牛肉飯",
+          "nameSc": "鮮茄牛肉飯",
+          "nameEn": "Beef & Tomato on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "蝦醬火腩炒飯",
+          "nameSc": "蝦醬火腩炒飯",
+          "nameEn": "Roast Pork & Shrimp Paste on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "揚州炒飯",
+          "nameSc": "揚州炒飯",
+          "nameEn": "Hokkien Fried Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "褔建炒飯",
+          "nameSc": "褔建炒飯",
+          "nameEn": "Hokkien Fried Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "生炒糯米飯",
+          "nameSc": "生炒糯米飯",
+          "nameEn": "Fried Glutinous Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "鹹魚雞粒炒飯",
+          "nameSc": "鹹魚雞粒炒飯",
+          "nameEn": "Salted Fish & Chicken Fried Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "生炒牛肉飯",
+          "nameSc": "生炒牛肉飯",
+          "nameEn": "Minced Beef Fried Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "菜粒蛋炒飯",
+          "nameSc": "菜粒蛋炒飯",
+          "nameEn": "Egg & Prawn Fried Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "涼瓜牛肉飯",
+          "nameSc": "涼瓜牛肉飯",
+          "nameEn": "Beef & Bitter Melon on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "魚香茄子飯",
+          "nameSc": "魚香茄子飯",
+          "nameEn": "Eggplant with Salted Fish on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "粟米斑塊飯",
+          "nameSc": "粟米斑塊飯",
+          "nameEn": "Fish Fillet with Sweet Corn on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "斑塊豆腐腩飯",
+          "nameSc": "斑塊豆腐腩飯",
+          "nameEn": "Fish Fillet with Tofu on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "豉椒牛肉飯",
+          "nameSc": "豉椒牛肉飯",
+          "nameEn": "Beef with Black Bean Sauce on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "咖喱雞飯",
+          "nameSc": "咖喱雞飯",
+          "nameEn": "Curry Chicken on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "麻婆豆腐飯",
+          "nameSc": "麻婆豆腐飯",
+          "nameEn": "Mapo Tofu on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "咕嚕肉飯",
+          "nameSc": "咕嚕肉飯",
+          "nameEn": "Sweet and Sour Pork on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "蝦仁炒飯",
+          "nameSc": "蝦仁炒飯",
+          "nameEn": "Shrimp Fried Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "羅漢齋飯",
+          "nameSc": "羅漢齋飯",
+          "nameEn": "Vegetarian on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "滑蛋牛肉飯",
+          "nameSc": "滑蛋牛肉飯",
+          "nameEn": "Beef & Satay Sauce on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "沙爹牛肉飯",
+          "nameSc": "沙爹牛肉飯",
+          "nameEn": "Satay Beef on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "薑蔥牛肉飯",
+          "nameSc": "薑蔥牛肉飯",
+          "nameEn": "Beef with Ginger & Spring Onion on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "四季豆牛肉飯",
+          "nameSc": "四季豆牛肉飯",
+          "nameEn": "Stir-fried Beef with Long Bean on Rice",
+          "price": 17.5
+        },
+        {
+          "nameTc": "茄汁/椒鹽/蜜汁豬扒飯",
+          "nameSc": "茄汁/椒鹽/蜜汁豬扒飯",
+          "nameEn": "Pork Chop with Tomato Sauce/Spiced Salt/Honey Sauce on Rice",
+          "price": 17.5
+        }
+      ]
+    },
+    "德記": {
+      "開胃小菜 (Snack)": [
+        {
+          "nameTc": "叉燒腸粉",
+          "nameSc": "叉燒腸粉",
+          "nameEn": "Barbecued Pork Rice Rolls",
+          "price": 12.5
+        },
+        {
+          "nameTc": "牛肉腸粉",
+          "nameSc": "牛肉腸粉",
+          "nameEn": "Beef Rice Rolls",
+          "price": 10
+        },
+        {
+          "nameTc": "豬肉腸粉",
+          "nameSc": "豬肉腸粉",
+          "nameEn": "Pork Rice Rolls",
+          "price": 8.5
+        },
+        {
+          "nameTc": "鮮蝦腸粉",
+          "nameSc": "鮮蝦腸粉",
+          "nameEn": "Fresh Shrimp Rice Rolls",
+          "price": 10
+        },
+        {
+          "nameTc": "雞蛋腸粉",
+          "nameSc": "雞蛋腸粉",
+          "nameEn": "Egg Rice Rolls",
+          "price": 8
+        },
+        {
+          "nameTc": "齋腸粉",
+          "nameSc": "齋腸粉",
+          "nameEn": "Rice Rolls",
+          "price": 6
+        },
+        {
+          "nameTc": "加蛋（腸粉）",
+          "nameSc": "加蛋（腸粉）",
+          "nameEn": "Add Egg - (Rice Rolls)",
+          "price": 2
+        },
+        {
+          "nameTc": "白粥",
+          "nameSc": "白粥",
+          "nameEn": "Plain Porridge",
+          "price": 6
+        },
+        {
+          "nameTc": "皮蛋瘦肉粥",
+          "nameSc": "皮蛋瘦肉粥",
+          "nameEn": "Century and Pork Porridge",
+          "price": 8.5
+        },
+        {
+          "nameTc": "生滾牛肉粥",
+          "nameSc": "生滾牛肉粥",
+          "nameEn": "Beef Porridge",
+          "price": 9.5
+        },
+        {
+          "nameTc": "韭菜煎餃",
+          "nameSc": "韭菜煎餃",
+          "nameEn": "Fried Chives Dumplings",
+          "price": 12
+        },
+        {
+          "nameTc": "涼拌魚皮",
+          "nameSc": "涼拌魚皮",
+          "nameEn": "Fish Skin Salad",
+          "price": 18
+        },
+        {
+          "nameTc": "廣式牛雜（大份）",
+          "nameSc": "廣式牛雜（大份）",
+          "nameEn": "Beef Offa (Large)",
+          "price": 28
+        },
+        {
+          "nameTc": "廣式牛雜（小份）",
+          "nameSc": "廣式牛雜（小份）",
+          "nameEn": "Beef Offa (Small)",
+          "price": 15
+        }
+      ],
+      "炒粉麵 (NOODLES)": [
+        {
+          "nameTc": "鮮牛肉米線",
+          "nameSc": "鮮牛肉米線",
+          "nameEn": "Fresh Beef Rice Noodles",
+          "price": 18
+        },
+        {
+          "nameTc": "榨菜肉絲面",
+          "nameSc": "榨菜肉絲面",
+          "nameEn": "Mustard and Shredded Pork Noodles",
+          "price": 16
+        },
+        {
+          "nameTc": "榨菜肉絲米線",
+          "nameSc": "榨菜肉絲米線",
+          "nameEn": "Mustard and Shredded Pork Rice Noodles",
+          "price": 16
+        },
+        {
+          "nameTc": "牛腩撈面",
+          "nameSc": "牛腩撈面",
+          "nameEn": "Beef Brisket Dry Noodles",
+          "price": 18
+        },
+        {
+          "nameTc": "牛腩湯面",
+          "nameSc": "牛腩湯面",
+          "nameEn": "Beef Brisket Noodle Soup",
+          "price": 18
+        },
+        {
+          "nameTc": "牛腩湯米線",
+          "nameSc": "牛腩湯米線",
+          "nameEn": "Beef Brisket Rice Noodle Soup",
+          "price": 18
+        },
+        {
+          "nameTc": "叉燒面",
+          "nameSc": "叉燒面",
+          "nameEn": "Barbecued Pork Noodles",
+          "price": 18
+        },
+        {
+          "nameTc": "蔥油撈面",
+          "nameSc": "蔥油撈面",
+          "nameEn": "Noodles with Scallion Oil",
+          "price": 16
+        },
+        {
+          "nameTc": "豉油王炒面",
+          "nameSc": "豉油王炒面",
+          "nameEn": "Soy Sauce Chow Mein (Fried Noodles)",
+          "price": 18
+        },
+        {
+          "nameTc": "三絲炒面",
+          "nameSc": "三絲炒面",
+          "nameEn": "Sansi Fire Chow Mein (Fried Noodles)",
+          "price": 18
+        },
+        {
+          "nameTc": "干炒牛河",
+          "nameSc": "干炒牛河",
+          "nameEn": "Beef Chow Mein (Dry Fried Beef Noodles)",
+          "price": 18
+        },
+        {
+          "nameTc": "鮮蝦云吞",
+          "nameSc": "鮮蝦云吞",
+          "nameEn": "Fresh Shrimp Wontons",
+          "price": 18
+        },
+        {
+          "nameTc": "鮮蝦云吞面",
+          "nameSc": "鮮蝦云吞面",
+          "nameEn": "Fresh Shrimp Wonton Noodles",
+          "price": 18
+        }
+      ],
+      "飯類 (RICE)": [
+        {
+          "nameTc": "麻婆豆腐飯",
+          "nameSc": "麻婆豆腐飯",
+          "nameEn": "Mapo Tofu with Rice",
+          "price": 15
+        },
+        {
+          "nameTc": "番茄滑蛋飯",
+          "nameSc": "番茄滑蛋飯",
+          "nameEn": "Tomato and Egg with Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "咸魚茄子飯",
+          "nameSc": "咸魚茄子飯",
+          "nameEn": "Salted Fish and Eggplant with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "番茄牛肉飯",
+          "nameSc": "番茄牛肉飯",
+          "nameEn": "Tomato Beef with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "咖哩雞飯",
+          "nameSc": "咖哩雞飯",
+          "nameEn": "Curry Chicken with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "咖哩牛肉飯",
+          "nameSc": "咖哩牛肉飯",
+          "nameEn": "Curry Beef with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "回鍋肉飯",
+          "nameSc": "回鍋肉飯",
+          "nameEn": "Twice-Cooked Pork with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "咕嚕肉飯",
+          "nameSc": "咕嚕肉飯",
+          "nameEn": "Sweet and Sour Pork with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "牛腩飯",
+          "nameSc": "牛腩飯",
+          "nameEn": "Beef Brisket with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "牛雜飯",
+          "nameSc": "牛雜飯",
+          "nameEn": "Beef Offal with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "尖椒肉絲飯",
+          "nameSc": "尖椒肉絲飯",
+          "nameEn": "Spicy Chili Pork with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "鹽焗雞飯",
+          "nameSc": "鹽焗雞飯",
+          "nameEn": "Salt Baked Chicken Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "豉椒牛肉飯",
+          "nameSc": "豉椒牛肉飯",
+          "nameEn": "Beef with Pepper and Chinese Pepper with Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "三杯雞飯",
+          "nameSc": "三杯雞飯",
+          "nameEn": "Three Cups Chicken with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "酸菜牛肉飯",
+          "nameSc": "酸菜牛肉飯",
+          "nameEn": "Sauerkraut Beef with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "叉燒飯",
+          "nameSc": "叉燒飯",
+          "nameEn": "Barbecued Pork with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "雙拼飯（叉燒/雞/燒鴨）",
+          "nameSc": "雙拼飯（叉燒/雞/燒鴨）",
+          "nameEn": "BBQ pork/Chicken/Roast Duck with Rice",
+          "price": 20
+        },
+        {
+          "nameTc": "生炒牛肉飯",
+          "nameSc": "生炒牛肉飯",
+          "nameEn": "Fried Beef with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "揚州炒飯",
+          "nameSc": "揚州炒飯",
+          "nameEn": "Yangzhou Fried Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "雞粒炒飯",
+          "nameSc": "雞粒炒飯",
+          "nameEn": "Chicken Fried Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "咸魚雞粒炒飯",
+          "nameSc": "咸魚雞粒炒飯",
+          "nameEn": "Salted Fish and Chicken Fried Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "臘味炒飯",
+          "nameSc": "臘味炒飯",
+          "nameEn": "Cured Pork Fried Rice",
+          "price": 20
+        },
+        {
+          "nameTc": "臘味排骨煲仔飯",
+          "nameSc": "臘味排骨煲仔飯",
+          "nameEn": "Pork Ribs and Claypot Rice",
+          "price": 20
+        },
+        {
+          "nameTc": "榨菜牛肉煲仔飯",
+          "nameSc": "榨菜牛肉煲仔飯",
+          "nameEn": "Claypot Rice with Pickled Mustard and Shredded Beef",
+          "price": 20
+        },
+        {
+          "nameTc": "咸魚花腩煲仔飯",
+          "nameSc": "咸魚花腩煲仔飯",
+          "nameEn": "Salted Fish Claypot Rice",
+          "price": 20
+        },
+        {
+          "nameTc": "窩蛋牛肉煲仔飯",
+          "nameSc": "窩蛋牛肉煲仔飯",
+          "nameEn": "Egg and Beef Claypot Rice",
+          "price": 23
+        },
+        {
+          "nameTc": "臘味煲仔飯",
+          "nameSc": "臘味煲仔飯",
+          "nameEn": "Pork Ribs Claypot Rice",
+          "price": 20
+        },
+        {
+          "nameTc": "臘味窩蛋牛肉煲仔飯",
+          "nameSc": "臘味窩蛋牛肉煲仔飯",
+          "nameEn": "Cured Pork, Egg and Beef Claypot Rice",
+          "price": 23
+        },
+        {
+          "nameTc": "黃鱔煲仔飯",
+          "nameSc": "黃鱔煲仔飯",
+          "nameEn": "Eel Claypot Rice",
+          "price": 28
+        }
+      ],
+      "炒粉麵 (FRIED NOODLES)": [
+        {
+          "nameTc": "茄汁焗雞意粉",
+          "nameSc": "茄汁焗雞意粉",
+          "nameEn": "Baked Tomato Chicken Pasta",
+          "price": 23
+        },
+        {
+          "nameTc": "茄汁焗雞扒飯",
+          "nameSc": "茄汁焗雞扒飯",
+          "nameEn": "Baked Tomato Chicken with Rice",
+          "price": 23
+        },
+        {
+          "nameTc": "茄汁焗豬扒意粉",
+          "nameSc": "茄汁焗豬扒意粉",
+          "nameEn": "Baked Tomatopork Chop Pasta",
+          "price": 23
+        },
+        {
+          "nameTc": "茄汁焗豬扒飯",
+          "nameSc": "茄汁焗豬扒飯",
+          "nameEn": "Baked Tomato Pork Chop with Rice",
+          "price": 23
+        },
+        {
+          "nameTc": "黑椒牛柳炒意粉",
+          "nameSc": "黑椒牛柳炒意粉",
+          "nameEn": "Black Papper Beef Fried Pasta",
+          "price": 19
+        },
+        {
+          "nameTc": "黑椒牛扒飯",
+          "nameSc": "黑椒牛扒飯",
+          "nameEn": "Black Papper Steak with Rice",
+          "price": 23
+        },
+        {
+          "nameTc": "黑椒牛扒燴意粉",
+          "nameSc": "黑椒牛扒燴意粉",
+          "nameEn": "Black Papper Steak Brewed Pasta",
+          "price": 23
+        }
+      ]
+    },
+    "路客食堂": {
+      "飯類 (RICE)": [
+        {
+          "nameTc": "焗豬扒飯 (白汁/茄汁)",
+          "nameSc": "焗豬扒飯 (白汁/茄汁)",
+          "nameEn": "Pork Chop with Baked Rice(ceram or tomato sauce)",
+          "price": 18.9
+        },
+        {
+          "nameTc": "焗雞扒飯 (白汁/茄汁)",
+          "nameSc": "焗雞扒飯 (白汁/茄汁)",
+          "nameEn": "Chicken Fillet with Baked Rice(ceram or tomato sauce)",
+          "price": 18.9
+        },
+        {
+          "nameTc": "焗海鮮飯 (白汁/茄汁)",
+          "nameSc": "焗海鮮飯 (白汁/茄汁)",
+          "nameEn": "Seafood with Baked Rice(ceram or tomato sauce)",
+          "price": 18.9
+        },
+        {
+          "nameTc": "焗魚扒飯 (白汁/茄汁)",
+          "nameSc": "焗魚扒飯 (白汁/茄汁)",
+          "nameEn": "Fish Fillet with Baked Rice(ceram or tomato sauce)",
+          "price": 18.9
+        },
+        {
+          "nameTc": "黑椒汁焗牛腩飯",
+          "nameSc": "黑椒汁焗牛腩飯",
+          "nameEn": "Beef Brisket with Black Pepper Sauce with Rice",
+          "price": 18.9
+        },
+        {
+          "nameTc": "麻辣牛肉砂鍋",
+          "nameSc": "麻辣牛肉砂鍋",
+          "nameEn": "Spicy Beef Pot",
+          "price": 18.8
+        },
+        {
+          "nameTc": "蒜蓉鮮蝦砂鍋",
+          "nameSc": "蒜蓉鮮蝦砂鍋",
+          "nameEn": "Garlic Prawn Pot",
+          "price": 19.8
+        },
+        {
+          "nameTc": "麻辣肚片砂鍋",
+          "nameSc": "麻辣肚片砂鍋",
+          "nameEn": "Spicy Tripe Casserole Pot",
+          "price": 18.8
+        },
+        {
+          "nameTc": "金湯肥牛砂鍋",
+          "nameSc": "金湯肥牛砂鍋",
+          "nameEn": "Golden Soup Fatty Beef Casserole Pot",
+          "price": 18.8
+        },
+        {
+          "nameTc": "砂鍋麻辣肚",
+          "nameSc": "砂鍋麻辣肚",
+          "nameEn": "Spicy Beef Stomach Pot",
+          "price": 18.8
+        },
+        {
+          "nameTc": "砂鍋番茄牛肉",
+          "nameSc": "砂鍋番茄牛肉",
+          "nameEn": "Tomato Beef Pot",
+          "price": 18.8
+        },
+        {
+          "nameTc": "砂鍋酸菜羊肉",
+          "nameSc": "砂鍋酸菜羊肉",
+          "nameEn": "Sauerkraut Lamb Pot",
+          "price": 17.8
+        },
+        {
+          "nameTc": "揚州炒飯",
+          "nameSc": "揚州炒飯",
+          "nameEn": "Yang Chow Fried Rice",
+          "price": 16.9
+        },
+        {
+          "nameTc": "雞肉炒飯",
+          "nameSc": "雞肉炒飯",
+          "nameEn": "Chicken Fried Rice",
+          "price": 16.9
+        },
+        {
+          "nameTc": "鹹魚雞粒炒飯",
+          "nameSc": "鹹魚雞粒炒飯",
+          "nameEn": "Chicken & Salted Fish Fried Rice",
+          "price": 16.9
+        },
+        {
+          "nameTc": "生炒牛肉飯",
+          "nameSc": "生炒牛肉飯",
+          "nameEn": "Beef Fried Rice",
+          "price": 16.9
+        },
+        {
+          "nameTc": "印尼炒飯",
+          "nameSc": "印尼炒飯",
+          "nameEn": "Nasi Goreng",
+          "price": 16.9
+        },
+        {
+          "nameTc": "宮保雞丁飯",
+          "nameSc": "宮保雞丁飯",
+          "nameEn": "Kung Pao Chicken on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "咖哩雞肉飯",
+          "nameSc": "咖哩雞肉飯",
+          "nameEn": "Curry Chicken on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "辣子雞飯",
+          "nameSc": "辣子雞飯",
+          "nameEn": "Spicy Chicken on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "魚香肉絲飯",
+          "nameSc": "魚香肉絲飯",
+          "nameEn": "Hot & Spicy Pork on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "魚香茄子飯",
+          "nameSc": "魚香茄子飯",
+          "nameEn": "Hot & Spicy Eggplant on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "咕嚕肉飯",
+          "nameSc": "咕嚕肉飯",
+          "nameEn": "Sweet & Sour Pork on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "香辣回鍋肉飯",
+          "nameSc": "香辣回鍋肉飯",
+          "nameEn": "Spicy Pork Belly on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "紅燒排骨飯",
+          "nameSc": "紅燒排骨飯",
+          "nameEn": "Braised Pork Ribs on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "紅燒豆腐飯",
+          "nameSc": "紅燒豆腐飯",
+          "nameEn": "Braised Tofu on Rice",
+          "price": 16.9
+        },
+        {
+          "nameTc": "麻婆豆腐飯",
+          "nameSc": "麻婆豆腐飯",
+          "nameEn": "Mapo Tofu on Rice",
+          "price": 16.9
+        },
+        {
+          "nameTc": "青椒肉絲飯",
+          "nameSc": "青椒肉絲飯",
+          "nameEn": "Stir-Fried Capsicum & Pork on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "紅燒牛腩飯",
+          "nameSc": "紅燒牛腩飯",
+          "nameEn": "Braised Beef Brisket on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "番茄蛋飯",
+          "nameSc": "番茄蛋飯",
+          "nameEn": "Fried Tomato with Egg on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "豉汁炒牛肉飯",
+          "nameSc": "豉汁炒牛肉飯",
+          "nameEn": "Beef with Black Bean Sauce on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "香茅豬扒飯",
+          "nameSc": "香茅豬扒飯",
+          "nameEn": "Lemongrass Pork Chop on Rice",
+          "price": 17.9
+        },
+        {
+          "nameTc": "蒜香雞扒飯",
+          "nameSc": "蒜香雞扒飯",
+          "nameEn": "Chicken Fillet with Garlic Sauce on Rice",
+          "price": 18.9
+        },
+        {
+          "nameTc": "日式照燒雞扒飯",
+          "nameSc": "日式照燒雞扒飯",
+          "nameEn": "Chicken Fillet with Teriyaki Sauce on Rice",
+          "price": 18.9
+        },
+        {
+          "nameTc": "鐵板黑椒牛肉飯",
+          "nameSc": "鐵板黑椒牛肉飯",
+          "nameEn": "Sizzling Beef & Black Pepper Sauce with Rice",
+          "price": 20.9
+        },
+        {
+          "nameTc": "鐵板沙茶牛肉飯",
+          "nameSc": "鐵板沙茶牛肉飯",
+          "nameEn": "Sizzling Beef & Satay Sauce with Rice",
+          "price": 20.9
+        },
+        {
+          "nameTc": "鐵板雞肉飯",
+          "nameSc": "鐵板雞肉飯",
+          "nameEn": "Sizzling Chicken with Rice",
+          "price": 20.9
+        },
+        {
+          "nameTc": "鐵板海鮮飯",
+          "nameSc": "鐵板海鮮飯",
+          "nameEn": "Sizzling Seafood with Rice",
+          "price": 20.9
+        }
+      ],
+      "炒粉麵 (NOODLES)": [
+        {
+          "nameTc": "干炒牛河",
+          "nameSc": "干炒牛河",
+          "nameEn": "Beef Fried Hor Fun",
+          "price": 17.9
+        },
+        {
+          "nameTc": "滑蛋炒牛河",
+          "nameSc": "滑蛋炒牛河",
+          "nameEn": "Beef and Egg Gravy on Hor Fun",
+          "price": 17.9
+        },
+        {
+          "nameTc": "星洲炒米",
+          "nameSc": "星洲炒米",
+          "nameEn": "Singapore Fried Rice Noodle",
+          "price": 17.9
+        },
+        {
+          "nameTc": "馬來炒面",
+          "nameSc": "馬來炒面",
+          "nameEn": "Mee Goreng",
+          "price": 17.9
+        },
+        {
+          "nameTc": "雞肉炒面",
+          "nameSc": "雞肉炒面",
+          "nameEn": "Chicken Fried Noodle",
+          "price": 17.9
+        },
+        {
+          "nameTc": "牛肉炒面",
+          "nameSc": "牛肉炒面",
+          "nameEn": "Beef Fried Noodle",
+          "price": 17.9
+        },
+        {
+          "nameTc": "海鮮炒面",
+          "nameSc": "海鮮炒面",
+          "nameEn": "Seafood Fried Noodle",
+          "price": 17.9
+        },
+        {
+          "nameTc": "上海粗炒",
+          "nameSc": "上海粗炒",
+          "nameEn": "Shanghai Style Fried Noodle",
+          "price": 17.9
+        },
+        {
+          "nameTc": "素炒面",
+          "nameSc": "素炒面",
+          "nameEn": "Vegetable & Fried Tofu Fried Noodle",
+          "price": 17.9
+        },
+        {
+          "nameTc": "家鄉炒米粉",
+          "nameSc": "家鄉炒米粉",
+          "nameEn": "Home Style Fried Rice Noodle",
+          "price": 17.9
+        },
+        {
+          "nameTc": "香煎兩面黃",
+          "nameSc": "香煎兩面黃",
+          "nameEn": "Combination Fried Crispy Noodle",
+          "price": 18.9
+        },
+        {
+          "nameTc": "沙茶牛肉鐵板伊面",
+          "nameSc": "沙茶牛肉鐵板伊面",
+          "nameEn": "Sizzling Beef with Satay Sauce on Noodle",
+          "price": 20.9
+        },
+        {
+          "nameTc": "豉汁雞肉鐵板伊面",
+          "nameSc": "豉汁雞肉鐵板伊面",
+          "nameEn": "Sizzling Chicken with Black Bean Sauce on Noodle",
+          "price": 20.9
+        },
+        {
+          "nameTc": "海鮮鐵板伊面",
+          "nameSc": "海鮮鐵板伊面",
+          "nameEn": "Sizzling Seafood on Noodle",
+          "price": 20.9
+        },
+        {
+          "nameTc": "黑椒牛肉鐵板伊面",
+          "nameSc": "黑椒牛肉鐵板伊面",
+          "nameEn": "Sizzling Beef with Black Pepper Sauce on Noodle",
+          "price": 20.9
+        }
+      ],
+      "開胃小菜 (Snack)": [
+        {
+          "nameTc": "辣子雞 (小份)",
+          "nameSc": "辣子雞 (小份)",
+          "nameEn": "Spicy Chicken (Small)",
+          "price": 16
+        },
+        {
+          "nameTc": "辣子雞 (大份)",
+          "nameSc": "辣子雞 (大份)",
+          "nameEn": "Spicy Chicken (Large)",
+          "price": 24
+        },
+        {
+          "nameTc": "蒜香排骨",
+          "nameSc": "蒜香排骨",
+          "nameEn": "Garlic Spare Ribs",
+          "price": 12
+        },
+        {
+          "nameTc": "泰式炸豆腐",
+          "nameSc": "泰式炸豆腐",
+          "nameEn": "Thai Fried Tofu",
+          "price": 10
+        },
+        {
+          "nameTc": "鹽酥雞",
+          "nameSc": "鹽酥雞",
+          "nameEn": "Fried Salted Chicken",
+          "price": 14
+        },
+        {
+          "nameTc": "蔥油餅",
+          "nameSc": "蔥油餅",
+          "nameEn": "Scallion Pancakes",
+          "price": 6
+        },
+        {
+          "nameTc": "雞蛋蔥油餅",
+          "nameSc": "雞蛋蔥油餅",
+          "nameEn": "Scallion Pancakes with Egg",
+          "price": 7
+        },
+        {
+          "nameTc": "南瓜紅豆餅",
+          "nameSc": "南瓜紅豆餅",
+          "nameEn": "Pumpkin & Red Bean Pancakes",
+          "price": 3
+        }
+      ]
+    },
+    "源福記": {
+      "炒飯類 (Fried Rice)": [
+        {
+          "nameTc": "蛋炒飯",
+          "nameSc": "蛋炒飯",
+          "nameEn": "Egg Fried Rice",
+          "price": 15
+        },
+        {
+          "nameTc": "福建炒飯",
+          "nameSc": "福建炒飯",
+          "nameEn": "Fujian Style Fried Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "海鮮炒飯",
+          "nameSc": "海鮮炒飯",
+          "nameEn": "Seafood Fried Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "咖喱海鮮炒飯",
+          "nameSc": "咖喱海鮮炒飯",
+          "nameEn": "Curry Seafood Fried Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "揚州炒飯",
+          "nameSc": "揚州炒飯",
+          "nameEn": "Young Chow Fried Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "蝦球炒飯",
+          "nameSc": "蝦球炒飯",
+          "nameEn": "King Prawn Fried Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "雜菜炒飯(素)",
+          "nameSc": "雜菜炒飯(素)",
+          "nameEn": "Assorted Veg. Fried Rice(Veg.)",
+          "price": 17
+        },
+        {
+          "nameTc": "鹹魚雞粒炒飯",
+          "nameSc": "鹹魚雞粒炒飯",
+          "nameEn": "Chicken & Salty Fish Fried Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "菠蘿雞粒炒飯",
+          "nameSc": "菠蘿雞粒炒飯",
+          "nameEn": "Chicken with Pineapple Fried Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "蝦醬燒肉炒飯",
+          "nameSc": "蝦醬燒肉炒飯",
+          "nameEn": "Roast Pork with Shrimp Paste Fried Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "叉燒炒飯",
+          "nameSc": "叉燒炒飯",
+          "nameEn": "BBQ Pork Fried Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "雞球炒飯",
+          "nameSc": "雞球炒飯",
+          "nameEn": "Chunky Chicken Fried Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "雜會炒飯",
+          "nameSc": "雜會炒飯",
+          "nameEn": "Combination Fried Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "臘味炒飯",
+          "nameSc": "臘味炒飯",
+          "nameEn": "Preserved Pork Fried Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "花腩炒豆角干飯",
+          "nameSc": "花腩炒豆角干飯",
+          "nameEn": "(無英文翻譯)",
+          "price": 19
+        },
+        {
+          "nameTc": "鮑魚菇肉片飯",
+          "nameSc": "鮑魚菇肉片飯",
+          "nameEn": "(無英文翻譯)",
+          "price": 19
+        }
+      ],
+      "湯面類 (Noodle Soup)": [
+        {
+          "nameTc": "雲吞湯",
+          "nameSc": "雲吞湯",
+          "nameEn": "Wonton Soup",
+          "price": 15
+        },
+        {
+          "nameTc": "雲吞湯面",
+          "nameSc": "雲吞湯面",
+          "nameEn": "Wonton Noodle Soup",
+          "price": 15
+        },
+        {
+          "nameTc": "燒鴨湯面",
+          "nameSc": "燒鴨湯面",
+          "nameEn": "Roast Duck Noodle Soup",
+          "price": 17
+        },
+        {
+          "nameTc": "叉燒湯面",
+          "nameSc": "叉燒湯面",
+          "nameEn": "BBQ Pork Noodle Soup",
+          "price": 17
+        },
+        {
+          "nameTc": "燒肉湯面",
+          "nameSc": "燒肉湯面",
+          "nameEn": "Roast Pork Noodle Soup",
+          "price": 17
+        },
+        {
+          "nameTc": "脆皮咸雞湯面",
+          "nameSc": "脆皮咸雞湯面",
+          "nameEn": "Crispy Salted Chicken Noodle Soup",
+          "price": 17
+        },
+        {
+          "nameTc": "雙拼燒味湯面",
+          "nameSc": "雙拼燒味湯面",
+          "nameEn": "Roast Combination Noodle Soup",
+          "price": 18
+        },
+        {
+          "nameTc": "北菇雞球湯面",
+          "nameSc": "北菇雞球湯面",
+          "nameEn": "Chicken & Mushroon Noodle Soup",
+          "price": 17
+        },
+        {
+          "nameTc": "海鮮湯面",
+          "nameSc": "海鮮湯面",
+          "nameEn": "Seafood Noodle Soup",
+          "price": 19
+        },
+        {
+          "nameTc": "什會湯面",
+          "nameSc": "什會湯面",
+          "nameEn": "Combination Noodle Soup",
+          "price": 18
+        },
+        {
+          "nameTc": "魚蛋湯面",
+          "nameSc": "魚蛋湯面",
+          "nameEn": "Fish Ball Noodle Soup",
+          "price": 16
+        },
+        {
+          "nameTc": "牛腩湯面",
+          "nameSc": "牛腩湯面",
+          "nameEn": "Beef Brisket Noodle Soup",
+          "price": 16
+        },
+        {
+          "nameTc": "各色滷水湯面",
+          "nameSc": "各色滷水湯面",
+          "nameEn": "(無英文翻譯)",
+          "price": 16.5
+        },
+        {
+          "nameTc": "淨湯面",
+          "nameSc": "淨湯面",
+          "nameEn": "(無英文翻譯)",
+          "price": 12
+        }
+      ],
+      "燒味鋪飯類 (BBQ on Rice)": [
+        {
+          "nameTc": "燒鴨飯",
+          "nameSc": "燒鴨飯",
+          "nameEn": "Roast Duck on Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "燒肉飯",
+          "nameSc": "燒肉飯",
+          "nameEn": "Roast Pork on Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "蜜汁叉燒飯",
+          "nameSc": "蜜汁叉燒飯",
+          "nameEn": "BBQ Pork on Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "脆皮咸雞飯",
+          "nameSc": "脆皮咸雞飯",
+          "nameEn": "Crispy Salted Chicken on Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "燒味雙拼飯",
+          "nameSc": "燒味雙拼飯",
+          "nameEn": "Two Combination on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "燒味三拼飯",
+          "nameSc": "燒味三拼飯",
+          "nameEn": "Three Combination on Rice",
+          "price": 18.5
+        }
+      ],
+      "鋪飯類/菜飯 (Stir Fried on Rice)": [
+        {
+          "nameTc": "菜遠雜燴飯",
+          "nameSc": "菜遠雜燴飯",
+          "nameEn": "Combination Meat & Veg. on Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "菜遠牛肉飯(雞球/叉燒)",
+          "nameSc": "菜遠牛肉飯(雞球/叉燒)",
+          "nameEn": "Beef(Chicken/BBQ Pork) & Veg. on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "黑椒牛肉飯(雞球/豬肉)",
+          "nameSc": "黑椒牛肉飯(雞球/豬肉)",
+          "nameEn": "Beef(Chicken/Pork) with Black pepper on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "姜蔥牛肉飯(雞球/豬肉)",
+          "nameSc": "姜蔥牛肉飯(雞球/豬肉)",
+          "nameEn": "Beef(Chicken/Pork) w/ Ginger & Spring Onion on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "豉汁牛肉飯(雞球/豬肉)",
+          "nameSc": "豉汁牛肉飯(雞球/豬肉)",
+          "nameEn": "Beef(Chicken/Pork) w/ Black Bean Sauce on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "滑蛋牛肉飯(雞球/豬肉)",
+          "nameSc": "滑蛋牛肉飯(雞球/豬肉)",
+          "nameEn": "Beef(Chicken/Pork) in Gravy Egg on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "牛腩豆腐飯",
+          "nameSc": "牛腩豆腐飯",
+          "nameEn": "Beef Brisket and Tofu on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "豉汁排骨飯",
+          "nameSc": "豉汁排骨飯",
+          "nameEn": "Pork Rib with Black Bean Sauce on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "宮保雞丁飯",
+          "nameSc": "宮保雞丁飯",
+          "nameEn": "Hot & Spicy Chicken with Peanuts on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "咖喱雞飯",
+          "nameSc": "咖喱雞飯",
+          "nameEn": "Curry Chicken on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "榨菜肉片飯",
+          "nameSc": "榨菜肉片飯",
+          "nameEn": "Preserved veg. with Pork on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "魚香肉絲飯",
+          "nameSc": "魚香肉絲飯",
+          "nameEn": "Pork with Bamboo & Fungus Mushroom on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "魚香茄子飯",
+          "nameSc": "魚香茄子飯",
+          "nameEn": "Eggplant with Pork mince on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "咕嚕肉飯(魚)",
+          "nameSc": "咕嚕肉飯(魚)",
+          "nameEn": "Sweet & Sour Pork(Fish) on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "滑蛋蝦球飯",
+          "nameSc": "滑蛋蝦球飯",
+          "nameEn": "Prawn in Gravy Egg on Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "腰果蝦球飯",
+          "nameSc": "腰果蝦球飯",
+          "nameEn": "Prawns with Cashew Nuts on Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "麻婆豆腐飯",
+          "nameSc": "麻婆豆腐飯",
+          "nameEn": "Mapo Tofu on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "豆腐班腩魚飯",
+          "nameSc": "豆腐班腩魚飯",
+          "nameEn": "Tofu with Fish Fillet on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "豆腐火腩飯",
+          "nameSc": "豆腐火腩飯",
+          "nameEn": "Tofu with Roast Pork on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "雜燴海鮮豆腐飯",
+          "nameSc": "雜燴海鮮豆腐飯",
+          "nameEn": "Assorted Seafood with Tofu on Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "八珍豆腐飯",
+          "nameSc": "八珍豆腐飯",
+          "nameEn": "Assorted Meats with Tofu on Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "羅漢齋飯",
+          "nameSc": "羅漢齋飯",
+          "nameEn": "Tofu with Veg. & Mushroom (Veg.) on Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "川椒牛肉飯",
+          "nameSc": "川椒牛肉飯",
+          "nameEn": "Szechuan Beef (Chicken/Pork) on rice",
+          "price": 17
+        },
+        {
+          "nameTc": "各式豬扒飯",
+          "nameSc": "各式豬扒飯",
+          "nameEn": "Pork Chop on rice",
+          "price": 19
+        },
+        {
+          "nameTc": "孜然牛肉飯",
+          "nameSc": "孜然牛肉飯",
+          "nameEn": "Cumin Beef on rice",
+          "price": 19
+        },
+        {
+          "nameTc": "溜豬肝飯",
+          "nameSc": "溜豬肝飯",
+          "nameEn": "(無英文翻譯)",
+          "price": 17
+        }
+      ],
+      "炒粉面類 (Fried Noodle)": [
+        {
+          "nameTc": "干炒海鮮河",
+          "nameSc": "干炒海鮮河",
+          "nameEn": "Seafood Stir Fried Rice Noodle",
+          "price": 19.5
+        },
+        {
+          "nameTc": "干炒牛河",
+          "nameSc": "干炒牛河",
+          "nameEn": "Beef Stir Fried Rice Noodle",
+          "price": 17.5
+        },
+        {
+          "nameTc": "干炒雞河",
+          "nameSc": "干炒雞河",
+          "nameEn": "Chicken Stir Fried Rice Noodle",
+          "price": 17.5
+        },
+        {
+          "nameTc": "干炒叉燒河",
+          "nameSc": "干炒叉燒河",
+          "nameEn": "BBQ Pork Stir Fried Rice Noodle",
+          "price": 17.5
+        },
+        {
+          "nameTc": "干炒肉片河",
+          "nameSc": "干炒肉片河",
+          "nameEn": "Pork Fried Rice Noodle",
+          "price": 17.5
+        },
+        {
+          "nameTc": "干炒什會河",
+          "nameSc": "干炒什會河",
+          "nameEn": "Combination meats Fried Rice Noodle",
+          "price": 18.5
+        },
+        {
+          "nameTc": "馬來炒貴刁",
+          "nameSc": "馬來炒貴刁",
+          "nameEn": "Malaysia Style Fried Rice Noodle",
+          "price": 18.5
+        },
+        {
+          "nameTc": "滑蛋蝦球炒河",
+          "nameSc": "滑蛋蝦球炒河",
+          "nameEn": "Prawn Fried Rice Noodle w/ Gravy Egg",
+          "price": 19.5
+        },
+        {
+          "nameTc": "滑蛋牛肉炒河",
+          "nameSc": "滑蛋牛肉炒河",
+          "nameEn": "Beef Fried Rice Noodle with Gravy Egg",
+          "price": 18.5
+        },
+        {
+          "nameTc": "海鮮干炒面",
+          "nameSc": "海鮮干炒面",
+          "nameEn": "Seafood Fried Noodle",
+          "price": 19
+        },
+        {
+          "nameTc": "什會干炒面",
+          "nameSc": "什會干炒面",
+          "nameEn": "Combination Fried Noodle",
+          "price": 18
+        },
+        {
+          "nameTc": "牛肉干炒面",
+          "nameSc": "牛肉干炒面",
+          "nameEn": "Beef Fried Noodle with Vege",
+          "price": 17
+        },
+        {
+          "nameTc": "雞球干炒面",
+          "nameSc": "雞球干炒面",
+          "nameEn": "Chicken Fried Noodle with Vege",
+          "price": 17
+        },
+        {
+          "nameTc": "班腩干炒面",
+          "nameSc": "班腩干炒面",
+          "nameEn": "Fish Fillet Fried Noodle",
+          "price": 17
+        },
+        {
+          "nameTc": "羅漢齋炒面(素)",
+          "nameSc": "羅漢齋炒面(素)",
+          "nameEn": "ToFu with Vege & Mushroom Fried Noodle",
+          "price": 17
+        },
+        {
+          "nameTc": "豉油王炒面(素)",
+          "nameSc": "豉油王炒面(素)",
+          "nameEn": "Fried Noodle in Soya Sauce",
+          "price": 15
+        },
+        {
+          "nameTc": "上海粗炒面",
+          "nameSc": "上海粗炒面",
+          "nameEn": "Shanghai Thick Noodle",
+          "price": 18
+        },
+        {
+          "nameTc": "星洲炒米粉",
+          "nameSc": "星洲炒米粉",
+          "nameEn": "Singapore Vermicelli",
+          "price": 18
+        },
+        {
+          "nameTc": "豉油王炒米粉(素)",
+          "nameSc": "豉油王炒米粉(素)",
+          "nameEn": "Fried Vermicelli in Soya Sauce",
+          "price": 15
+        },
+        {
+          "nameTc": "蝦球干燒伊面",
+          "nameSc": "蝦球干燒伊面",
+          "nameEn": "King Prawn Fried E-Foo Noodle",
+          "price": 21
+        }
+      ],
+      "燒味 (BBQ - Roasted)": [
+        {
+          "nameTc": "燒味雙拼",
+          "nameSc": "燒味雙拼",
+          "nameEn": "Roast Meat Two Combination",
+          "price": 24
+        },
+        {
+          "nameTc": "燒味三拼",
+          "nameSc": "燒味三拼",
+          "nameEn": "Roast Meat Three Combination",
+          "price": 33
+        },
+        {
+          "nameTc": "北京片皮鴨二吃",
+          "nameSc": "北京片皮鴨二吃",
+          "nameEn": "Peking Duck in Two Ways",
+          "price": 59
+        },
+        {
+          "nameTc": "北京片皮鴨三吃",
+          "nameSc": "北京片皮鴨三吃",
+          "nameEn": "Peking Duck in Three Ways",
+          "price": 74
+        }
+      ]
+    },
+    "御唐府": {
+      "燒味飯 (BBQ MEATS RICE)": [
+        {
+          "nameTc": "燒鴨飯",
+          "nameSc": "燒鴨飯",
+          "nameEn": "Roast Duck on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "叉燒飯",
+          "nameSc": "叉燒飯",
+          "nameEn": "BBQ Pork on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "雙拼燒味飯",
+          "nameSc": "雙拼燒味飯",
+          "nameEn": "2 BBQ Sides on Rice",
+          "price": 20.8
+        },
+        {
+          "nameTc": "脆皮燒肉飯",
+          "nameSc": "脆皮燒肉飯",
+          "nameEn": "Crispy Pork on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "豉油雞飯",
+          "nameSc": "豉油雞飯",
+          "nameEn": "Soya Sauce Chicken on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "三拼燒味飯",
+          "nameSc": "三拼燒味飯",
+          "nameEn": "3 BBQ Sides on Rice",
+          "price": 21.8
+        },
+        {
+          "nameTc": "5寶飯",
+          "nameSc": "5寶飯",
+          "nameEn": "5 Special Sides on Rice",
+          "price": 22.8
+        }
+      ],
+      "湯面 (SOUP NOODLE)": [
+        {
+          "nameTc": "燒鴨湯面",
+          "nameSc": "燒鴨湯面",
+          "nameEn": "Roast Duck Noodle Soup",
+          "price": 19.8
+        },
+        {
+          "nameTc": "海鮮湯面",
+          "nameSc": "海鮮湯面",
+          "nameEn": "Seafood Noodle Soup",
+          "price": 21.8
+        },
+        {
+          "nameTc": "鮮蝦雲吞湯面",
+          "nameSc": "鮮蝦雲吞湯面",
+          "nameEn": "Wonton Noodle Soup",
+          "price": 20.8
+        },
+        {
+          "nameTc": "雙拼燒味湯面",
+          "nameSc": "雙拼燒味湯面",
+          "nameEn": "2 Combination BBQ Meats Noodle Soup",
+          "price": 20.8
+        },
+        {
+          "nameTc": "淨雲吞",
+          "nameSc": "淨雲吞",
+          "nameEn": "Wonton Soup",
+          "price": 20.8
+        },
+        {
+          "nameTc": "牛腩湯面",
+          "nameSc": "牛腩湯面",
+          "nameEn": "Beef Brisket Noodle Soup",
+          "price": 19.8
+        },
+        {
+          "nameTc": "脆皮燒肉湯面",
+          "nameSc": "脆皮燒肉湯面",
+          "nameEn": "Crispy Pork Noodle Soup",
+          "price": 19.8
+        }
+      ],
+      "牛肉碟飯 (BEEF DISHES ON RICE)": [
+        {
+          "nameTc": "黑椒牛肉飯",
+          "nameSc": "黑椒牛肉飯",
+          "nameEn": "Beef with Black Pepper Sauce on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "豉椒牛肉飯",
+          "nameSc": "豉椒牛肉飯",
+          "nameEn": "Beef with Black Bean Sauce on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "濃醬牛腩飯",
+          "nameSc": "濃醬牛腩飯",
+          "nameEn": "Beef Brisket on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "四季豆炒牛/雞/叉燒/燒肉飯",
+          "nameSc": "四季豆炒牛/雞/叉燒/燒肉飯",
+          "nameEn": "Fried Long Beans with Beef/Chicken/BBQ Pork/Roast Pork on Rice",
+          "price": 20.8
+        },
+        {
+          "nameTc": "番茄炒牛肉飯",
+          "nameSc": "番茄炒牛肉飯",
+          "nameEn": "Stir Fried Beef with Tomato on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "滑蛋牛肉飯",
+          "nameSc": "滑蛋牛肉飯",
+          "nameEn": "Beef with Scrambled Eggs on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "雜菜牛肉飯",
+          "nameSc": "雜菜牛肉飯",
+          "nameEn": "Stir Fried Beef with Mixed Vegetables on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "宮保牛肉飯",
+          "nameSc": "宮保牛肉飯",
+          "nameEn": "Gong Bao Beef on Rice",
+          "price": 19.8
+        }
+      ],
+      "豬肉碟飯 (PORK DISHES ON RICE)": [
+        {
+          "nameTc": "魚香肉絲飯",
+          "nameSc": "魚香肉絲飯",
+          "nameEn": "Salted Fish Stir Fried with Sliced Pork and assorted Vegetables on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "梅菜扣肉飯",
+          "nameSc": "梅菜扣肉飯",
+          "nameEn": "Steamed Pork Belly with Preserved Vegetables on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "紅燒排骨飯",
+          "nameSc": "紅燒排骨飯",
+          "nameEn": "Stir Fried Pork Ribs on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "四季豆炒牛/雞/叉燒/燒肉飯",
+          "nameSc": "四季豆炒牛/雞/叉燒/燒肉飯",
+          "nameEn": "Fried Long Beans with Beef/Chicken/BBQ Pork/Roast Pork on Rice",
+          "price": 20.8
+        },
+        {
+          "nameTc": "滑蛋叉燒飯",
+          "nameSc": "滑蛋叉燒飯",
+          "nameEn": "BBQ Pork with Scrambled Eggs on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "清蒸豉汁排骨飯",
+          "nameSc": "清蒸豉汁排骨飯",
+          "nameEn": "Steamed Pork Ribs with Black Bean Sauce on Rice",
+          "price": 21.8
+        },
+        {
+          "nameTc": "回鍋肉片飯",
+          "nameSc": "回鍋肉片飯",
+          "nameEn": "Stir Fried Salty Pork Belly Slices with Cabbage on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "豉汁排骨炒麵",
+          "nameSc": "豉汁排骨炒麵",
+          "nameEn": "Pork Ribs Stir Fried with Black Bean Sauce on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "咕嚕肉飯",
+          "nameSc": "咕嚕肉飯",
+          "nameEn": "Sweet & Sour Pork on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "豆腐火腩飯",
+          "nameSc": "豆腐火腩飯",
+          "nameEn": "Roast Pork with Tofu on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "雜菜叉燒飯",
+          "nameSc": "雜菜叉燒飯",
+          "nameEn": "Stir Fried BBQ Pork with Mixed Vegetables on Rice",
+          "price": 19.8
+        }
+      ],
+      "蔬菜/豆腐碟飯 (VEGETABLE/TOFU DISHES ON RICE)": [
+        {
+          "nameTc": "魚香茄子飯",
+          "nameSc": "魚香茄子飯",
+          "nameEn": "Stir Fried Eggplant with Salted Fish on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "紅燒豆腐飯",
+          "nameSc": "紅燒豆腐飯",
+          "nameEn": "Stir Fried Tofu on Rice (Vegetarian)",
+          "price": 18.8
+        },
+        {
+          "nameTc": "麻婆豆腐飯",
+          "nameSc": "麻婆豆腐飯",
+          "nameEn": "Me Po Tofu on Rice",
+          "price": 18.8
+        },
+        {
+          "nameTc": "紅燒茄子飯",
+          "nameSc": "紅燒茄子飯",
+          "nameEn": "Stir Fried Eggplant on Rice (Vegetarian)",
+          "price": 19.8
+        }
+      ],
+      "雞肉碟飯 (CHICKEN DISHES ON RICE)": [
+        {
+          "nameTc": "四季豆炒牛/雞/叉燒/燒肉飯",
+          "nameSc": "四季豆炒牛/雞/叉燒/燒肉飯",
+          "nameEn": "Fried Long Beans with Beef/Chicken/BBQ Pork/Roast Pork on Rice",
+          "price": 20.8
+        },
+        {
+          "nameTc": "咕嚕雞飯",
+          "nameSc": "咕嚕雞飯",
+          "nameEn": "Sweet & Sour Chicken on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "宮保雞丁飯",
+          "nameSc": "宮保雞丁飯",
+          "nameEn": "Gong Bao Chicken on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "粵式咖喱雞肉飯",
+          "nameSc": "粵式咖喱雞肉飯",
+          "nameEn": "Cantonese Styled Curry Chicken on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "雜菜雞飯",
+          "nameSc": "雜菜雞飯",
+          "nameEn": "Stir Fried Chicken with Mixed Veggies on Rice",
+          "price": 19.8
+        },
+        {
+          "nameTc": "啫啫雞飯",
+          "nameSc": "啫啫雞飯",
+          "nameEn": "Jee Jee Marinated Chicken on Rice",
+          "price": 19.8
+        }
+      ],
+      "海鮮碟飯 (SEAFOOD DISHES ON RICE)": [
+        {
+          "nameTc": "海鮮燴飯",
+          "nameSc": "海鮮燴飯",
+          "nameEn": "Stir Fried Mixed Seafood on Rice",
+          "price": 21.8
+        },
+        {
+          "nameTc": "咕嚕魚片飯",
+          "nameSc": "咕嚕魚片飯",
+          "nameEn": "Sweet & Sour Fish on Rice",
+          "price": 21.8
+        },
+        {
+          "nameTc": "豆腐斑腩飯",
+          "nameSc": "豆腐斑腩飯",
+          "nameEn": "Fish Fillet with Tofu on Rice",
+          "price": 21.8
+        }
+      ]
+    },
+    "廣興": {
+      "湯 (Soup)": [
+        {
+          "nameTc": "酸辣湯",
+          "nameSc": "酸辣湯",
+          "nameEn": "Spicy Sour Soup",
+          "price": 15
+        },
+        {
+          "nameTc": "海鮮豆腐湯",
+          "nameSc": "海鮮豆腐湯",
+          "nameEn": "Seafood Tofu Soup",
+          "price": 18
+        },
+        {
+          "nameTc": "雞茸粟米羹",
+          "nameSc": "雞茸粟米羹",
+          "nameEn": "Chicken Sweet Corn Soup",
+          "price": 15
+        },
+        {
+          "nameTc": "西湖牛肉羹",
+          "nameSc": "西湖牛肉羹",
+          "nameEn": "Beef Gravy Soup",
+          "price": 18
+        }
+      ],
+      "蓋飯/炒飯 (Rice/Fried Rice)": [
+        {
+          "nameTc": "黑椒牛肉飯",
+          "nameSc": "黑椒牛肉飯",
+          "nameEn": "Black Pepper Beef with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "紅燒牛腩飯",
+          "nameSc": "紅燒牛腩飯",
+          "nameEn": "Beef Brisket with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "醬大骨飯",
+          "nameSc": "醬大骨飯",
+          "nameEn": "Big Bone with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "木須肉飯",
+          "nameSc": "木須肉飯",
+          "nameEn": "Moo Shu Pork with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "魚香肉絲飯",
+          "nameSc": "魚香肉絲飯",
+          "nameEn": "Pork & Salty Fish with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "紅燒魚飯",
+          "nameSc": "紅燒魚飯",
+          "nameEn": "Chinese Spiced Fish with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "番茄牛肉飯(少鹽)",
+          "nameSc": "番茄牛肉飯(少鹽)",
+          "nameEn": "Beef & Tomato with Rice",
+          "price": 20
+        },
+        {
+          "nameTc": "回鍋肉飯",
+          "nameSc": "回鍋肉飯",
+          "nameEn": "Pork & Green Chili with Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "椒鹽雞飯",
+          "nameSc": "椒鹽雞飯",
+          "nameEn": "Spiced Salt Chicken with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "咕嚕雞/魚飯",
+          "nameSc": "咕嚕雞/魚飯",
+          "nameEn": "Sweet & Sour Pork/Chicken/Fish with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "香菇肉絲飯",
+          "nameSc": "香菇肉絲飯",
+          "nameEn": "Pork & Mushroom with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "排骨飯",
+          "nameSc": "排骨飯",
+          "nameEn": "Pork Ribbes with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "紅燒肉飯",
+          "nameSc": "紅燒肉飯",
+          "nameEn": "Chinese Spiced Pork with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "番茄炒蛋飯",
+          "nameSc": "番茄炒蛋飯",
+          "nameEn": "Fried Tomato Egg with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "尖椒干豆腐飯",
+          "nameSc": "尖椒干豆腐飯",
+          "nameEn": "Chili & Dry Tofu with Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "紅燒豆腐飯",
+          "nameSc": "紅燒豆腐飯",
+          "nameEn": "Braised Tofu & Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "燒四季豆飯",
+          "nameSc": "燒四季豆飯",
+          "nameEn": "Green Beans with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "雞肉炒飯",
+          "nameSc": "雞肉炒飯",
+          "nameEn": "Chicken with Fried Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "揚州炒飯",
+          "nameSc": "揚州炒飯",
+          "nameEn": "Yanq Zhou Style Fried Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "特色茄子炒飯",
+          "nameSc": "特色茄子炒飯",
+          "nameEn": "Fried Rice with Eggplant",
+          "price": 17
+        },
+        {
+          "nameTc": "宮保雞丁飯",
+          "nameSc": "宮保雞丁飯",
+          "nameEn": "Kong Pao Chicken with Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "麻婆豆腐飯",
+          "nameSc": "麻婆豆腐飯",
+          "nameEn": "Mapo Tofu with Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "魚香茄子飯",
+          "nameSc": "魚香茄子飯",
+          "nameEn": "Eggplant with Rice",
+          "price": 18
+        },
+        {
+          "nameTc": "蝦炒飯",
+          "nameSc": "蝦炒飯",
+          "nameEn": "Fried Rice with Prawn",
+          "price": 17
+        },
+        {
+          "nameTc": "蛋炒飯",
+          "nameSc": "蛋炒飯",
+          "nameEn": "Fried Rice with Eggs",
+          "price": 16
+        },
+        {
+          "nameTc": "齋炒飯",
+          "nameSc": "齋炒飯",
+          "nameEn": "Fried Rice with Assorted Vege",
+          "price": 16
+        },
+        {
+          "nameTc": "咸魚雞絲炒飯",
+          "nameSc": "咸魚雞絲炒飯",
+          "nameEn": "Salted Fish & Chicken with Fried Rice",
+          "price": 17
+        },
+        {
+          "nameTc": "咖喱雞炒飯",
+          "nameSc": "咖喱雞炒飯",
+          "nameEn": "Curry Chicken with Fried Rice",
+          "price": 16
+        },
+        {
+          "nameTc": "福建炒飯",
+          "nameSc": "福建炒飯",
+          "nameEn": "Fu Jian Style Fried Rice",
+          "price": 19
+        },
+        {
+          "nameTc": "孜然羊肉炒飯",
+          "nameSc": "孜然羊肉炒飯",
+          "nameEn": "Fried Rice with Cumin & Mutton",
+          "price": 18
+        }
+      ],
+      "開胃小菜 (Snack)": [
+        {
+          "nameTc": "紅油土豆絲",
+          "nameSc": "紅油土豆絲",
+          "nameEn": "Cold Potato Salad with red Chilli oil",
+          "price": 7
+        },
+        {
+          "nameTc": "蒜泥海帶絲",
+          "nameSc": "蒜泥海帶絲",
+          "nameEn": "Cold kelp Slices with Garlic",
+          "price": 7
+        },
+        {
+          "nameTc": "凉拌海蜇",
+          "nameSc": "凉拌海蜇",
+          "nameEn": "Cold Jelly fish",
+          "price": 14
+        },
+        {
+          "nameTc": "東北凉粉",
+          "nameSc": "東北凉粉",
+          "nameEn": "Cool Bean Jelly",
+          "price": 8
+        },
+        {
+          "nameTc": "麻辣手撕雞",
+          "nameSc": "麻辣手撕雞",
+          "nameEn": "Spiry Shredded Chicken",
+          "price": 16
+        },
+        {
+          "nameTc": "麻辣牛肚",
+          "nameSc": "麻辣牛肚",
+          "nameEn": "Spicy Beef Tripe",
+          "price": 10
+        },
+        {
+          "nameTc": "發財豬手",
+          "nameSc": "發財豬手",
+          "nameEn": "Get Rich Pig Hands",
+          "price": 16
+        },
+        {
+          "nameTc": "招骨牌醬大骨",
+          "nameSc": "招骨牌醬大骨",
+          "nameEn": "Special Meat with Big Bone",
+          "price": 14
+        },
+        {
+          "nameTc": "醬牛肉",
+          "nameSc": "醬牛肉",
+          "nameEn": "Beef Shank Noodles",
+          "price": 18
+        },
+        {
+          "nameTc": "麻辣牛腱",
+          "nameSc": "麻辣牛腱",
+          "nameEn": "Spiced Beef Shank",
+          "price": 18
+        },
+        {
+          "nameTc": "皮蛋豆腐",
+          "nameSc": "皮蛋豆腐",
+          "nameEn": "Tofu with Preserved Eggs",
+          "price": 10
+        },
+        {
+          "nameTc": "麻辣牛腱",
+          "nameSc": "麻辣牛腱",
+          "nameEn": "Spiced Beef Shank",
+          "price": 7
+        },
+        {
+          "nameTc": "蒜香黃瓜",
+          "nameSc": "蒜香黃瓜",
+          "nameEn": "Garlic Gucumber",
+          "price": 12
+        },
+        {
+          "nameTc": "夫妻肺片",
+          "nameSc": "夫妻肺片",
+          "nameEn": "Sliced Beef & Beef Offal w/ Peanut & Chilli Sauce",
+          "price": 16
+        },
+        {
+          "nameTc": "特色拌雞架",
+          "nameSc": "特色拌雞架",
+          "nameEn": "Special Chicken Stand",
+          "price": 8
+        },
+        {
+          "nameTc": "特色熏雞(半隻)",
+          "nameSc": "特色熏雞(半隻)",
+          "nameEn": "Special Smoked Chicken",
+          "price": 17
+        },
+        {
+          "nameTc": "孜然臭豆腐",
+          "nameSc": "孜然臭豆腐",
+          "nameEn": "Cumin Stinky Tofu",
+          "price": 10
+        }
+      ],
+      "特色面類 (Special Noodle)": [
+        {
+          "nameTc": "紅燒牛肉面",
+          "nameSc": "紅燒牛肉面",
+          "nameEn": "Beef Shank Noodles",
+          "price": 16
+        },
+        {
+          "nameTc": "家鄉酸菜牛肉面",
+          "nameSc": "家鄉酸菜牛肉面",
+          "nameEn": "Beef Noodles with Pickled Cabbage",
+          "price": 17
+        },
+        {
+          "nameTc": "絕味牛肉油潑面",
+          "nameSc": "絕味牛肉油潑面",
+          "nameEn": "Oil Spill Surfaces Noodles with Beef",
+          "price": 17
+        },
+        {
+          "nameTc": "原湯面加大骨",
+          "nameSc": "原湯面加大骨",
+          "nameEn": "Pork bones in Soup Noodle",
+          "price": 18
+        },
+        {
+          "nameTc": "藤椒肥腸米絲",
+          "nameSc": "藤椒肥腸米絲",
+          "nameEn": "Rice Noodles with Intestines and Rattan Pepper",
+          "price": 19
+        },
+        {
+          "nameTc": "特色魚頭米粉",
+          "nameSc": "特色魚頭米粉",
+          "nameEn": "Special Fish head Noodle Soup",
+          "price": 18
+        },
+        {
+          "nameTc": "麻辣鴨血粉絲",
+          "nameSc": "麻辣鴨血粉絲",
+          "nameEn": "Spicy Duck Blood Rice Noodle",
+          "price": 16
+        },
+        {
+          "nameTc": "東北酸辣粉",
+          "nameSc": "東北酸辣粉",
+          "nameEn": "Sour Spicy with Soup Noodle",
+          "price": 16
+        },
+        {
+          "nameTc": "正宗東北大冷面",
+          "nameSc": "正宗東北大冷面",
+          "nameEn": "Cold Noodles",
+          "price": 16
+        }
+      ],
+      "面類/麵類 (Noodle/Pancake)": [
+        {
+          "nameTc": "紅燒排骨面",
+          "nameSc": "紅燒排骨面",
+          "nameEn": "Braised Pork Rib Noodle",
+          "price": 16
+        },
+        {
+          "nameTc": "藤椒牛肉面",
+          "nameSc": "藤椒牛肉面",
+          "nameEn": "Beef Noodles with Rattan Pepper",
+          "price": 17
+        },
+        {
+          "nameTc": "牛雜面",
+          "nameSc": "牛雜面",
+          "nameEn": "Beef Offal Noodles",
+          "price": 18
+        },
+        {
+          "nameTc": "酸辣湯面",
+          "nameSc": "酸辣湯面",
+          "nameEn": "Sour Spicy with Soup Noodle",
+          "price": 16
+        },
+        {
+          "nameTc": "一品海鮮面",
+          "nameSc": "一品海鮮面",
+          "nameEn": "Specialty Seafood Noodle",
+          "price": 18
+        },
+        {
+          "nameTc": "雞湯雲吞麵",
+          "nameSc": "雞湯雲吞麵",
+          "nameEn": "Wonton Noodle",
+          "price": 16
+        },
+        {
+          "nameTc": "肉絲炒餅(豬肉,雞肉,牛肉)",
+          "nameSc": "肉絲炒餅(豬肉,雞肉,牛肉)",
+          "nameEn": "Fried Pancake w/ Pork & Chicken Beef",
+          "price": 18
+        },
+        {
+          "nameTc": "肉絲炒麵/米粉(豬肉,雞肉,牛肉)",
+          "nameSc": "肉絲炒麵/米粉(豬肉,雞肉,牛肉)",
+          "nameEn": "Fried Noodles/Rice Noodles w/ Pork/Chicken Beef",
+          "price": 17
+        },
+        {
+          "nameTc": "海鮮炒面/米粉",
+          "nameSc": "海鮮炒面/米粉",
+          "nameEn": "Fried  Noodles/Rice Noodles with Seafood",
+          "price": 18
+        },
+        {
+          "nameTc": "素炒面/米粉",
+          "nameSc": "素炒面/米粉",
+          "nameEn": "Fried  Noodles/Rice Noodles with Vegetable",
+          "price": 16
+        },
+        {
+          "nameTc": "干炒河粉(豬肉,雞肉,牛肉)",
+          "nameSc": "干炒河粉(豬肉,雞肉,牛肉)",
+          "nameEn": "Fried Rice Noodles with Pork/Chicken/ Beef",
+          "price": 18
+        },
+        {
+          "nameTc": "滑蛋牛河",
+          "nameSc": "滑蛋牛河",
+          "nameEn": "Egg Gravy on Rice Noodles",
+          "price": 20
+        },
+        {
+          "nameTc": "濕炒牛河",
+          "nameSc": "濕炒牛河",
+          "nameEn": "Special Fried Rice Noodles",
+          "price": 19
+        },
+        {
+          "nameTc": "牛肉燜面",
+          "nameSc": "牛肉燜面",
+          "nameEn": "Beef Noodles",
+          "price": 19
+        },
+        {
+          "nameTc": "海鮮燜面",
+          "nameSc": "海鮮燜面",
+          "nameEn": "Seafood Noodles",
+          "price": 19
+        },
+        {
+          "nameTc": "排骨豆角燜面",
+          "nameSc": "排骨豆角燜面",
+          "nameEn": "Ribs & Beans Noodles",
+          "price": 19
+        },
+        {
+          "nameTc": "水餃(20pcs)",
+          "nameSc": "水餃(20pcs)",
+          "nameEn": "Boiled Dumpling",
+          "price": 16
+        },
+        {
+          "nameTc": "手工餛鈍(10pcs)",
+          "nameSc": "手工餛鈍(10pcs)",
+          "nameEn": "wonton Soup",
+          "price": 16
+        },
+        {
+          "nameTc": "手抓餅",
+          "nameSc": "手抓餅",
+          "nameEn": "Savoury Pancake",
+          "price": 10
+        },
+        {
+          "nameTc": "蔥油餅",
+          "nameSc": "蔥油餅",
+          "nameEn": "Spring onion pancake",
+          "price": 12
+        },
+        {
+          "nameTc": "手工春餅",
+          "nameSc": "手工春餅",
+          "nameEn": "Thin Pancake",
+          "price": 12
+        }
+      ],
+      "冷面/拌面 (ColdNoodle)": [
+        {
+          "nameTc": "酸菜牛肉拌面",
+          "nameSc": "酸菜牛肉拌面",
+          "nameEn": "Cold Noodles with Beef and Pickled Cabbage",
+          "price": 17
+        },
+        {
+          "nameTc": "椒麻雞絲冷面",
+          "nameSc": "椒麻雞絲冷面",
+          "nameEn": "Cold Noodles with Spicy Chicken",
+          "price": 16
+        },
+        {
+          "nameTc": "特色拌米粉",
+          "nameSc": "特色拌米粉",
+          "nameEn": "Special Mixed Rice Noodle",
+          "price": 16
+        },
+        {
+          "nameTc": "炸醬面",
+          "nameSc": "炸醬面",
+          "nameEn": "Cold Noodles with Special Sauce",
+          "price": 16
+        },
+        {
+          "nameTc": "絕味牛肉拌面",
+          "nameSc": "絕味牛肉拌面",
+          "nameEn": "Cold Noodles with Beef",
+          "price": 18
+        },
+        {
+          "nameTc": "黑椒牛肉拌面",
+          "nameSc": "黑椒牛肉拌面",
+          "nameEn": "Cold Noodles with Beef and Black Pepper",
+          "price": 18
+        },
+        {
+          "nameTc": "茄條雞絲拌面",
+          "nameSc": "茄條雞絲拌面",
+          "nameEn": "Cold Noodles with Chili Oil and Sliced Chicken",
+          "price": 18
+        },
+        {
+          "nameTc": "番茄炒蛋面",
+          "nameSc": "番茄炒蛋面",
+          "nameEn": "Cold Noodles with Fried Tomato Egg",
+          "price": 18
+        }
+      ]
+    },
+    "Mcdonalds": {
+      "Beef": [
+        {
+          "nameTc": "巨無霸",
+          "nameSc": "巨無霸",
+          "nameEn": "Big Mac",
+          "price": 17
+        }
+      ],
+      "Chicken": [
+        {
+          "nameTc": "麥香雞包",
+          "nameSc": "麥香雞包",
+          "nameEn": "McChicken",
+          "price": 17
+        }
+      ]
+    },
+    "KFC": {
+      "Chicken": [
+        {
+          "nameTc": "Zinger 盒裝套餐",
+          "nameSc": "Zinger 盒裝套餐",
+          "nameEn": "Zinger Box Meal",
+          "price": 18.99
+        }
+      ]
+    },
+    "LoveAsia": {
+      "粉絲 / VERMICELLI": [
+        {
+          "nameTc": "特色米粉",
+          "nameSc": "特色米粉",
+          "nameEn": "SPECIAL VERMICELLI",
+          "price": 24
+        },
+        {
+          "nameTc": "香茅烤雞米粉",
+          "nameSc": "香茅烤雞米粉",
+          "nameEn": "GRILLED LEMONGRASS CHICKEN VERMICELLI",
+          "price": 23
+        },
+        {
+          "nameTc": "香茅烤豬肉米粉",
+          "nameSc": "香茅烤豬肉米粉",
+          "nameEn": "GRILLED LEMONGRASS PORK VERMICELLI",
+          "price": 23
+        },
+        {
+          "nameTc": "香茅烤牛肉米粉",
+          "nameSc": "香茅烤牛肉米粉",
+          "nameEn": "GRILLED LEMONGRASS BEEF VERMICELLI",
+          "price": 23
+        },
+        {
+          "nameTc": "脆皮五花肉米粉",
+          "nameSc": "脆皮五花肉米粉",
+          "nameEn": "CRISPY PORK BELLY VERMICELLI",
+          "price": 24
+        }
+      ],
+      "飯 / RICE": [
+        {
+          "nameTc": "烤豬排佐雞絲飯",
+          "nameSc": "烤豬排佐雞絲飯",
+          "nameEn": "GRILLED PORK CHOP & SHREDDED SKIN ON RICE",
+          "price": 23
+        },
+        {
+          "nameTc": "烤豬排配臘腸",
+          "nameSc": "烤豬排配臘腸",
+          "nameEn": "GRILLED PORK CHOP CHOP & CHINESE SAUSAGE",
+          "price": 23
+        },
+        {
+          "nameTc": "脆皮全雞飯",
+          "nameSc": "脆皮全雞飯",
+          "nameEn": "CRIPSPY SKIN WHOLE LEG CHICKEN ON RICE",
+          "price": 23
+        },
+        {
+          "nameTc": "海南雞飯",
+          "nameSc": "海南雞飯",
+          "nameEn": "HAINANESE CHICKEN ON RICE",
+          "price": 23
+        },
+        {
+          "nameTc": "香茅烤雞飯",
+          "nameSc": "香茅烤雞飯",
+          "nameEn": "GRILLED LEMONGRASS CHICKEN ON RICE",
+          "price": 23
+        },
+        {
+          "nameTc": "海鮮炒飯",
+          "nameSc": "海鮮炒飯",
+          "nameEn": "SEAFOOD FRIED RICE",
+          "price": 25
+        },
+        {
+          "nameTc": "揚州炒飯",
+          "nameSc": "揚州炒飯",
+          "nameEn": "YANG ZHOU FRIED RICE",
+          "price": 25
+        },
+        {
+          "nameTc": "脆皮五花肉飯",
+          "nameSc": "脆皮五花肉飯",
+          "nameEn": "CRISPY PORK BELLY ON CRUNCHY RICE",
+          "price": 24
+        },
+        {
+          "nameTc": "牛肉仁當（米飯/印度烤餅）",
+          "nameSc": "牛肉仁當（米飯/印度烤餅）",
+          "nameEn": "BEEF RENDANG (RICE/ ROTI)",
+          "price": 24
+        },
+        {
+          "nameTc": "烤鴨飯",
+          "nameSc": "烤鴨飯",
+          "nameEn": "ROASTED DUCK ON CRUNCHY RICE",
+          "price": 24
+        },
+        {
+          "nameTc": "鹹魚炒飯",
+          "nameSc": "鹹魚炒飯",
+          "nameEn": "SALTED FISH FRIED RICE",
+          "price": 25
+        },
+        {
+          "nameTc": "雞肉炒飯",
+          "nameSc": "雞肉炒飯",
+          "nameEn": "CHICKEN FRIED RICE",
+          "price": 25
+        },
+        {
+          "nameTc": "烤雞肉糯米飯",
+          "nameSc": "烤雞肉糯米飯",
+          "nameEn": "GRILLED CHICKEN ON STICKY RICE",
+          "price": 24
+        },
+        {
+          "nameTc": "焦糖五花肉糯米飯",
+          "nameSc": "焦糖五花肉糯米飯",
+          "nameEn": "CARAMELISSED PORK BELLY ON STICKY RICE",
+          "price": 24
+        },
+        {
+          "nameTc": "香茅烤五花肉糯米飯",
+          "nameSc": "香茅烤五花肉糯米飯",
+          "nameEn": "GRILLED LEMONGRASS PORK BELLY ON STICKY RICE",
+          "price": 24
+        }
+      ],
+      "河粉 / RICE NOODLE SOUP": [
+        {
+          "nameTc": "牛肉湯河粉",
+          "nameSc": "牛肉湯河粉",
+          "nameEn": "ARE BEEF NOODLE SOUP",
+          "price": 22
+        },
+        {
+          "nameTc": "生牛肉牛腩河粉",
+          "nameSc": "生牛肉牛腩河粉",
+          "nameEn": "RARE BEED & BRISKET NOODLE SOUP",
+          "price": 22
+        },
+        {
+          "nameTc": "生牛肉牛肉丸河粉",
+          "nameSc": "生牛肉牛肉丸河粉",
+          "nameEn": "RARE BEEF & BEEF BALLS NOODLE SOUP",
+          "price": 22
+        },
+        {
+          "nameTc": "��色牛肉河粉",
+          "nameSc": "特色牛肉河粉",
+          "nameEn": "SPECIAL BEEF NOODLE SOUP",
+          "price": 23
+        },
+        {
+          "nameTc": "金邊河粉",
+          "nameSc": "金邊河粉",
+          "nameEn": "PHNOM PENH NOODLE SOUP",
+          "price": 23
+        },
+        {
+          "nameTc": "雞肉湯河粉",
+          "nameSc": "雞肉湯河粉",
+          "nameEn": "CHICKEN NOODLE SOUP",
+          "price": 22
+        },
+        {
+          "nameTc": "牛肉燉河粉",
+          "nameSc": "牛肉燉河粉",
+          "nameEn": "EEF STEW NOODLE SOUP",
+          "price": 23
+        },
+        {
+          "nameTc": "海鮮河粉",
+          "nameSc": "海鮮河粉",
+          "nameEn": "SEAFOOD NOODLE SOUP",
+          "price": 23
+        },
+        {
+          "nameTc": "香茅烤雞肉河粉",
+          "nameSc": "香茅烤雞肉河粉",
+          "nameEn": "GRILLED LEMONGRASS CHICKEN FLAT RICE NOODLE",
+          "price": 23
+        },
+        {
+          "nameTc": "香茅烤五花肉河粉",
+          "nameSc": "香茅烤五花肉河粉",
+          "nameEn": "GRILL LEMONGRASS PORK BELLY FLAT RICE NOODLE",
+          "price": 23
+        },
+        {
+          "nameTc": "越南辣牛肉河粉",
+          "nameSc": "越南辣牛肉河粉",
+          "nameEn": "VIETNAMESE SPICY BEEF NOODLE SOUP",
+          "price": 23
+        }
+      ],
+      "鐵板飯 / RICE ON HOT PLATE": [
+        {
+          "nameTc": "牛柳粒飯",
+          "nameSc": "牛柳粒飯",
+          "nameEn": "CUBED BEEF ON RICE",
+          "price": 24
+        },
+        {
+          "nameTc": "海鮮炒飯",
+          "nameSc": "海鮮炒飯",
+          "nameEn": "STIR FRIED SEAFOOD ON RICE",
+          "price": 24
+        },
+        {
+          "nameTc": "香茅辣豬肉飯",
+          "nameSc": "香茅辣豬肉飯",
+          "nameEn": "SPICY LEMONGRASS PORK ON RICE",
+          "price": 24
+        },
+        {
+          "nameTc": "香茅辣雞肉飯",
+          "nameSc": "香茅辣雞肉飯",
+          "nameEn": "SPICY LEMONGRASS CHICKEN ON RICE",
+          "price": 24
+        }
+      ]
+    }
+  }
+}

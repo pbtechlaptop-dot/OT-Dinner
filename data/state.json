@@ -1,0 +1,123 @@
+{
+  "date": "2026-03-05",
+  "restaurant": "四海一家",
+  "orders": [
+    {
+      "id": 1,
+      "dept": "HQ",
+      "name": "Alan Duan",
+      "food": "火鴨粥",
+      "addon": "",
+      "drink": "",
+      "price": 17.5
+    },
+    {
+      "id": 2,
+      "dept": "Lady Ruby",
+      "name": "Albert",
+      "food": "八珍炒麵",
+      "addon": "",
+      "drink": "天然椰奶",
+      "price": 17.5
+    },
+    {
+      "id": 3,
+      "dept": "Lady Ruby",
+      "name": "Allen",
+      "food": "鮮蝦雲吞湯麵",
+      "addon": "",
+      "drink": "青提烏龍茶",
+      "price": 17.5
+    },
+    {
+      "id": 4,
+      "dept": "Lady Ruby",
+      "name": "Bowen",
+      "food": "雙拼撈麵",
+      "addon": "叉燒 雞",
+      "drink": "可樂",
+      "price": 17.5
+    },
+    {
+      "id": 5,
+      "dept": "Lambie",
+      "name": "Alan Xu",
+      "food": "生炒糯米飯",
+      "addon": "",
+      "drink": "汽泡水",
+      "price": 17.5
+    },
+    {
+      "id": 6,
+      "dept": "Lambie",
+      "name": "Jane",
+      "food": "魚香茄子飯",
+      "addon": "",
+      "drink": "雪碧",
+      "price": 17.5
+    },
+    {
+      "id": 7,
+      "dept": "Lady Ruby",
+      "name": "Cory",
+      "food": "雞粥",
+      "addon": "",
+      "drink": "芬達",
+      "price": 17.5
+    },
+    {
+      "id": 8,
+      "dept": "Lady Ruby",
+      "name": "Ethan",
+      "food": "切雞湯粉/麵",
+      "addon": "",
+      "drink": "維他檸檬茶",
+      "price": 17.5
+    },
+    {
+      "id": 9,
+      "dept": "Lady Ruby",
+      "name": "Gilbert",
+      "food": "鮮蝦雲吞湯",
+      "addon": "",
+      "drink": "伯朗咖啡 -Vanilla Coffee",
+      "price": 17.5
+    },
+    {
+      "id": 10,
+      "dept": "Lady Ruby",
+      "name": "Jake",
+      "food": "黑椒牛肉飯",
+      "addon": "",
+      "drink": "可樂",
+      "price": 17.5
+    },
+    {
+      "id": 11,
+      "dept": "Lady Ruby",
+      "name": "Jerry",
+      "food": "牛腩燴飯",
+      "addon": "",
+      "drink": "可樂",
+      "price": 17.5
+    },
+    {
+      "id": 12,
+      "dept": "Lady Ruby",
+      "name": "Klaus",
+      "food": "鮮茄牛肉飯",
+      "addon": "",
+      "drink": "可樂 零糖",
+      "price": 17.5
+    },
+    {
+      "id": 13,
+      "dept": "Lady Ruby",
+      "name": "Mark",
+      "food": "生炒糯米飯",
+      "addon": "",
+      "drink": "阿薩姆 綠茶",
+      "price": 17.5
+    }
+  ]
+}
