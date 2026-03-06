@@ -23,10 +23,17 @@ const STATE_FILE = path.join(DATA_DIR, 'state.json');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const STORE_TABLE = process.env.SUPABASE_STORE_TABLE || 'app_kv';
-
 const USE_SUPABASE = Boolean(createClient && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 const supabase = USE_SUPABASE ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } }) : null;
+
+const TABLES = {
+  restaurants: process.env.SUPABASE_TABLE_RESTAURANTS || 'restaurants',
+  drinks: process.env.SUPABASE_TABLE_DRINKS || 'drinks',
+  staff: process.env.SUPABASE_TABLE_STAFF || 'staff',
+  menus: process.env.SUPABASE_TABLE_MENUS || 'menus',
+  appState: process.env.SUPABASE_TABLE_APP_STATE || 'app_state',
+  orders: process.env.SUPABASE_TABLE_ORDERS || 'orders'
+};
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -39,6 +46,14 @@ const MIME = {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function defaultSeed() {
+  return { restaurants: [], staff: {}, drinks: [], menus: {} };
+}
+
+function defaultState() {
+  return { date: todayISO(), restaurant: null, orders: [] };
 }
 
 function readJsonSafe(filePath, fallback) {
@@ -54,22 +69,10 @@ function writeJson(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-function defaultSeed() {
-  return { restaurants: [], staff: {}, drinks: [], menus: {} };
-}
-
-function defaultState() {
-  return { date: todayISO(), restaurant: null, orders: [] };
-}
-
 function ensureDataFiles() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-
-  const seed = readJsonSafe(SEED_FILE, null);
-  if (!seed) writeJson(SEED_FILE, defaultSeed());
-
-  const state = readJsonSafe(STATE_FILE, null);
-  if (!state) writeJson(STATE_FILE, defaultState());
+  if (!fs.existsSync(SEED_FILE)) writeJson(SEED_FILE, defaultSeed());
+  if (!fs.existsSync(STATE_FILE)) writeJson(STATE_FILE, defaultState());
 }
 
 function normText(v) {
@@ -99,11 +102,13 @@ function normalizeMenuItem(item) {
   return { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price };
 }
 
-function normalizeSeed(nextSeed) {
-  const restaurants = Array.isArray(nextSeed.restaurants) ? nextSeed.restaurants : [];
-  const staff = nextSeed.staff && typeof nextSeed.staff === 'object' ? nextSeed.staff : {};
-  const drinks = Array.isArray(nextSeed.drinks) ? nextSeed.drinks : [];
-  const menus = nextSeed.menus && typeof nextSeed.menus === 'object' ? nextSeed.menus : {};
+function normalizeSeed(input) {
+  const seed = input && typeof input === 'object' ? input : defaultSeed();
+
+  const restaurants = Array.isArray(seed.restaurants) ? seed.restaurants : [];
+  const staff = seed.staff && typeof seed.staff === 'object' ? seed.staff : {};
+  const drinks = Array.isArray(seed.drinks) ? seed.drinks : [];
+  const menus = seed.menus && typeof seed.menus === 'object' ? seed.menus : {};
 
   const normalized = {
     restaurants: [...new Set(restaurants.map(normText).filter(Boolean))],
@@ -128,73 +133,386 @@ function normalizeSeed(nextSeed) {
     }
   });
 
+    const restaurantSet = new Set(normalized.restaurants);
   Object.keys(menus).forEach(rest => {
     const cleanRest = normText(rest);
-    if (!cleanRest) return;
-    normalized.menus[cleanRest] = {};
+    if (!cleanRest || !restaurantSet.has(cleanRest)) return;
     const cats = menus[rest] && typeof menus[rest] === 'object' ? menus[rest] : {};
     Object.keys(cats).forEach(cat => {
       const cleanCat = normText(cat);
       if (!cleanCat) return;
       const items = Array.isArray(cats[cat]) ? cats[cat] : [];
-      normalized.menus[cleanRest][cleanCat] = items.map(normalizeMenuItem).filter(Boolean);
+      const cleanItems = items.map(normalizeMenuItem).filter(Boolean);
+      if (!cleanItems.length) return;
+      if (!normalized.menus[cleanRest]) normalized.menus[cleanRest] = {};
+      normalized.menus[cleanRest][cleanCat] = cleanItems;
     });
   });
 
   return normalized;
 }
 
-async function kvGet(key, fallback) {
-  if (!USE_SUPABASE) return readJsonSafe(key === 'seed' ? SEED_FILE : STATE_FILE, fallback);
+function mergeSeeds(currentSeed, incomingSeed) {
+  const current = normalizeSeed(currentSeed);
+  const incoming = normalizeSeed(incomingSeed);
+  const merged = defaultSeed();
 
-  const { data, error } = await supabase
-    .from(STORE_TABLE)
-    .select('value')
-    .eq('key', key)
-    .maybeSingle();
+  merged.restaurants = [...new Set([...(current.restaurants || []), ...(incoming.restaurants || [])])];
 
-  if (error) throw new Error(`Supabase read error (${key}): ${error.message}`);
-  if (data && data.value !== undefined && data.value !== null) return data.value;
+  const staff = {};
+  const allDepts = new Set([
+    ...Object.keys(current.staff || {}),
+    ...Object.keys(incoming.staff || {})
+  ]);
+  allDepts.forEach(dept => {
+    const names = [
+      ...((current.staff && current.staff[dept]) || []),
+      ...((incoming.staff && incoming.staff[dept]) || [])
+    ];
+    const unique = [...new Set(names.map(normText).filter(Boolean))];
+    if (unique.length) staff[dept] = unique;
+  });
+  merged.staff = staff;
 
-  await kvSet(key, fallback);
-  return fallback;
+  const drinkMap = new Map();
+  [...(current.drinks || []), ...(incoming.drinks || [])]
+    .map(normalizeDrinkItem)
+    .filter(Boolean)
+    .forEach(d => {
+      const key = `${d.tc}|${d.sc}|${d.en}`;
+      if (!drinkMap.has(key)) drinkMap.set(key, d);
+    });
+  merged.drinks = Array.from(drinkMap.values());
+
+  const menus = {};
+  const allRests = new Set([
+    ...Object.keys(current.menus || {}),
+    ...Object.keys(incoming.menus || {})
+  ]);
+  allRests.forEach(rest => {
+    const allCats = new Set([
+      ...Object.keys((current.menus && current.menus[rest]) || {}),
+      ...Object.keys((incoming.menus && incoming.menus[rest]) || {})
+    ]);
+    allCats.forEach(cat => {
+      const itemMap = new Map();
+      const allItems = [
+        ...(((current.menus && current.menus[rest] && current.menus[rest][cat]) || [])),
+        ...(((incoming.menus && incoming.menus[rest] && incoming.menus[rest][cat]) || []))
+      ];
+      allItems.map(normalizeMenuItem).filter(Boolean).forEach(it => {
+        if (!itemMap.has(it.nameTc)) itemMap.set(it.nameTc, it);
+      });
+      const list = Array.from(itemMap.values());
+      if (list.length) {
+        if (!menus[rest]) menus[rest] = {};
+        menus[rest][cat] = list;
+      }
+    });
+  });
+  merged.menus = menus;
+
+  return normalizeSeed(merged);
 }
 
-async function kvSet(key, value) {
-  if (!USE_SUPABASE) {
-    writeJson(key === 'seed' ? SEED_FILE : STATE_FILE, value);
-    return;
+function buildSeedIndex(seedInput) {
+  const seed = normalizeSeed(seedInput);
+  const restaurants = new Set((seed.restaurants || []).map(normText).filter(Boolean));
+  const drinks = new Set((seed.drinks || []).map(d => `${d.tc}|${d.sc}|${d.en}`));
+  const departments = new Set(Object.keys(seed.staff || {}).map(normText).filter(Boolean));
+  const staffMembers = new Set();
+  Object.keys(seed.staff || {}).forEach(dept => {
+    (seed.staff[dept] || []).forEach(name => {
+      const d = normText(dept);
+      const n = normText(name);
+      if (d && n) staffMembers.add(`${d}|${n}`);
+    });
+  });
+
+  const menuCategories = new Set();
+  const menuItems = new Set();
+  Object.keys(seed.menus || {}).forEach(rest => {
+    Object.keys(seed.menus[rest] || {}).forEach(cat => {
+      const r = normText(rest);
+      const c = normText(cat);
+      if (!r || !c) return;
+      menuCategories.add(`${r}|${c}`);
+      (seed.menus[rest][cat] || []).forEach(item => {
+        const it = normalizeMenuItem(item);
+        if (it && it.nameTc) menuItems.add(`${r}|${c}|${it.nameTc}`);
+      });
+    });
+  });
+
+  return { restaurants, drinks, departments, staffMembers, menuCategories, menuItems };
+}
+
+function diffSeedAdded(beforeSeed, afterSeed) {
+  const before = buildSeedIndex(beforeSeed);
+  const after = buildSeedIndex(afterSeed);
+  const countAdded = (b, a) => {
+    let count = 0;
+    a.forEach(v => {
+      if (!b.has(v)) count += 1;
+    });
+    return count;
+  };
+
+  return {
+    restaurants: countAdded(before.restaurants, after.restaurants),
+    drinks: countAdded(before.drinks, after.drinks),
+    departments: countAdded(before.departments, after.departments),
+    staff: countAdded(before.staffMembers, after.staffMembers),
+    menuCategories: countAdded(before.menuCategories, after.menuCategories),
+    menuItems: countAdded(before.menuItems, after.menuItems)
+  };
+}
+function normalizeState(input) {
+  const state = input && typeof input === 'object' ? input : defaultState();
+  return {
+    date: normText(state.date) || todayISO(),
+    restaurant: state.restaurant ? normText(state.restaurant) : null,
+    orders: Array.isArray(state.orders) ? state.orders : []
+  };
+}
+
+async function supaSelect(table, columns, opts = {}) {
+  let q = supabase.from(table).select(columns);
+  if (opts.eq) {
+    Object.keys(opts.eq).forEach(k => {
+      q = q.eq(k, opts.eq[k]);
+    });
+  }
+  if (opts.order) {
+    opts.order.forEach(o => {
+      q = q.order(o.column, { ascending: o.ascending !== false });
+    });
+  }
+  if (opts.single) q = q.single();
+  if (opts.maybeSingle) q = q.maybeSingle();
+  const { data, error } = await q;
+  if (error) throw new Error(`Supabase query failed on ${table}: ${error.message}`);
+  return data;
+}
+
+async function supaDeleteAll(table, keyCol) {
+  const { error } = await supabase.from(table).delete().not(keyCol, 'is', null);
+  if (error) throw new Error(`Supabase delete failed on ${table}: ${error.message}`);
+}
+
+async function getSeedSupabase() {
+  const restaurantsRows = await supaSelect(TABLES.restaurants, 'name', { order: [{ column: 'name' }] });
+  const drinksRows = await supaSelect(TABLES.drinks, 'tc,sc,en', { order: [{ column: 'tc' }] });
+  const staffRows = await supaSelect(TABLES.staff, 'dept,name', { order: [{ column: 'dept' }, { column: 'name' }] });
+  const menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price', {
+    order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
+  });
+
+  const seed = defaultSeed();
+  seed.restaurants = (restaurantsRows || []).map(r => normText(r.name)).filter(Boolean);
+
+  (drinksRows || []).forEach(d => {
+    const item = normalizeDrinkItem({ tc: d.tc, sc: d.sc, en: d.en });
+    if (item) seed.drinks.push(item);
+  });
+
+  (staffRows || []).forEach(s => {
+    const dept = normText(s.dept);
+    const name = normText(s.name);
+    if (!dept || !name) return;
+    if (!seed.staff[dept]) seed.staff[dept] = [];
+    if (!seed.staff[dept].includes(name)) seed.staff[dept].push(name);
+  });
+
+  (menuRows || []).forEach(m => {
+    const rest = normText(m.restaurant);
+    const cat = normText(m.category);
+    const item = normalizeMenuItem({ nameTc: m.name_tc, nameSc: m.name_sc, nameEn: m.name_en, price: m.price });
+    if (!rest || !cat || !item) return;
+    if (!seed.menus[rest]) seed.menus[rest] = {};
+    if (!seed.menus[rest][cat]) seed.menus[rest][cat] = [];
+    seed.menus[rest][cat].push(item);
+    if (!seed.restaurants.includes(rest)) seed.restaurants.push(rest);
+  });
+
+  return normalizeSeed(seed);
+}
+
+async function saveSeedSupabase(input) {
+  const seed = normalizeSeed(input);
+
+  await supaDeleteAll(TABLES.menus, 'id');
+  await supaDeleteAll(TABLES.staff, 'id');
+  await supaDeleteAll(TABLES.drinks, 'tc');
+  await supaDeleteAll(TABLES.restaurants, 'name');
+
+  if (seed.restaurants.length) {
+    const { error } = await supabase.from(TABLES.restaurants).insert(seed.restaurants.map(name => ({ name })));
+    if (error) throw new Error(`Supabase insert restaurants failed: ${error.message}`);
   }
 
-  const { error } = await supabase
-    .from(STORE_TABLE)
-    .upsert({ key, value }, { onConflict: 'key' });
+  if (seed.drinks.length) {
+    const rows = seed.drinks.map(d => ({ tc: d.tc, sc: d.sc, en: d.en }));
+    const { error } = await supabase.from(TABLES.drinks).insert(rows);
+    if (error) throw new Error(`Supabase insert drinks failed: ${error.message}`);
+  }
 
-  if (error) throw new Error(`Supabase write error (${key}): ${error.message}`);
+  const staffRows = [];
+  Object.keys(seed.staff).forEach(dept => {
+    (seed.staff[dept] || []).forEach(name => staffRows.push({ dept, name }));
+  });
+  if (staffRows.length) {
+    const { error } = await supabase.from(TABLES.staff).insert(staffRows);
+    if (error) throw new Error(`Supabase insert staff failed: ${error.message}`);
+  }
+
+  const menuMap = new Map();
+  Object.keys(seed.menus).forEach(rest => {
+    Object.keys(seed.menus[rest] || {}).forEach(cat => {
+      (seed.menus[rest][cat] || []).forEach(it => {
+        const key = rest + '|' + cat + '|' + it.nameTc;
+        menuMap.set(key, {
+          restaurant: rest,
+          category: cat,
+          name_tc: it.nameTc,
+          name_sc: it.nameSc,
+          name_en: it.nameEn,
+          price: Number(it.price)
+        });
+      });
+    });
+  });
+  const menuRows = Array.from(menuMap.values());
+  if (menuRows.length) {
+    const { error } = await supabase.from(TABLES.menus).insert(menuRows);
+    if (error) throw new Error(`Supabase insert menus failed: ${error.message}`);
+  }
 }
 
-async function getSeed() {
-  const seed = await kvGet('seed', defaultSeed());
-  return normalizeSeed(seed || defaultSeed());
+async function getStateSupabase() {
+  let appState = await supaSelect(TABLES.appState, 'id,date,restaurant', { eq: { id: 1 }, maybeSingle: true });
+  if (!appState) {
+    const init = { id: 1, date: todayISO(), restaurant: null };
+    const { error } = await supabase.from(TABLES.appState).upsert(init, { onConflict: 'id' });
+    if (error) throw new Error(`Supabase init app_state failed: ${error.message}`);
+    appState = init;
+  }
+
+  const today = todayISO();
+  if (normText(appState.date) !== today) {
+    const { error } = await supabase.from(TABLES.appState).upsert({ id: 1, date: today, restaurant: null }, { onConflict: 'id' });
+    if (error) throw new Error(`Supabase rotate day failed: ${error.message}`);
+    appState = { id: 1, date: today, restaurant: null };
+  }
+
+  const ordersRows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price', {
+    eq: { date: appState.date },
+    order: [{ column: 'dept' }, { column: 'name' }]
+  });
+
+  const orders = (ordersRows || []).map((o, i) => ({
+    id: i + 1,
+    dept: normText(o.dept),
+    name: normText(o.name),
+    food: normText(o.food),
+    addon: normText(o.addon),
+    drink: normText(o.drink),
+    price: Number(o.price || 0)
+  }));
+
+  return {
+    date: appState.date,
+    restaurant: appState.restaurant ? normText(appState.restaurant) : null,
+    orders
+  };
 }
 
-async function getState() {
-  const state = await kvGet('state', defaultState());
-  if (!state || state.date !== todayISO()) {
+async function saveStateSupabase(input) {
+  const state = normalizeState(input);
+
+  const { error: e1 } = await supabase
+    .from(TABLES.appState)
+    .upsert({ id: 1, date: state.date, restaurant: state.restaurant }, { onConflict: 'id' });
+  if (e1) throw new Error(`Supabase save app_state failed: ${e1.message}`);
+
+  const { error: eDel } = await supabase.from(TABLES.orders).delete().eq('date', state.date);
+  if (eDel) throw new Error(`Supabase clear orders failed: ${eDel.message}`);
+
+  if (state.orders.length) {
+    const rows = state.orders.map(o => ({
+      date: state.date,
+      dept: normText(o.dept),
+      name: normText(o.name),
+      food: normText(o.food),
+      addon: normText(o.addon),
+      drink: normText(o.drink),
+      price: Number(o.price || 0)
+    }));
+    const { error: eIns } = await supabase.from(TABLES.orders).insert(rows);
+    if (eIns) throw new Error(`Supabase insert orders failed: ${eIns.message}`);
+  }
+}
+
+
+async function upsertOrderSupabase(date, order) {
+  const row = {
+    date,
+    dept: normText(order.dept),
+    name: normText(order.name),
+    food: normText(order.food),
+    addon: normText(order.addon),
+    drink: normText(order.drink),
+    price: Number(order.price)
+  };
+  const { error } = await supabase.from(TABLES.orders).upsert(row, { onConflict: 'date,dept,name' });
+  if (error) throw new Error(`Supabase upsert order failed: ${error.message}`);
+}
+async function resetDaySupabase() {
+  const reset = defaultState();
+  await saveStateSupabase(reset);
+}
+
+async function getSeedLocal() {
+  return normalizeSeed(readJsonSafe(SEED_FILE, defaultSeed()));
+}
+
+async function saveSeedLocal(seed) {
+  writeJson(SEED_FILE, normalizeSeed(seed));
+}
+
+async function getStateLocal() {
+  const state = normalizeState(readJsonSafe(STATE_FILE, defaultState()));
+  if (state.date !== todayISO()) {
     const reset = defaultState();
-    await kvSet('state', reset);
+    writeJson(STATE_FILE, reset);
     return reset;
   }
   return state;
 }
 
-async function saveSeed(seed) {
-  await kvSet('seed', normalizeSeed(seed));
+async function saveStateLocal(state) {
+  writeJson(STATE_FILE, normalizeState(state));
 }
 
-async function saveState(state) {
-  await kvSet('state', state);
+async function resetDayLocal() {
+  writeJson(STATE_FILE, defaultState());
 }
+
+const storage = USE_SUPABASE
+  ? {
+      getSeed: getSeedSupabase,
+      saveSeed: saveSeedSupabase,
+      getState: getStateSupabase,
+      saveState: saveStateSupabase,
+      resetDay: resetDaySupabase
+    }
+  : {
+      getSeed: getSeedLocal,
+      saveSeed: saveSeedLocal,
+      getState: getStateLocal,
+      saveState: saveStateLocal,
+      resetDay: resetDayLocal
+    };
 
 function json(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -270,11 +588,11 @@ function isAdminAuthorized(password) {
 }
 
 async function handleApi(req, res, urlObj) {
-  const seed = await getSeed();
-  const state = await getState();
   const pathname = (urlObj.pathname || '/').replace(/\/+$/, '') || '/';
 
   if (req.method === 'GET' && pathname === '/api/bootstrap') {
+    const seed = await storage.getSeed();
+    const state = await storage.getState();
     return json(res, 200, {
       date: state.date,
       restaurants: seed.restaurants,
@@ -286,6 +604,8 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'GET' && pathname === '/api/menu') {
+    const seed = await storage.getSeed();
+    const state = await storage.getState();
     const restaurant = urlObj.searchParams.get('restaurant') || state.restaurant;
     if (!restaurant) return json(res, 400, { error: 'Restaurant is required' });
     const menu = seed.menus[restaurant];
@@ -294,6 +614,8 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'POST' && pathname === '/api/restaurant') {
+    const seed = await storage.getSeed();
+    const state = await storage.getState();
     const body = await parseBody(req);
     const restaurant = normText(body.restaurant);
     const forceChange = Boolean(body.forceChange);
@@ -307,12 +629,14 @@ async function handleApi(req, res, urlObj) {
 
     state.restaurant = restaurant;
     if (forceChange) state.orders = [];
-    await saveState(state);
+    await storage.saveState(state);
     return json(res, 200, { ok: true, currentRestaurant: state.restaurant, cleared: forceChange });
   }
 
   if (req.method === 'POST' && pathname === '/api/orders') {
+    const state = await storage.getState();
     if (!state.restaurant) return json(res, 400, { error: 'Please set today restaurant first' });
+
     const body = await parseBody(req);
     const error = validateOrder(body);
     if (error) return json(res, 400, { error });
@@ -326,6 +650,13 @@ async function handleApi(req, res, urlObj) {
       price: Number(body.price)
     };
 
+    const existed = state.orders.some(o => o.dept === clean.dept && o.name === clean.name);
+
+    if (USE_SUPABASE) {
+      await upsertOrderSupabase(state.date, clean);
+      return json(res, 200, { ok: true, updated: existed });
+    }
+
     const idx = state.orders.findIndex(o => o.dept === clean.dept && o.name === clean.name);
     let updated = false;
     if (idx >= 0) {
@@ -336,11 +667,12 @@ async function handleApi(req, res, urlObj) {
     }
 
     state.orders = state.orders.map((o, i) => ({ id: i + 1, ...o }));
-    await saveState(state);
-    return json(res, 200, { ok: true, updated, orders: state.orders });
+    await storage.saveState(state);
+    return json(res, 200, { ok: true, updated });
   }
 
   if (req.method === 'GET' && pathname === '/api/orders') {
+    const state = await storage.getState();
     return json(res, 200, {
       orders: state.orders,
       total: state.orders.reduce((sum, o) => sum + Number(o.price || 0), 0)
@@ -348,6 +680,7 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'GET' && pathname === '/api/export/csv') {
+    const state = await storage.getState();
     const csv = toCsv(state.orders);
     const fileName = `orders-${state.date}.csv`;
     res.writeHead(200, {
@@ -361,13 +694,13 @@ async function handleApi(req, res, urlObj) {
     const body = await parseBody(req);
     const nextSeed = body && body.seed ? body.seed : null;
     if (!nextSeed || typeof nextSeed !== 'object') return json(res, 400, { error: 'seed payload is required' });
-
-    await saveSeed(nextSeed);
-    await saveState(defaultState());
+    await storage.saveSeed(nextSeed);
+    await storage.resetDay();
     return json(res, 200, { ok: true });
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/seed') {
+    const seed = await storage.getSeed();
     const password = normText(urlObj.searchParams.get('password'));
     if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
     return json(res, 200, { seed });
@@ -377,18 +710,27 @@ async function handleApi(req, res, urlObj) {
     const body = await parseBody(req);
     const password = normText(body.password);
     const nextSeed = body && body.seed ? body.seed : null;
+    const merge = Boolean(body && body.merge);
     if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
     if (!nextSeed || typeof nextSeed !== 'object') return json(res, 400, { error: 'seed payload is required' });
 
-    await saveSeed(nextSeed);
-    return json(res, 200, { ok: true });
+    if (merge) {
+      const currentSeed = await storage.getSeed();
+      const mergedSeed = mergeSeeds(currentSeed, nextSeed);
+      const added = diffSeedAdded(currentSeed, mergedSeed);
+      await storage.saveSeed(mergedSeed);
+      return json(res, 200, { ok: true, merged: true, seed: mergedSeed, added });
+    }
+
+    await storage.saveSeed(nextSeed);
+    return json(res, 200, { ok: true, merged: false });
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/reset-day') {
     const body = await parseBody(req);
     const password = normText(body.password);
     if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
-    await saveState(defaultState());
+    await storage.resetDay();
     return json(res, 200, { ok: true });
   }
 
@@ -415,10 +757,17 @@ if (require.main === module) {
   const server = http.createServer(createHandler());
   server.listen(PORT, HOST, () => {
     console.log(`Overtime meal app running at http://${HOST}:${PORT}`);
-    if (USE_SUPABASE) console.log('Storage mode: Supabase');
-    if (!USE_SUPABASE) console.log('Storage mode: Local files');
+    console.log(`Storage mode: ${USE_SUPABASE ? 'Supabase (normalized tables)' : 'Local files'}`);
   });
 }
 
 module.exports = { createHandler };
+
+
+
+
+
+
+
+
 

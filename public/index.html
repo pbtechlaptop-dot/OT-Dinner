@@ -36,6 +36,7 @@
         <button class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" id="langEn" type="button">EN</button>
         <a class="rounded-md bg-pborange px-3 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" href="/api/export/csv" data-i18n="exportCsv">匯出 CSV</a>
         <button class="rounded-md bg-pborange px-3 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="exportXlsxBtn" type="button" data-i18n="exportExcel">匯出 XLSX</button>
+        <a class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" href="/admin/">後台</a>
       </div>
     </header>
 
@@ -72,7 +73,7 @@
         </label>
         <label class="grid gap-1 text-sm text-slate-600">
           <span data-i18n="price">價錢</span>
-          <input id="priceInput" type="number" step="0.01" min="0" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
+          <input id="priceInput" type="number" step="0.01" min="0" required readonly class="w-full cursor-not-allowed rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none transition" />
         </label>
         <label class="grid gap-1 text-sm text-slate-600">
           <span data-i18n="drink">飲品</span>
@@ -112,20 +113,20 @@
       </div>
       <div id="drinkSummary" class="mt-2 text-sm text-slate-500"></div>
     </section>
-
-    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-      <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secImport">4) 匯入資料 (Excel/CSV/JSON)</h2>
-      <div class="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
-        <input id="importFile" type="file" accept=".xlsx,.xls,.csv,.json" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200" />
-        <button class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="importBtn" type="button" data-i18n="importData">匯入覆蓋資料</button>
-      </div>
-      <p class="mt-2 text-sm text-slate-500" data-i18n="importHint">Excel/CSV 標題欄需包含：type, restaurant, category, item, price, dept, name, drink</p>
-    </section>
   </main>
 
   <div id="toast" class="toast hidden fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full bg-pbnavy px-4 py-2 text-sm text-white shadow-lg"></div>
+  <div id="busyOverlay" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/30">
+    <div class="rounded-xl bg-white px-5 py-4 shadow-lg">
+      <div class="flex items-center gap-3">
+        <span class="inline-block h-5 w-5 animate-spin rounded-full border-2 border-pbnavy border-t-transparent"></span>
+        <span class="text-sm font-semibold text-pbnavy">系統處理中，請稍候...</span>
+      </div>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
+
 

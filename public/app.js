@@ -8,7 +8,8 @@
   date: '',
   lang: 'tc',
   foodLookup: {},
-  drinkLookup: {}
+  drinkLookup: {},
+  lastOrdersSignature: ''
 };
 
 const i18n = {
@@ -165,7 +166,7 @@ const i18n = {
 };
 
 const el = {
-  dateText: document.getElementById('dateText'), restaurantSelect: document.getElementById('restaurantSelect'), setRestaurantBtn: document.getElementById('setRestaurantBtn'), forceChangeBtn: document.getElementById('forceChangeBtn'), currentRestaurantText: document.getElementById('currentRestaurantText'), deptSelect: document.getElementById('deptSelect'), nameSelect: document.getElementById('nameSelect'), categorySelect: document.getElementById('categorySelect'), foodSelect: document.getElementById('foodSelect'), priceInput: document.getElementById('priceInput'), drinkSelect: document.getElementById('drinkSelect'), addonInput: document.getElementById('addonInput'), orderForm: document.getElementById('orderForm'), ordersBody: document.getElementById('ordersBody'), totalPrice: document.getElementById('totalPrice'), drinkSummary: document.getElementById('drinkSummary'), importFile: document.getElementById('importFile'), importBtn: document.getElementById('importBtn'), exportXlsxBtn: document.getElementById('exportXlsxBtn'), langTc: document.getElementById('langTc'), langSc: document.getElementById('langSc'), langEn: document.getElementById('langEn'), toast: document.getElementById('toast')
+  dateText: document.getElementById('dateText'), restaurantSelect: document.getElementById('restaurantSelect'), setRestaurantBtn: document.getElementById('setRestaurantBtn'), forceChangeBtn: document.getElementById('forceChangeBtn'), currentRestaurantText: document.getElementById('currentRestaurantText'), deptSelect: document.getElementById('deptSelect'), nameSelect: document.getElementById('nameSelect'), categorySelect: document.getElementById('categorySelect'), foodSelect: document.getElementById('foodSelect'), priceInput: document.getElementById('priceInput'), drinkSelect: document.getElementById('drinkSelect'), addonInput: document.getElementById('addonInput'), orderForm: document.getElementById('orderForm'), ordersBody: document.getElementById('ordersBody'), totalPrice: document.getElementById('totalPrice'), drinkSummary: document.getElementById('drinkSummary'), exportXlsxBtn: document.getElementById('exportXlsxBtn'), langTc: document.getElementById('langTc'), langSc: document.getElementById('langSc'), langEn: document.getElementById('langEn'), toast: document.getElementById('toast'), busyOverlay: document.getElementById('busyOverlay')
 };
 
 function t(key) { return (i18n[state.lang] && i18n[state.lang][key]) || key; }
@@ -175,6 +176,12 @@ function showToast(message, ms = 2000) {
   el.toast.classList.remove('hidden');
   clearTimeout(showToast.tid);
   showToast.tid = setTimeout(() => el.toast.classList.add('hidden'), ms);
+}
+
+function setBusy(isBusy) {
+  if (!el.busyOverlay) return;
+  el.busyOverlay.classList.toggle('hidden', !isBusy);
+  el.busyOverlay.classList.toggle('flex', isBusy);
 }
 
 async function api(path, options = {}) {
@@ -304,6 +311,48 @@ function displayDrink(drinkKey) {
   return d ? getLocalizedDrink(d) : drinkKey;
 }
 
+function orderSignature(orders) {
+  return JSON.stringify((orders || []).map(o => [
+    o.dept || '',
+    o.name || '',
+    o.food || '',
+    Number(o.price || 0),
+    o.addon || '',
+    o.drink || ''
+  ]));
+}
+
+function upsertLocalOrder(order) {
+  const idx = (state.orders || []).findIndex(o => o.dept === order.dept && o.name === order.name);
+  if (idx >= 0) {
+    state.orders[idx] = { ...state.orders[idx], ...order };
+    return true;
+  }
+  state.orders.push(order);
+  return false;
+}
+
+async function refreshOrdersSilently() {
+  try {
+    const payload = await api('/api/orders');
+    const incoming = payload.orders || [];
+    const sig = orderSignature(incoming);
+    if (sig !== state.lastOrdersSignature) {
+      state.orders = incoming;
+      state.lastOrdersSignature = sig;
+      renderOrders();
+    }
+  } catch {
+  }
+}
+
+function startAutoRefresh() {
+  if (startAutoRefresh.tid) clearInterval(startAutoRefresh.tid);
+  startAutoRefresh.tid = setInterval(() => {
+    if (document.hidden) return;
+    refreshOrdersSilently();
+  }, 3000);
+}
 function renderOrders() {
   const orders = [...(state.orders || [])];
   let total = 0;
@@ -350,20 +399,26 @@ async function loadMenu(restaurant) {
 }
 
 async function loadBootstrap() {
-  const payload = await api('/api/bootstrap');
-  state.restaurants = payload.restaurants || [];
-  state.staff = payload.staff || {};
-  state.drinks = payload.drinks || [];
-  state.currentRestaurant = payload.currentRestaurant || null;
-  state.orders = payload.orders || [];
-  state.date = payload.date || '';
+  setBusy(true);
+  try {
+    const payload = await api('/api/bootstrap');
+    state.restaurants = payload.restaurants || [];
+    state.staff = payload.staff || {};
+    state.drinks = payload.drinks || [];
+    state.currentRestaurant = payload.currentRestaurant || null;
+    state.orders = payload.orders || [];
+    state.lastOrdersSignature = orderSignature(state.orders);
+    state.date = payload.date || '';
 
-  el.dateText.textContent = `${t('datePrefix')}${payload.date}`;
-  renderRestaurants();
-  renderDepartments();
-  renderDrinks();
-  await loadMenu(state.currentRestaurant);
-  renderOrders();
+    el.dateText.textContent = `${t('datePrefix')}${payload.date}`;
+    renderRestaurants();
+    renderDepartments();
+    renderDrinks();
+    await loadMenu(state.currentRestaurant);
+    renderOrders();
+  } finally {
+    setBusy(false);
+  }
 }
 
 function rowsToSeed(rows) {
@@ -556,13 +611,18 @@ el.setRestaurantBtn.addEventListener('click', async () => {
   if (!restaurant) return showToast(t('chooseRestaurantFirst'));
   if (state.currentRestaurant && restaurant !== state.currentRestaurant) return showToast(t('restaurantLocked'));
   try {
+    setBusy(true);
     await api('/api/restaurant', { method: 'POST', body: JSON.stringify({ restaurant, forceChange: false }) });
     state.currentRestaurant = restaurant;
     el.currentRestaurantText.textContent = `${t('currentRestaurant')}${restaurant}`;
     await loadMenu(restaurant);
     syncRestaurantLock();
     showToast(t('restaurantSet'));
-  } catch (err) { showToast(err.message); }
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    setBusy(false);
+  }
 });
 
 el.forceChangeBtn.addEventListener('click', async () => {
@@ -575,6 +635,7 @@ el.forceChangeBtn.addEventListener('click', async () => {
   if (!password) return showToast(t('enterAdminPassword'));
 
   try {
+    setBusy(true);
     const payload = await api('/api/restaurant', { method: 'POST', body: JSON.stringify({ restaurant, password, forceChange: true }) });
     state.currentRestaurant = payload.currentRestaurant;
     state.orders = [];
@@ -584,22 +645,41 @@ el.forceChangeBtn.addEventListener('click', async () => {
     renderOrders();
     resetOrderForm();
     showToast(t('restaurantChanged'));
-  } catch (err) { showToast(err.message); }
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    setBusy(false);
+  }
 });
 
 el.orderForm.addEventListener('submit', async event => {
   event.preventDefault();
-  const price = parsePriceInput(el.priceInput.value);
+  const selectedFoodOpt = el.foodSelect.options[el.foodSelect.selectedIndex];
+  const selectedPrice = selectedFoodOpt && selectedFoodOpt.dataset ? selectedFoodOpt.dataset.price : '';
+  const price = parsePriceInput(selectedPrice || el.priceInput.value);
   if (!Number.isFinite(price)) return showToast(t('badPrice'));
 
   const order = { dept: el.deptSelect.value, name: el.nameSelect.value, food: el.foodSelect.value, price, addon: el.addonInput.value, drink: el.drinkSelect.value };
   try {
+    setBusy(true);
     const payload = await api('/api/orders', { method: 'POST', body: JSON.stringify(order) });
-    state.orders = payload.orders || [];
+    let updated = false;
+    if (Array.isArray(payload.orders)) {
+      state.orders = payload.orders;
+      updated = Boolean(payload.updated);
+    } else {
+      updated = upsertLocalOrder(order);
+      if (typeof payload.updated === 'boolean') updated = payload.updated;
+    }
+    state.lastOrdersSignature = orderSignature(state.orders);
     renderOrders();
     resetOrderForm();
-    showToast(payload.updated ? t('orderUpdated') : t('orderAdded'));
-  } catch (err) { showToast(err.message); }
+    showToast(updated ? t('orderUpdated') : t('orderAdded'));
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    setBusy(false);
+  }
 });
 
 el.exportXlsxBtn.addEventListener('click', async () => {
@@ -610,26 +690,21 @@ el.exportXlsxBtn.addEventListener('click', async () => {
   }
 });
 
-el.importBtn.addEventListener('click', async () => {
-  const file = el.importFile.files && el.importFile.files[0];
-  if (!file) return showToast(t('chooseImportFile'));
-  try {
-    const seed = await readImportSeed(file);
-    await api('/api/import/seed', { method: 'POST', body: JSON.stringify({ seed }) });
-    el.importFile.value = '';
-    showToast(t('importSuccess'), 2500);
-    await loadBootstrap();
-  } catch (err) {
-    showToast(`${t('importFail')}: ${err.message}`, 3500);
-  }
-});
-
 el.langTc.addEventListener('click', async () => { state.lang = 'tc'; applyI18n(); await loadBootstrap(); });
 el.langSc.addEventListener('click', async () => { state.lang = 'sc'; applyI18n(); await loadBootstrap(); });
 el.langEn.addEventListener('click', async () => { state.lang = 'en'; applyI18n(); await loadBootstrap(); });
 
 applyI18n();
+startAutoRefresh();
 loadBootstrap().catch(err => showToast(err.message, 3000));
+
+
+
+
+
+
+
+
 
 
 
