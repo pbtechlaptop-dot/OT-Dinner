@@ -178,14 +178,11 @@ function mapLocaleToLang(locale) {
 }
 
 function detectPreferredLang() {
-  const locales = [];
-  if (Array.isArray(navigator.languages)) locales.push(...navigator.languages);
-  if (navigator.language) locales.push(navigator.language);
-  for (const loc of locales) {
-    const mapped = mapLocaleToLang(loc);
-    if (mapped) return mapped;
-  }
-  return 'en';
+  const primary = (Array.isArray(navigator.languages) && navigator.languages.length)
+    ? navigator.languages[0]
+    : navigator.language;
+  const mapped = mapLocaleToLang(primary);
+  return mapped || 'en';
 }
 
 function t(key) { return (i18n[state.lang] && i18n[state.lang][key]) || key; }
@@ -717,6 +714,8 @@ state.lang = detectPreferredLang();
 applyI18n();
 startAutoRefresh();
 loadBootstrap().catch(err => showToast(err.message, 3000));
+
+
 
 
 
