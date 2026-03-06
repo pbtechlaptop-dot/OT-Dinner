@@ -27,41 +27,74 @@ Set both env vars:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-Optional:
-- `SUPABASE_STORE_TABLE` (default: `app_kv`)
-
-## Supabase SQL (run once)
+## Supabase SQL (normalized tables)
 
 ```sql
-create table if not exists public.app_kv (
-  key text primary key,
-  value jsonb not null,
-  updated_at timestamptz not null default now()
+create table if not exists public.restaurants (
+  name text primary key
 );
 
-create or replace function public.touch_updated_at()
-returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
+create table if not exists public.drinks (
+  tc text primary key,
+  sc text not null,
+  en text not null
+);
 
-create trigger trg_app_kv_updated_at
-before update on public.app_kv
-for each row execute function public.touch_updated_at();
+create table if not exists public.staff (
+  id bigserial primary key,
+  dept text not null,
+  name text not null,
+  unique (dept, name)
+);
+
+create table if not exists public.menus (
+  id bigserial primary key,
+  restaurant text not null,
+  category text not null,
+  name_tc text not null,
+  name_sc text not null,
+  name_en text not null,
+  price numeric(10,2) not null,
+  unique (restaurant, category, name_tc)
+);
+
+create table if not exists public.app_state (
+  id int primary key,
+  date text not null,
+  restaurant text null
+);
+
+create table if not exists public.orders (
+  id bigserial primary key,
+  date text not null,
+  dept text not null,
+  name text not null,
+  food text not null,
+  addon text not null default '',
+  drink text not null default '',
+  price numeric(10,2) not null,
+  unique (date, dept, name)
+);
+
+insert into public.app_state (id, date, restaurant)
+values (1, to_char(now(), 'YYYY-MM-DD'), null)
+on conflict (id) do nothing;
 ```
 
 ## Web Pages
 
 - Frontend: `/`
-- Admin backend UI: `/admin.html`
+- Admin UI: `/admin/`
 
 Admin UI can manage:
+- import data (Excel/CSV/JSON)
 - restaurants
 - drinks (tc/sc/en)
 - departments + staff
 - menus (restaurant/category/items)
+
+Also in admin:
+- Traditional/Simplified auto conversion for drink/menu Chinese fields.
 
 ## APIs
 
@@ -82,16 +115,15 @@ Admin:
 
 1. Push this repo to GitHub.
 2. In Vercel, import the repo.
-3. Add Environment Variables in Vercel Project Settings:
+3. Add Environment Variables:
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `CHANGE_PASSWORD`
    - `ADMIN_PASSWORD`
-4. Deploy.
-
-Project already includes `vercel.json` and `api/index.js` for Vercel routing.
+4. Deploy / Redeploy.
 
 ## Notes
 
 - `.xlsx` export is generated on browser side (button: 匯出 XLSX).
 - CSV export includes UTF-8 BOM (no Chinese garbled text in Excel).
+- Frontend no longer has import section; import is in admin page only.
