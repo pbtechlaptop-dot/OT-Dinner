@@ -589,7 +589,7 @@ function serveStatic(reqPath, res) {
   fs.readFile(filePath, (err, data) => {
     if (err) return text(res, 404, 'Not found');
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(data);
   });
 }
@@ -773,6 +773,7 @@ if (require.main === module) {
 }
 
 module.exports = { createHandler };
+
 
 
 

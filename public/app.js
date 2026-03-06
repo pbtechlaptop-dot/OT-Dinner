@@ -164,8 +164,31 @@ const i18n = {
     badPrice: 'Invalid price format'
   }
 };
-
-
+const el = {
+  dateText: document.getElementById('dateText'),
+  diagInfo: document.getElementById('diagInfo'),
+  restaurantSelect: document.getElementById('restaurantSelect'),
+  setRestaurantBtn: document.getElementById('setRestaurantBtn'),
+  forceChangeBtn: document.getElementById('forceChangeBtn'),
+  currentRestaurantText: document.getElementById('currentRestaurantText'),
+  deptSelect: document.getElementById('deptSelect'),
+  nameSelect: document.getElementById('nameSelect'),
+  categorySelect: document.getElementById('categorySelect'),
+  foodSelect: document.getElementById('foodSelect'),
+  priceInput: document.getElementById('priceInput'),
+  drinkSelect: document.getElementById('drinkSelect'),
+  addonInput: document.getElementById('addonInput'),
+  orderForm: document.getElementById('orderForm'),
+  ordersBody: document.getElementById('ordersBody'),
+  totalPrice: document.getElementById('totalPrice'),
+  drinkSummary: document.getElementById('drinkSummary'),
+  exportXlsxBtn: document.getElementById('exportXlsxBtn'),
+  langTc: document.getElementById('langTc'),
+  langSc: document.getElementById('langSc'),
+  langEn: document.getElementById('langEn'),
+  toast: document.getElementById('toast'),
+  busyOverlay: document.getElementById('busyOverlay')
+};
 function mapLocaleToLang(locale) {
   const raw = String(locale || '').toLowerCase();
   if (!raw) return null;
@@ -186,6 +209,11 @@ function detectPreferredLang() {
 }
 
 function t(key) { return (i18n[state.lang] && i18n[state.lang][key]) || key; }
+function setDiag(message, isError = false) {
+  if (!el.diagInfo) return;
+  el.diagInfo.textContent = message;
+  el.diagInfo.className = `mt-1 text-xs ${isError ? 'text-red-200' : 'text-white/75'}`;
+}
 
 function showToast(message, ms = 2000) {
   el.toast.textContent = message;
@@ -426,12 +454,16 @@ async function loadBootstrap() {
     state.lastOrdersSignature = orderSignature(state.orders);
     state.date = payload.date || '';
 
-    el.dateText.textContent = `${t('datePrefix')}${payload.date}`;
+    el.dateText.textContent = `${t('datePrefix')}${payload.date} | R:${state.restaurants.length} | O:${state.orders.length}`;
     renderRestaurants();
     renderDepartments();
     renderDrinks();
     await loadMenu(state.currentRestaurant);
     renderOrders();
+    setDiag(`載入成功：餐廳 ${state.restaurants.length} 間，今日餐廳 ${state.currentRestaurant || '未設定'}，訂單 ${state.orders.length} 張`);
+  } catch (err) {
+    setDiag(`載入失敗：${err.message}`, true);
+    throw err;
   } finally {
     setBusy(false);
   }
@@ -714,6 +746,13 @@ state.lang = detectPreferredLang();
 applyI18n();
 startAutoRefresh();
 loadBootstrap().catch(err => showToast(err.message, 3000));
+
+
+
+
+
+
+
 
 
 
