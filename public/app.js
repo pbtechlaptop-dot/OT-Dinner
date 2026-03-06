@@ -165,9 +165,28 @@ const i18n = {
   }
 };
 
-const el = {
-  dateText: document.getElementById('dateText'), restaurantSelect: document.getElementById('restaurantSelect'), setRestaurantBtn: document.getElementById('setRestaurantBtn'), forceChangeBtn: document.getElementById('forceChangeBtn'), currentRestaurantText: document.getElementById('currentRestaurantText'), deptSelect: document.getElementById('deptSelect'), nameSelect: document.getElementById('nameSelect'), categorySelect: document.getElementById('categorySelect'), foodSelect: document.getElementById('foodSelect'), priceInput: document.getElementById('priceInput'), drinkSelect: document.getElementById('drinkSelect'), addonInput: document.getElementById('addonInput'), orderForm: document.getElementById('orderForm'), ordersBody: document.getElementById('ordersBody'), totalPrice: document.getElementById('totalPrice'), drinkSummary: document.getElementById('drinkSummary'), exportXlsxBtn: document.getElementById('exportXlsxBtn'), langTc: document.getElementById('langTc'), langSc: document.getElementById('langSc'), langEn: document.getElementById('langEn'), toast: document.getElementById('toast'), busyOverlay: document.getElementById('busyOverlay')
-};
+
+function mapLocaleToLang(locale) {
+  const raw = String(locale || '').toLowerCase();
+  if (!raw) return null;
+  if (raw === 'en' || raw.startsWith('en-')) return 'en';
+  if (raw === 'zh-hant' || raw.startsWith('zh-hant-')) return 'tc';
+  if (raw === 'zh-hans' || raw.startsWith('zh-hans-')) return 'sc';
+  if (raw === 'zh-hk' || raw === 'zh-tw' || raw === 'zh-mo') return 'tc';
+  if (raw === 'zh-cn' || raw === 'zh-sg') return 'sc';
+  return null;
+}
+
+function detectPreferredLang() {
+  const locales = [];
+  if (Array.isArray(navigator.languages)) locales.push(...navigator.languages);
+  if (navigator.language) locales.push(navigator.language);
+  for (const loc of locales) {
+    const mapped = mapLocaleToLang(loc);
+    if (mapped) return mapped;
+  }
+  return 'en';
+}
 
 function t(key) { return (i18n[state.lang] && i18n[state.lang][key]) || key; }
 
@@ -694,9 +713,11 @@ el.langTc.addEventListener('click', async () => { state.lang = 'tc'; applyI18n()
 el.langSc.addEventListener('click', async () => { state.lang = 'sc'; applyI18n(); await loadBootstrap(); });
 el.langEn.addEventListener('click', async () => { state.lang = 'en'; applyI18n(); await loadBootstrap(); });
 
+state.lang = detectPreferredLang();
 applyI18n();
 startAutoRefresh();
 loadBootstrap().catch(err => showToast(err.message, 3000));
+
 
 
 
