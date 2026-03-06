@@ -23,6 +23,7 @@ const STATE_FILE = path.join(DATA_DIR, 'state.json');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const APP_TIMEZONE = process.env.APP_TIMEZONE || 'Asia/Hong_Kong';
 const USE_SUPABASE = Boolean(createClient && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 const supabase = USE_SUPABASE ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } }) : null;
 
@@ -45,7 +46,17 @@ const MIME = {
 };
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  try {
+    // Use business timezone for day rollover instead of UTC midnight.
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: APP_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
 }
 
 function defaultSeed() {
@@ -762,6 +773,8 @@ if (require.main === module) {
 }
 
 module.exports = { createHandler };
+
+
 
 
 
