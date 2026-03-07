@@ -458,7 +458,7 @@ function renderOrders() {
     byDeptDrink[dept][drinkKey] = (byDeptDrink[dept][drinkKey] || 0) + 1;
   });
 
- const summaryHtml = Object.entries(byDeptDrink)
+  const summaryHtml = Object.entries(byDeptDrink)
   .map(([dept, drinkMap]) => {
     const drinksList = Object.entries(drinkMap)
       .map(([k, c]) => `- ${displayDrink(k)} ${t('xLabel')} ${c}`)
@@ -468,7 +468,6 @@ function renderOrders() {
   .join('<br>');
 
 el.drinkSummary.innerHTML = summaryHtml;
-
   updateDiagSummary();
 }
 
