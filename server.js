@@ -581,7 +581,9 @@ function toCsv(orders) {
 }
 
 function serveStatic(reqPath, res) {
-  let safePath = reqPath === '/' ? '/index.html' : (reqPath === '/admin' ? '/admin.html' : reqPath);
+  let safePath = reqPath === '/'
+    ? '/index.html'
+    : ((reqPath === '/admin' || reqPath === '/admin/') ? '/admin.html' : reqPath);
   safePath = path.normalize(safePath).replace(/^\.\.(\\|\/|$)/, '');
   const filePath = path.join(PUBLIC_DIR, safePath);
   if (!filePath.startsWith(PUBLIC_DIR)) return text(res, 403, 'Forbidden');

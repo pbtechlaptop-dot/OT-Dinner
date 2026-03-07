@@ -61,7 +61,10 @@ const i18n = {
     importSuccess: '匯入成功，已更新資料',
     importFail: '匯入失敗',
     xLabel: 'x',
-    badPrice: '價錢格式錯誤'
+    badPrice: '\u50f9\u9322\u683c\u5f0f\u932f\u8aa4',
+    busyProcessing: '\u7cfb\u7d71\u8655\u7406\u4e2d\uff0c\u8acb\u7a0d\u5019...',
+    diagLoading: '\u8f09\u5165\u4e2d...',
+    loadFailedPrefix: '\u8f09\u5165\u5931\u6557\uff1a'
   },
   sc: {
     appTitle: '加班订餐系统',
@@ -111,7 +114,10 @@ const i18n = {
     importSuccess: '导入成功，已更新资料',
     importFail: '导入失败',
     xLabel: 'x',
-    badPrice: '价格格式错误'
+    badPrice: '\u4ef7\u683c\u683c\u5f0f\u9519\u8bef',
+    busyProcessing: '\u7cfb\u7edf\u5904\u7406\u4e2d\uff0c\u8bf7\u7a0d\u5019...',
+    diagLoading: '\u8f7d\u5165\u4e2d...',
+    loadFailedPrefix: '\u8f7d\u5165\u5931\u8d25\uff1a'
   },
   en: {
     appTitle: 'Overtime Meal Order',
@@ -161,7 +167,10 @@ const i18n = {
     importSuccess: 'Import successful',
     importFail: 'Import failed',
     xLabel: 'x',
-    badPrice: 'Invalid price format'
+    badPrice: 'Invalid price format',
+    busyProcessing: 'Processing, please wait...',
+    diagLoading: 'Loading...',
+    loadFailedPrefix: 'Load failed: '
   }
 };
 const el = {
@@ -213,6 +222,31 @@ function setDiag(message, isError = false) {
   if (!el.diagInfo) return;
   el.diagInfo.textContent = message;
   el.diagInfo.className = `mt-1 text-xs ${isError ? 'text-red-200' : 'text-white/75'}`;
+}
+
+function updateDiagSummary() {
+  const restaurantCount = (state.restaurants || []).length;
+  const orderCount = (state.orders || []).length;
+  const currentRestaurant = String(state.currentRestaurant || '').trim();
+
+  if (state.lang === 'en') {
+    const restaurantPart = currentRestaurant ? `today restaurant ${currentRestaurant}` : 'today restaurant not set';
+    setDiag(`Loaded: ${restaurantCount} restaurants, ${restaurantPart}, ${orderCount} orders`);
+    return;
+  }
+
+  if (state.lang === 'sc') {
+    const restaurantPart = currentRestaurant
+      ? `\u4eca\u65e5\u9910\u5385 ${currentRestaurant}`
+      : '\u4eca\u65e5\u9910\u5385\u672a\u8bbe\u7f6e';
+    setDiag(`\u8f7d\u5165\u6210\u529f\uff1a\u9910\u5385 ${restaurantCount} \u95f4\uff0c${restaurantPart}\uff0c\u8ba2\u5355 ${orderCount} \u5f20`);
+    return;
+  }
+
+  const restaurantPart = currentRestaurant
+    ? `\u4eca\u65e5\u9910\u5ef3 ${currentRestaurant}`
+    : '\u4eca\u65e5\u9910\u5ef3\u672a\u8a2d\u5b9a';
+  setDiag(`\u8f09\u5165\u6210\u529f\uff1a\u9910\u5ef3 ${restaurantCount} \u9593\uff0c${restaurantPart}\uff0c\u8a02\u55ae ${orderCount} \u5f35`);
 }
 
 function showToast(message, ms = 2000) {
@@ -404,6 +438,7 @@ function renderOrders() {
     el.ordersBody.innerHTML = `<tr><td colspan="7">${t('noOrders')}</td></tr>`;
     el.totalPrice.textContent = '0.00';
     el.drinkSummary.textContent = '';
+    updateDiagSummary();
     return;
   }
 
@@ -428,6 +463,7 @@ function renderOrders() {
     return `${dept}: ${parts}`;
   });
   el.drinkSummary.textContent = summary.join(' | ');
+  updateDiagSummary();
 }
 
 async function loadMenu(restaurant) {
@@ -444,6 +480,7 @@ async function loadMenu(restaurant) {
 
 async function loadBootstrap() {
   setBusy(true);
+  setDiag(t('diagLoading'));
   try {
     const payload = await api('/api/bootstrap');
     state.restaurants = payload.restaurants || [];
@@ -454,15 +491,15 @@ async function loadBootstrap() {
     state.lastOrdersSignature = orderSignature(state.orders);
     state.date = payload.date || '';
 
-    el.dateText.textContent = `${t('datePrefix')}${payload.date} | R:${state.restaurants.length} | O:${state.orders.length}`;
+    el.dateText.textContent = `${t('datePrefix')}${payload.date}`;
     renderRestaurants();
     renderDepartments();
     renderDrinks();
     await loadMenu(state.currentRestaurant);
     renderOrders();
-    setDiag(`載入成功：餐廳 ${state.restaurants.length} 間，今日餐廳 ${state.currentRestaurant || '未設定'}，訂單 ${state.orders.length} 張`);
+    updateDiagSummary();
   } catch (err) {
-    setDiag(`載入失敗：${err.message}`, true);
+    setDiag(`${t('loadFailedPrefix')}${err.message}`, true);
     throw err;
   } finally {
     setBusy(false);
