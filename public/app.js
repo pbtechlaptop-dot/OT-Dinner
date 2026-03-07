@@ -458,16 +458,11 @@ function renderOrders() {
     byDeptDrink[dept][drinkKey] = (byDeptDrink[dept][drinkKey] || 0) + 1;
   });
 
-  const summaryHtml = Object.entries(byDeptDrink)
-  .map(([dept, drinkMap]) => {
-    const drinksList = Object.entries(drinkMap)
-      .map(([k, c]) => `- ${displayDrink(k)} ${t('xLabel')} ${c}`)
-      .join('<br>');
-    return `<div><strong>${dept}:</strong><br>${drinksList}</div>`;
-  })
-  .join('<br>');
-
-el.drinkSummary.innerHTML = summaryHtml;
+  const summary = Object.entries(byDeptDrink).map(([dept, drinkMap]) => {
+    const parts = Object.entries(drinkMap).map(([k, c]) => `${displayDrink(k)} ${t('xLabel')} ${c}`).join(', ');
+    return `${dept}: ${parts}`;
+  });
+  el.drinkSummary.textContent = summary.join(' | ');
   updateDiagSummary();
 }
 
