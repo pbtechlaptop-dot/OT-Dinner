@@ -1,9 +1,12 @@
 ﻿const state = {
+  defaultCutoffTime: '13:00',
   restaurants: [],
   staff: {},
   drinks: [],
   menu: {},
   currentRestaurant: null,
+  cutoffTime: null,
+  cutoffPassed: false,
   orders: [],
   date: '',
   lang: 'tc',
@@ -19,7 +22,8 @@ const i18n = {
     exportExcel: '匯出 XLSX',
     secRestaurant: '1) 今日餐廳',
     setRestaurant: '設定餐廳',
-    forceChange: '改餐廳並清單',
+    restaurantPicker: '選擇餐廳',
+    restaurantActionHint: '已選餐廳後，再按設定餐廳。',
     secOrder: '2) 填寫訂單',
     dept: '部門',
     name: '同事',
@@ -52,9 +56,18 @@ const i18n = {
     chooseNewRestaurantFirst: '請先揀新餐廳',
     enterAdminPassword: '請輸入管理密碼',
     enterAdminPasswordPrompt: '請輸入管理密碼（更改餐廳會清空舊單）',
+    settingsPasswordPrompt: '請輸入管理密碼以更改餐廳或截單時間',
     restaurantSet: '已設定今日餐廳',
     restaurantChanged: '已更改餐廳，舊單已清空',
+    cutoffUpdated: '已更新截單時間',
     restaurantLocked: '餐廳已鎖定，如需更改請按「改餐廳並清單」',
+    cutoffTime: '截單時間',
+    settingsLockedHint: '如需更改餐廳或截單時間，按設定餐廳並輸入密碼。',
+    cutoffNotSet: '今日截單時間：未設定',
+    cutoffAt: '今日截單時間：',
+    cutoffPassedNotice: '下單時間已過，請聯絡部門主管或 Simon 下單。',
+    cutoffActiveNotice: '請於截單前完成下單，如已過時請聯絡部門主管或 Simon。',
+    orderBlockedNotice: '下單沒有成功，請聯絡部門主管或 Simon 下單。',
     orderAdded: '已新增訂單',
     orderUpdated: '已更新訂單',
     chooseImportFile: '請先選擇匯入檔案',
@@ -72,10 +85,11 @@ const i18n = {
     exportExcel: '导出 XLSX',
     secRestaurant: '1) 今日餐厅',
     setRestaurant: '设置餐厅',
-    forceChange: '改餐厅并清单',
+    restaurantPicker: '选择餐厅',
+    restaurantActionHint: '选好餐厅后，再按设置餐厅。',
     secOrder: '2) 填写订单',
     dept: '部门',
-    name: '同事',
+    name: '人员',
     category: '分类',
     food: '餐点',
     price: '价格',
@@ -95,7 +109,7 @@ const i18n = {
     noDrink: '无',
     selectRestaurant: '-- 选择餐厅 --',
     selectDept: '-- 选择部门 --',
-    selectName: '-- 选择同事 --',
+    selectName: '-- 选择人员 --',
     selectCat: '-- 选择分类 --',
     selectFood: '-- 选择餐点 --',
     selectDrink: '-- 无 --',
@@ -105,9 +119,18 @@ const i18n = {
     chooseNewRestaurantFirst: '请先选新餐厅',
     enterAdminPassword: '请输入管理密码',
     enterAdminPasswordPrompt: '请输入管理密码（更改餐厅会清空旧单）',
+    settingsPasswordPrompt: '请输入管理密码以更改餐厅或截单时间',
     restaurantSet: '已设置今日餐厅',
     restaurantChanged: '已更改餐厅，旧单已清空',
+    cutoffUpdated: '已更新截单时间',
     restaurantLocked: '餐厅已锁定，如需更改请按「改餐厅并清单」',
+    cutoffTime: '截单时间',
+    settingsLockedHint: '如需更改餐厅或截单时间，请按设置餐厅并输入密码。',
+    cutoffNotSet: '今日截单时间：未设置',
+    cutoffAt: '今日截单时间：',
+    cutoffPassedNotice: '下单时间已过，请联络部门主管或 Simon 下单。',
+    cutoffActiveNotice: '请于截单前完成下单，如已过时请联络部门主管或 Simon。',
+    orderBlockedNotice: '下单没有成功，请联络部门主管或 Simon 下单。',
     orderAdded: '已新增订单',
     orderUpdated: '已更新订单',
     chooseImportFile: '请先选择导入文件',
@@ -125,7 +148,8 @@ const i18n = {
     exportExcel: 'Export XLSX',
     secRestaurant: '1) Restaurant',
     setRestaurant: 'Set Restaurant',
-    forceChange: 'Change & Clear',
+    restaurantPicker: 'Choose Restaurant',
+    restaurantActionHint: 'Choose a restaurant, then click Set Restaurant.',
     secOrder: '2) Place Order',
     dept: 'Department',
     name: 'Name',
@@ -158,9 +182,18 @@ const i18n = {
     chooseNewRestaurantFirst: 'Please select new restaurant first',
     enterAdminPassword: 'Please enter admin password',
     enterAdminPasswordPrompt: 'Enter admin password (changing restaurant clears old orders)',
+    settingsPasswordPrompt: 'Enter admin password to change the restaurant or cutoff time',
     restaurantSet: 'Today restaurant set',
     restaurantChanged: 'Restaurant changed, old orders cleared',
+    cutoffUpdated: 'Cutoff time updated',
     restaurantLocked: 'Restaurant is locked. Use password change to switch.',
+    cutoffTime: 'Cutoff Time',
+    settingsLockedHint: 'To change the restaurant or cutoff time, click Set Restaurant and enter the password.',
+    cutoffNotSet: 'Today cutoff time: not set',
+    cutoffAt: 'Today cutoff time: ',
+    cutoffPassedNotice: 'Ordering time has passed. Please contact your team leader or Simon to place an order.',
+    cutoffActiveNotice: 'Please place your order before the cutoff time. After that, contact your team leader or Simon.',
+    orderBlockedNotice: 'Order was not placed successfully. Please contact your team leader or Simon to place an order.',
     orderAdded: 'Order added',
     orderUpdated: 'Order updated',
     chooseImportFile: 'Please choose a file first',
@@ -178,8 +211,12 @@ const el = {
   diagInfo: document.getElementById('diagInfo'),
   restaurantSelect: document.getElementById('restaurantSelect'),
   setRestaurantBtn: document.getElementById('setRestaurantBtn'),
-  forceChangeBtn: document.getElementById('forceChangeBtn'),
+  restaurantActionHint: document.getElementById('restaurantActionHint'),
   currentRestaurantText: document.getElementById('currentRestaurantText'),
+  cutoffTimeInput: document.getElementById('cutoffTimeInput'),
+  cutoffTimeText: document.getElementById('cutoffTimeText'),
+  cutoffNotice: document.getElementById('cutoffNotice'),
+  orderErrorNotice: document.getElementById('orderErrorNotice'),
   deptSelect: document.getElementById('deptSelect'),
   nameSelect: document.getElementById('nameSelect'),
   categorySelect: document.getElementById('categorySelect'),
@@ -228,10 +265,11 @@ function updateDiagSummary() {
   const restaurantCount = (state.restaurants || []).length;
   const orderCount = (state.orders || []).length;
   const currentRestaurant = String(state.currentRestaurant || '').trim();
+  const cutoff = state.cutoffTime ? `, cutoff ${state.cutoffTime}` : '';
 
   if (state.lang === 'en') {
     const restaurantPart = currentRestaurant ? `today restaurant ${currentRestaurant}` : 'today restaurant not set';
-    setDiag(`Loaded: ${restaurantCount} restaurants, ${restaurantPart}, ${orderCount} orders`);
+    setDiag(`Loaded: ${restaurantCount} restaurants, ${restaurantPart}${cutoff}, ${orderCount} orders`);
     return;
   }
 
@@ -239,14 +277,16 @@ function updateDiagSummary() {
     const restaurantPart = currentRestaurant
       ? `\u4eca\u65e5\u9910\u5385 ${currentRestaurant}`
       : '\u4eca\u65e5\u9910\u5385\u672a\u8bbe\u7f6e';
-    setDiag(`\u8f7d\u5165\u6210\u529f\uff1a\u9910\u5385 ${restaurantCount} \u95f4\uff0c${restaurantPart}\uff0c\u8ba2\u5355 ${orderCount} \u5f20`);
+    const cutoffPart = state.cutoffTime ? `\uff0c\u622a\u5355 ${state.cutoffTime}` : '';
+    setDiag(`\u8f7d\u5165\u6210\u529f\uff1a\u9910\u5385 ${restaurantCount} \u95f4\uff0c${restaurantPart}${cutoffPart}\uff0c\u8ba2\u5355 ${orderCount} \u5f20`);
     return;
   }
 
   const restaurantPart = currentRestaurant
     ? `\u4eca\u65e5\u9910\u5ef3 ${currentRestaurant}`
     : '\u4eca\u65e5\u9910\u5ef3\u672a\u8a2d\u5b9a';
-  setDiag(`\u8f09\u5165\u6210\u529f\uff1a\u9910\u5ef3 ${restaurantCount} \u9593\uff0c${restaurantPart}\uff0c\u8a02\u55ae ${orderCount} \u5f35`);
+  const cutoffPart = state.cutoffTime ? `\uff0c\u622a\u55ae ${state.cutoffTime}` : '';
+  setDiag(`\u8f09\u5165\u6210\u529f\uff1a\u9910\u5ef3 ${restaurantCount} \u9593\uff0c${restaurantPart}${cutoffPart}\uff0c\u8a02\u55ae ${orderCount} \u5f35`);
 }
 
 function showToast(message, ms = 2000) {
@@ -254,6 +294,23 @@ function showToast(message, ms = 2000) {
   el.toast.classList.remove('hidden');
   clearTimeout(showToast.tid);
   showToast.tid = setTimeout(() => el.toast.classList.add('hidden'), ms);
+}
+
+function getCutoffInputValue() {
+  return String(el.cutoffTimeInput?.value || '').trim() || state.cutoffTime || state.defaultCutoffTime;
+}
+
+function hideOrderError() {
+  if (!el.orderErrorNotice) return;
+  el.orderErrorNotice.classList.add('hidden');
+  el.orderErrorNotice.textContent = '';
+}
+
+function showOrderError(message) {
+  if (!el.orderErrorNotice) return;
+  el.orderErrorNotice.textContent = message;
+  el.orderErrorNotice.classList.remove('hidden');
+  el.orderErrorNotice.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function setBusy(isBusy) {
@@ -303,6 +360,8 @@ function applyI18n() {
   document.documentElement.lang = state.lang === 'en' ? 'en' : (state.lang === 'sc' ? 'zh-Hans' : 'zh-Hant');
   document.querySelectorAll('[data-i18n]').forEach(node => { node.textContent = t(node.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(node => { node.placeholder = t(node.getAttribute('data-i18n-placeholder')); });
+  if (!el.orderErrorNotice || el.orderErrorNotice.classList.contains('hidden')) return;
+  if (state.cutoffPassed) showOrderError(t('orderBlockedNotice'));
 }
 
 function fillSelect(select, items, placeholder) {
@@ -340,14 +399,24 @@ function buildLookupMaps() {
 function syncRestaurantLock() {
   const locked = Boolean(state.currentRestaurant);
   const selected = el.restaurantSelect.value;
-  el.setRestaurantBtn.disabled = locked && selected !== state.currentRestaurant;
+  const changingRestaurant = locked && selected && selected !== state.currentRestaurant;
+  el.setRestaurantBtn.disabled = false;
+  if (el.cutoffTimeInput) el.cutoffTimeInput.disabled = changingRestaurant;
+  if (el.restaurantActionHint) {
+    el.restaurantActionHint.textContent = state.currentRestaurant
+      ? t('settingsLockedHint')
+      : t('restaurantActionHint');
+  }
 }
 
 function renderRestaurants() {
   fillSelect(el.restaurantSelect, (state.restaurants || []).map(r => ({ value: r, label: r })), t('selectRestaurant'));
   if (state.currentRestaurant) el.restaurantSelect.value = state.currentRestaurant;
+  if (el.cutoffTimeInput) el.cutoffTimeInput.value = state.cutoffTime || state.defaultCutoffTime;
   el.currentRestaurantText.textContent = `${t('currentRestaurant')}${state.currentRestaurant || t('notSet')}`;
+  el.cutoffTimeText.textContent = state.cutoffTime ? `${t('cutoffAt')}${state.cutoffTime}` : t('cutoffNotSet');
   syncRestaurantLock();
+  updateCutoffUi();
 }
 
 function renderDepartments() {
@@ -471,12 +540,41 @@ el.drinkSummary.innerHTML = summaryHtml;
   updateDiagSummary();
 }
 
+function updateCutoffUi() {
+  if (!el.cutoffNotice || !el.orderForm) return;
+  if (!state.cutoffTime) {
+    el.cutoffNotice.classList.add('hidden');
+    el.cutoffNotice.textContent = '';
+    if (!state.cutoffPassed) hideOrderError();
+    Array.from(el.orderForm.elements).forEach(node => { node.disabled = false; });
+    return;
+  }
+
+  el.cutoffNotice.textContent = state.cutoffPassed
+    ? `${t('cutoffAt')}${state.cutoffTime}. ${t('cutoffPassedNotice')}`
+    : `${t('cutoffAt')}${state.cutoffTime}. ${t('cutoffActiveNotice')}`;
+  el.cutoffNotice.classList.remove('hidden');
+
+  Array.from(el.orderForm.elements).forEach(node => {
+    node.disabled = Boolean(state.cutoffPassed);
+  });
+  if (state.cutoffPassed) {
+    showOrderError(t('orderBlockedNotice'));
+  } else {
+    hideOrderError();
+  }
+}
+
 async function loadMenu(restaurant) {
   if (!restaurant) {
     state.menu = {};
+    buildLookupMaps();
     renderCategories();
     return;
   }
+  state.menu = {};
+  buildLookupMaps();
+  renderCategories();
   const payload = await api(`/api/menu?restaurant=${encodeURIComponent(restaurant)}`);
   state.menu = payload.menu || {};
   buildLookupMaps();
@@ -492,6 +590,8 @@ async function loadBootstrap() {
     state.staff = payload.staff || {};
     state.drinks = payload.drinks || [];
     state.currentRestaurant = payload.currentRestaurant || null;
+    state.cutoffTime = payload.cutoffTime || state.defaultCutoffTime;
+    state.cutoffPassed = Boolean(payload.cutoffPassed);
     state.orders = payload.orders || [];
     state.lastOrdersSignature = orderSignature(state.orders);
     state.date = payload.date || '';
@@ -698,44 +798,51 @@ el.restaurantSelect.addEventListener('change', syncRestaurantLock);
 
 el.setRestaurantBtn.addEventListener('click', async () => {
   const restaurant = el.restaurantSelect.value;
+  const changingRestaurant = Boolean(state.currentRestaurant && restaurant && restaurant !== state.currentRestaurant);
+  const changingCutoff = Boolean(state.currentRestaurant && getCutoffInputValue() !== (state.cutoffTime || state.defaultCutoffTime));
+  const cutoffTime = getCutoffInputValue();
   if (!restaurant) return showToast(t('chooseRestaurantFirst'));
-  if (state.currentRestaurant && restaurant !== state.currentRestaurant) return showToast(t('restaurantLocked'));
+  const previousRestaurant = state.currentRestaurant;
+  const previousCutoffTime = state.cutoffTime;
+  const previousMenu = state.menu;
+  const previousFoodLookup = state.foodLookup;
   try {
     setBusy(true);
-    await api('/api/restaurant', { method: 'POST', body: JSON.stringify({ restaurant, forceChange: false }) });
-    state.currentRestaurant = restaurant;
-    el.currentRestaurantText.textContent = `${t('currentRestaurant')}${restaurant}`;
+    let payload;
+    if (changingRestaurant || changingCutoff) {
+      const promptText = changingRestaurant ? t('enterAdminPasswordPrompt') : t('settingsPasswordPrompt');
+      const passwordRaw = window.prompt(promptText, '');
+      if (passwordRaw === null) return;
+      const password = String(passwordRaw || '').trim();
+      if (!password) return showToast(t('enterAdminPassword'));
+      payload = await api('/api/restaurant', { method: 'POST', body: JSON.stringify({ restaurant, cutoffTime, password, forceChange: changingRestaurant }) });
+    } else {
+      payload = await api('/api/restaurant', { method: 'POST', body: JSON.stringify({ restaurant, cutoffTime, forceChange: false }) });
+    }
     await loadMenu(restaurant);
-    syncRestaurantLock();
-    showToast(t('restaurantSet'));
-  } catch (err) {
-    showToast(err.message);
-  } finally {
-    setBusy(false);
-  }
-});
-
-el.forceChangeBtn.addEventListener('click', async () => {
-  const restaurant = el.restaurantSelect.value;
-  if (!restaurant) return showToast(t('chooseNewRestaurantFirst'));
-
-  const passwordRaw = window.prompt(t('enterAdminPasswordPrompt'), '');
-  if (passwordRaw === null) return;
-  const password = String(passwordRaw || '').trim();
-  if (!password) return showToast(t('enterAdminPassword'));
-
-  try {
-    setBusy(true);
-    const payload = await api('/api/restaurant', { method: 'POST', body: JSON.stringify({ restaurant, password, forceChange: true }) });
     state.currentRestaurant = payload.currentRestaurant;
-    state.orders = [];
-    el.currentRestaurantText.textContent = `${t('currentRestaurant')}${state.currentRestaurant}`;
-    await loadMenu(state.currentRestaurant);
-    syncRestaurantLock();
-    renderOrders();
-    resetOrderForm();
-    showToast(t('restaurantChanged'));
+    state.cutoffTime = payload.cutoffTime || state.defaultCutoffTime;
+    state.cutoffPassed = Boolean(payload.cutoffPassed);
+    el.currentRestaurantText.textContent = `${t('currentRestaurant')}${restaurant}`;
+    if (payload.cleared) state.orders = [];
+    renderRestaurants();
+    if (payload.restaurantChanged || payload.cleared) {
+      renderOrders();
+      resetOrderForm();
+      showToast(t('restaurantChanged'));
+    } else if (payload.cutoffChanged) {
+      showToast(t('cutoffUpdated'));
+    } else {
+      showToast(t('restaurantSet'));
+    }
   } catch (err) {
+    state.currentRestaurant = previousRestaurant;
+    state.cutoffTime = previousCutoffTime;
+    state.menu = previousMenu;
+    state.foodLookup = previousFoodLookup;
+    buildLookupMaps();
+    renderCategories();
+    renderRestaurants();
     showToast(err.message);
   } finally {
     setBusy(false);
@@ -744,6 +851,7 @@ el.forceChangeBtn.addEventListener('click', async () => {
 
 el.orderForm.addEventListener('submit', async event => {
   event.preventDefault();
+  hideOrderError();
   const selectedFoodOpt = el.foodSelect.options[el.foodSelect.selectedIndex];
   const selectedPrice = selectedFoodOpt && selectedFoodOpt.dataset ? selectedFoodOpt.dataset.price : '';
   const price = parsePriceInput(selectedPrice || el.priceInput.value);
@@ -766,6 +874,11 @@ el.orderForm.addEventListener('submit', async event => {
     resetOrderForm();
     showToast(updated ? t('orderUpdated') : t('orderAdded'));
   } catch (err) {
+    if (/cutoff/i.test(String(err.message || ''))) {
+      state.cutoffPassed = true;
+      updateCutoffUi();
+      showOrderError(t('orderBlockedNotice'));
+    }
     showToast(err.message);
   } finally {
     setBusy(false);
@@ -786,31 +899,10 @@ el.langEn.addEventListener('click', async () => { state.lang = 'en'; applyI18n()
 
 state.lang = detectPreferredLang();
 applyI18n();
+if (el.cutoffTimeInput && !el.cutoffTimeInput.value) el.cutoffTimeInput.value = state.defaultCutoffTime;
+el.cutoffTimeInput?.addEventListener('input', syncRestaurantLock);
 startAutoRefresh();
 loadBootstrap().catch(err => showToast(err.message, 3000));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

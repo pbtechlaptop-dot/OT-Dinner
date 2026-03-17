@@ -61,7 +61,8 @@ create table if not exists public.menus (
 create table if not exists public.app_state (
   id int primary key,
   date text not null,
-  restaurant text null
+  restaurant text null,
+  cutoff_time text null
 );
 
 create table if not exists public.orders (
@@ -79,6 +80,13 @@ create table if not exists public.orders (
 insert into public.app_state (id, date, restaurant)
 values (1, to_char(now(), 'YYYY-MM-DD'), null)
 on conflict (id) do nothing;
+```
+
+If `app_state` already exists, run:
+
+```sql
+alter table public.app_state
+add column if not exists cutoff_time text null;
 ```
 
 ## Web Pages

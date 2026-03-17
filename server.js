@@ -36,6 +36,11 @@ const TABLES = {
   orders: process.env.SUPABASE_TABLE_ORDERS || 'orders'
 };
 
+const DEFAULT_CUTOFF_TIME = '13:00';
+const legacySupabaseState = {
+  cutoffTime: DEFAULT_CUTOFF_TIME
+};
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -59,12 +64,38 @@ function todayISO() {
   }
 }
 
+function currentTimeHM() {
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: APP_TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(11, 16);
+  }
+}
+
+function normalizeCutoffTime(value) {
+  const raw = normText(value);
+  if (!raw) return null;
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(raw);
+  return match ? `${match[1]}:${match[2]}` : null;
+}
+
+function isCutoffPassed(cutoffTime) {
+  const cutoff = normalizeCutoffTime(cutoffTime);
+  if (!cutoff) return false;
+  return currentTimeHM() > cutoff;
+}
+
 function defaultSeed() {
   return { restaurants: [], staff: {}, drinks: [], menus: {} };
 }
 
 function defaultState() {
-  return { date: todayISO(), restaurant: null, orders: [] };
+  return { date: todayISO(), restaurant: null, cutoffTime: DEFAULT_CUTOFF_TIME, orders: [] };
 }
 
 function readJsonSafe(filePath, fallback) {
@@ -283,6 +314,7 @@ function normalizeState(input) {
   return {
     date: normText(state.date) || todayISO(),
     restaurant: state.restaurant ? normText(state.restaurant) : null,
+    cutoffTime: normalizeCutoffTime(state.cutoffTime) || DEFAULT_CUTOFF_TIME,
     orders: Array.isArray(state.orders) ? state.orders : []
   };
 }
@@ -304,6 +336,11 @@ async function supaSelect(table, columns, opts = {}) {
   const { data, error } = await q;
   if (error) throw new Error(`Supabase query failed on ${table}: ${error.message}`);
   return data;
+}
+
+function isMissingSupabaseColumn(error, columnName) {
+  const msg = String((error && error.message) || error || '');
+  return msg.includes(columnName) && (msg.includes('does not exist') || msg.includes('schema cache'));
 }
 
 async function supaDeleteAll(table, keyCol) {
@@ -401,9 +438,19 @@ async function saveSeedSupabase(input) {
 }
 
 async function getStateSupabase() {
-  let appState = await supaSelect(TABLES.appState, 'id,date,restaurant', { eq: { id: 1 }, maybeSingle: true });
+  let hasCutoffColumn = true;
+  let appState = null;
+  try {
+    appState = await supaSelect(TABLES.appState, 'id,date,restaurant,cutoff_time', { eq: { id: 1 }, maybeSingle: true });
+  } catch (err) {
+    if (!isMissingSupabaseColumn(err, 'cutoff_time')) throw err;
+    hasCutoffColumn = false;
+    appState = await supaSelect(TABLES.appState, 'id,date,restaurant', { eq: { id: 1 }, maybeSingle: true });
+  }
   if (!appState) {
-    const init = { id: 1, date: todayISO(), restaurant: null };
+    const init = hasCutoffColumn
+      ? { id: 1, date: todayISO(), restaurant: null, cutoff_time: null }
+      : { id: 1, date: todayISO(), restaurant: null };
     const { error } = await supabase.from(TABLES.appState).upsert(init, { onConflict: 'id' });
     if (error) throw new Error(`Supabase init app_state failed: ${error.message}`);
     appState = init;
@@ -411,9 +458,12 @@ async function getStateSupabase() {
 
   const today = todayISO();
   if (normText(appState.date) !== today) {
-    const { error } = await supabase.from(TABLES.appState).upsert({ id: 1, date: today, restaurant: null }, { onConflict: 'id' });
+    const rotatePayload = hasCutoffColumn
+      ? { id: 1, date: today, restaurant: null, cutoff_time: null }
+      : { id: 1, date: today, restaurant: null };
+    const { error } = await supabase.from(TABLES.appState).upsert(rotatePayload, { onConflict: 'id' });
     if (error) throw new Error(`Supabase rotate day failed: ${error.message}`);
-    appState = { id: 1, date: today, restaurant: null };
+    appState = rotatePayload;
   }
 
   const ordersRows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price', {
@@ -434,16 +484,25 @@ async function getStateSupabase() {
   return {
     date: appState.date,
     restaurant: appState.restaurant ? normText(appState.restaurant) : null,
+    cutoffTime: normalizeCutoffTime(appState.cutoff_time) || legacySupabaseState.cutoffTime || DEFAULT_CUTOFF_TIME,
     orders
   };
 }
 
 async function saveStateSupabase(input) {
   const state = normalizeState(input);
-
-  const { error: e1 } = await supabase
+  legacySupabaseState.cutoffTime = state.cutoffTime;
+  let e1 = null;
+  const withCutoff = await supabase
     .from(TABLES.appState)
-    .upsert({ id: 1, date: state.date, restaurant: state.restaurant }, { onConflict: 'id' });
+    .upsert({ id: 1, date: state.date, restaurant: state.restaurant, cutoff_time: state.cutoffTime }, { onConflict: 'id' });
+  e1 = withCutoff.error;
+  if (e1 && isMissingSupabaseColumn(e1, 'cutoff_time')) {
+    const fallback = await supabase
+      .from(TABLES.appState)
+      .upsert({ id: 1, date: state.date, restaurant: state.restaurant }, { onConflict: 'id' });
+    e1 = fallback.error;
+  }
   if (e1) throw new Error(`Supabase save app_state failed: ${e1.message}`);
 
   const { error: eDel } = await supabase.from(TABLES.orders).delete().eq('date', state.date);
@@ -612,6 +671,8 @@ async function handleApi(req, res, urlObj) {
       staff: seed.staff,
       drinks: seed.drinks,
       currentRestaurant: state.restaurant,
+      cutoffTime: state.cutoffTime,
+      cutoffPassed: isCutoffPassed(state.cutoffTime),
       orders: state.orders
     });
   }
@@ -631,24 +692,45 @@ async function handleApi(req, res, urlObj) {
     const state = await storage.getState();
     const body = await parseBody(req);
     const restaurant = normText(body.restaurant);
+    const cutoffTime = normalizeCutoffTime(body.cutoffTime);
     const forceChange = Boolean(body.forceChange);
     const password = normText(body.password);
+    const currentCutoff = normalizeCutoffTime(state.cutoffTime) || DEFAULT_CUTOFF_TIME;
+    const nextCutoff = cutoffTime || DEFAULT_CUTOFF_TIME;
+    const restaurantChanged = Boolean(state.restaurant && restaurant !== state.restaurant);
+    const cutoffChanged = Boolean(state.restaurant && nextCutoff !== currentCutoff);
     if (!restaurant) return json(res, 400, { error: 'restaurant is required' });
     if (!seed.restaurants.includes(restaurant)) return json(res, 400, { error: 'Unknown restaurant' });
+    if (body.cutoffTime !== undefined && body.cutoffTime !== null && normText(body.cutoffTime) && !cutoffTime) {
+      return json(res, 400, { error: 'cutoffTime must be HH:MM' });
+    }
     if (forceChange && password !== CHANGE_PASSWORD) return json(res, 403, { error: 'Invalid password' });
-    if (state.restaurant && !forceChange && restaurant !== state.restaurant) {
-      return json(res, 403, { error: 'Restaurant is locked. Use password change to switch.' });
+    if (state.restaurant && (restaurantChanged || cutoffChanged) && password !== CHANGE_PASSWORD) {
+      return json(res, 403, { error: 'Password is required to change restaurant or cutoff time.' });
     }
 
     state.restaurant = restaurant;
-    if (forceChange) state.orders = [];
+    state.cutoffTime = nextCutoff;
+    const cleared = forceChange || restaurantChanged;
+    if (cleared) state.orders = [];
     await storage.saveState(state);
-    return json(res, 200, { ok: true, currentRestaurant: state.restaurant, cleared: forceChange });
+    return json(res, 200, {
+      ok: true,
+      currentRestaurant: state.restaurant,
+      cutoffTime: state.cutoffTime,
+      cutoffPassed: isCutoffPassed(state.cutoffTime),
+      cleared,
+      restaurantChanged,
+      cutoffChanged
+    });
   }
 
   if (req.method === 'POST' && pathname === '/api/orders') {
     const state = await storage.getState();
     if (!state.restaurant) return json(res, 400, { error: 'Please set today restaurant first' });
+    if (isCutoffPassed(state.cutoffTime)) {
+      return json(res, 403, { error: 'Ordering cutoff has passed. Please contact your team leader or Simon to place an order.' });
+    }
 
     const body = await parseBody(req);
     const error = validateOrder(body);

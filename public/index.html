@@ -43,18 +43,30 @@
 
     <section class="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
       <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secRestaurant">1) 今日餐廳</h2>
-      <div class="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
-        <select id="restaurantSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
-        <button class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong disabled:cursor-not-allowed disabled:opacity-50" id="setRestaurantBtn" data-i18n="setRestaurant">設定餐廳</button>
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div class="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_0.7fr_auto] lg:items-end">
+          <label class="grid gap-2 text-sm text-slate-600">
+            <span class="font-semibold text-pbnavy" data-i18n="restaurantPicker">選擇餐廳</span>
+            <select id="restaurantSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
+          </label>
+          <label class="grid gap-2 text-sm text-slate-600">
+            <span class="font-semibold text-pbnavy" data-i18n="cutoffTime">截單時間</span>
+            <input id="cutoffTimeInput" type="time" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
+          </label>
+          <button class="rounded-md bg-pborange px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-pborangestrong disabled:cursor-not-allowed disabled:opacity-50" id="setRestaurantBtn" data-i18n="setRestaurant">設定餐廳</button>
+        </div>
+        <p id="restaurantActionHint" class="mt-3 text-xs text-slate-500" data-i18n="restaurantActionHint">已選餐廳後，再按設定餐廳。</p>
       </div>
-      <div class="mt-2 grid grid-cols-1 gap-2">
-        <button class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700" id="forceChangeBtn" data-i18n="forceChange">改餐廳並清單</button>
+      <div class="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-3">
+        <p class="text-sm text-slate-500" id="currentRestaurantText">目前：未設定</p>
+        <p class="mt-1 text-sm text-slate-500" id="cutoffTimeText"></p>
       </div>
-      <p class="mt-2 text-sm text-slate-500" id="currentRestaurantText">目前：未設定</p>
     </section>
 
     <section class="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
       <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secOrder">2) 填寫訂單</h2>
+      <div id="orderErrorNotice" class="mb-3 hidden rounded-xl border-2 border-red-300 bg-red-50 px-4 py-4 text-base font-semibold text-red-800 shadow-sm"></div>
+      <div id="cutoffNotice" class="mb-3 hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"></div>
       <form id="orderForm" class="grid grid-cols-1 gap-2 md:grid-cols-2">
         <label class="grid gap-1 text-sm text-slate-600">
           <span data-i18n="dept">部門</span>
@@ -126,12 +138,8 @@
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="/app.js?v=20260306-5"></script>
+  <script src="/app.js?v=20260318-1"></script>
 </body>
 </html>
-
-
-
-
 
 
