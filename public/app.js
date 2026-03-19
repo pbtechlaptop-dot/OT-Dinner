@@ -571,34 +571,58 @@ function requestAdminAccess() {
   window.location.href = '/admin/';
 }
 
-function setupSecretEntry() {
-  if (state.appId !== 'main' || !el.appTitle) return;
+function bindHiddenTrigger(node, action) {
+  if (!node) return;
   let tapCount = 0;
   let resetTimer = null;
-  const handleTap = () => {
+  let holdTimer = null;
+  let holdTriggered = false;
+
+  node.style.touchAction = 'manipulation';
+
+  const handleTap = event => {
+    if (event) event.preventDefault();
+    if (holdTriggered) {
+      holdTriggered = false;
+      return;
+    }
     tapCount += 1;
     clearTimeout(resetTimer);
     resetTimer = setTimeout(() => { tapCount = 0; }, 1200);
     if (tapCount < 4) return;
     tapCount = 0;
-    requestPrivateAccess();
+    action();
   };
-  el.appTitle.addEventListener('click', handleTap);
+
+  const startHold = () => {
+    clearTimeout(holdTimer);
+    holdTriggered = false;
+    holdTimer = setTimeout(() => {
+      tapCount = 0;
+      holdTriggered = true;
+      action();
+    }, 900);
+  };
+
+  const clearHold = () => {
+    clearTimeout(holdTimer);
+  };
+
+  node.addEventListener('pointerup', handleTap);
+  node.addEventListener('pointerdown', startHold);
+  node.addEventListener('pointerleave', clearHold);
+  node.addEventListener('pointercancel', clearHold);
+  node.addEventListener('pointerup', clearHold);
+}
+
+function setupSecretEntry() {
+  if (state.appId !== 'main' || !el.appTitle) return;
+  bindHiddenTrigger(el.appTitle, requestPrivateAccess);
 }
 
 function setupAdminEntry() {
   if (!el.restaurantSectionTitle) return;
-  let tapCount = 0;
-  let resetTimer = null;
-  const handleTap = () => {
-    tapCount += 1;
-    clearTimeout(resetTimer);
-    resetTimer = setTimeout(() => { tapCount = 0; }, 1200);
-    if (tapCount < 4) return;
-    tapCount = 0;
-    requestAdminAccess();
-  };
-  el.restaurantSectionTitle.addEventListener('click', handleTap);
+  bindHiddenTrigger(el.restaurantSectionTitle, requestAdminAccess);
 }
 
 function renderOrders() {
