@@ -37,7 +37,8 @@ create table if not exists public.restaurants (
 create table if not exists public.drinks (
   tc text primary key,
   sc text not null,
-  en text not null
+  en text not null,
+  paused boolean not null default false
 );
 
 create table if not exists public.staff (
@@ -87,6 +88,13 @@ If `app_state` already exists, run:
 ```sql
 alter table public.app_state
 add column if not exists cutoff_time text null;
+```
+
+If `drinks` already exists, also run:
+
+```sql
+alter table public.drinks
+add column if not exists paused boolean not null default false;
 ```
 
 ## Web Pages

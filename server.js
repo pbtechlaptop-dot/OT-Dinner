@@ -14,12 +14,19 @@ const HOST = '127.0.0.1';
 const PORT = Number(process.env.PORT || 3000);
 const CHANGE_PASSWORD = process.env.CHANGE_PASSWORD || '1234';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || CHANGE_PASSWORD;
+const LADY_RUBY_PASSWORD = process.env.LADY_RUBY_PASSWORD || '7777';
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const SEED_FILE = path.join(DATA_DIR, 'seed.json');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
+const LADY_RUBY_STATE_FILE = path.join(DATA_DIR, 'state.lady-ruby.json');
+const DRINK_FLAGS_FILE = path.join(DATA_DIR, 'drink-flags.json');
+const APP_MAIN = 'main';
+const APP_LADY_RUBY = 'lady-ruby';
+const APP_IDS = new Set([APP_MAIN, APP_LADY_RUBY]);
+const LADY_RUBY_COOKIE = 'lady_ruby_access';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -98,6 +105,64 @@ function defaultState() {
   return { date: todayISO(), restaurant: null, cutoffTime: DEFAULT_CUTOFF_TIME, orders: [] };
 }
 
+function normalizeAppId(input) {
+  const appId = normText(input).toLowerCase();
+  return APP_IDS.has(appId) ? appId : APP_MAIN;
+}
+
+function stateFileForApp(appId) {
+  return normalizeAppId(appId) === APP_LADY_RUBY ? LADY_RUBY_STATE_FILE : STATE_FILE;
+}
+
+function getScopedStaff(allStaff, appId) {
+  if (normalizeAppId(appId) !== APP_LADY_RUBY) return allStaff;
+  const ladyRubyNames = Array.isArray(allStaff && allStaff['Lady Ruby']) ? allStaff['Lady Ruby'] : [];
+  return { 'Lady Ruby': ladyRubyNames };
+}
+
+function defaultDrinkFlags() {
+  return { paused: {} };
+}
+
+function normalizeDrinkFlags(input) {
+  const source = input && typeof input === 'object' ? input : defaultDrinkFlags();
+  const pausedIn = source.paused && typeof source.paused === 'object' ? source.paused : {};
+  const paused = {};
+  Object.keys(pausedIn).forEach(key => {
+    const tc = normText(key);
+    if (!tc) return;
+    paused[tc] = Boolean(pausedIn[key]);
+  });
+  return { paused };
+}
+
+function readDrinkFlags() {
+  return normalizeDrinkFlags(readJsonSafe(DRINK_FLAGS_FILE, defaultDrinkFlags()));
+}
+
+function writeDrinkFlags(flags) {
+  writeJson(DRINK_FLAGS_FILE, normalizeDrinkFlags(flags));
+}
+
+function applyDrinkFlags(seedInput, flagsInput) {
+  const seed = normalizeSeed(seedInput);
+  const flags = normalizeDrinkFlags(flagsInput);
+  seed.drinks = (seed.drinks || []).map(drink => ({
+    ...drink,
+    paused: Boolean(flags.paused[drink.tc])
+  }));
+  return seed;
+}
+
+function extractDrinkFlags(seedInput) {
+  const seed = normalizeSeed(seedInput);
+  const paused = {};
+  (seed.drinks || []).forEach(drink => {
+    if (drink && drink.tc) paused[drink.tc] = Boolean(drink.paused);
+  });
+  return { paused };
+}
+
 function readJsonSafe(filePath, fallback) {
   try {
     const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
@@ -115,6 +180,8 @@ function ensureDataFiles() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(SEED_FILE)) writeJson(SEED_FILE, defaultSeed());
   if (!fs.existsSync(STATE_FILE)) writeJson(STATE_FILE, defaultState());
+  if (!fs.existsSync(LADY_RUBY_STATE_FILE)) writeJson(LADY_RUBY_STATE_FILE, defaultState());
+  if (!fs.existsSync(DRINK_FLAGS_FILE)) writeJson(DRINK_FLAGS_FILE, defaultDrinkFlags());
 }
 
 function normText(v) {
@@ -124,14 +191,14 @@ function normText(v) {
 function normalizeDrinkItem(d) {
   if (typeof d === 'string') {
     const tc = normText(d);
-    return tc ? { tc, sc: tc, en: tc } : null;
+    return tc ? { tc, sc: tc, en: tc, paused: false } : null;
   }
   if (!d || typeof d !== 'object') return null;
   const tc = normText(d.tc || d.zhHant || d.name || d.label);
   const sc = normText(d.sc || d.zhHans || tc);
   const en = normText(d.en || d.eng || tc);
   if (!tc && !sc && !en) return null;
-  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc };
+  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc, paused: Boolean(d.paused) };
 }
 
 function normalizeMenuItem(item) {
@@ -168,7 +235,7 @@ function normalizeSeed(input) {
 
   const drinkSet = new Set();
   drinks.map(normalizeDrinkItem).filter(Boolean).forEach(d => {
-    const key = `${d.tc}|${d.sc}|${d.en}`;
+    const key = d.tc;
     if (!drinkSet.has(key)) {
       drinkSet.add(key);
       normalized.drinks.push(d);
@@ -221,8 +288,8 @@ function mergeSeeds(currentSeed, incomingSeed) {
     .map(normalizeDrinkItem)
     .filter(Boolean)
     .forEach(d => {
-      const key = `${d.tc}|${d.sc}|${d.en}`;
-      if (!drinkMap.has(key)) drinkMap.set(key, d);
+      const key = d.tc;
+      drinkMap.set(key, d);
     });
   merged.drinks = Array.from(drinkMap.values());
 
@@ -260,7 +327,7 @@ function mergeSeeds(currentSeed, incomingSeed) {
 function buildSeedIndex(seedInput) {
   const seed = normalizeSeed(seedInput);
   const restaurants = new Set((seed.restaurants || []).map(normText).filter(Boolean));
-  const drinks = new Set((seed.drinks || []).map(d => `${d.tc}|${d.sc}|${d.en}`));
+  const drinks = new Set((seed.drinks || []).map(d => `${d.tc}|${Boolean(d.paused)}`));
   const departments = new Set(Object.keys(seed.staff || {}).map(normText).filter(Boolean));
   const staffMembers = new Set();
   Object.keys(seed.staff || {}).forEach(dept => {
@@ -350,7 +417,15 @@ async function supaDeleteAll(table, keyCol) {
 
 async function getSeedSupabase() {
   const restaurantsRows = await supaSelect(TABLES.restaurants, 'name', { order: [{ column: 'name' }] });
-  const drinksRows = await supaSelect(TABLES.drinks, 'tc,sc,en', { order: [{ column: 'tc' }] });
+  let drinksRows = [];
+  let hasPausedColumn = true;
+  try {
+    drinksRows = await supaSelect(TABLES.drinks, 'tc,sc,en,paused', { order: [{ column: 'tc' }] });
+  } catch (err) {
+    if (!isMissingSupabaseColumn(err, 'paused')) throw err;
+    hasPausedColumn = false;
+    drinksRows = await supaSelect(TABLES.drinks, 'tc,sc,en', { order: [{ column: 'tc' }] });
+  }
   const staffRows = await supaSelect(TABLES.staff, 'dept,name', { order: [{ column: 'dept' }, { column: 'name' }] });
   const menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price', {
     order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
@@ -360,7 +435,7 @@ async function getSeedSupabase() {
   seed.restaurants = (restaurantsRows || []).map(r => normText(r.name)).filter(Boolean);
 
   (drinksRows || []).forEach(d => {
-    const item = normalizeDrinkItem({ tc: d.tc, sc: d.sc, en: d.en });
+    const item = normalizeDrinkItem({ tc: d.tc, sc: d.sc, en: d.en, paused: d.paused });
     if (item) seed.drinks.push(item);
   });
 
@@ -383,11 +458,13 @@ async function getSeedSupabase() {
     if (!seed.restaurants.includes(rest)) seed.restaurants.push(rest);
   });
 
-  return normalizeSeed(seed);
+  const normalizedSeed = normalizeSeed(seed);
+  return hasPausedColumn ? normalizedSeed : applyDrinkFlags(normalizedSeed, readDrinkFlags());
 }
 
 async function saveSeedSupabase(input) {
   const seed = normalizeSeed(input);
+  const drinkFlags = extractDrinkFlags(seed);
 
   await supaDeleteAll(TABLES.menus, 'id');
   await supaDeleteAll(TABLES.staff, 'id');
@@ -400,10 +477,16 @@ async function saveSeedSupabase(input) {
   }
 
   if (seed.drinks.length) {
-    const rows = seed.drinks.map(d => ({ tc: d.tc, sc: d.sc, en: d.en }));
-    const { error } = await supabase.from(TABLES.drinks).insert(rows);
+    const rows = seed.drinks.map(d => ({ tc: d.tc, sc: d.sc, en: d.en, paused: Boolean(d.paused) }));
+    let { error } = await supabase.from(TABLES.drinks).insert(rows);
+    if (error && isMissingSupabaseColumn(error, 'paused')) {
+      writeDrinkFlags(drinkFlags);
+      const fallbackRows = seed.drinks.map(d => ({ tc: d.tc, sc: d.sc, en: d.en }));
+      ({ error } = await supabase.from(TABLES.drinks).insert(fallbackRows));
+    }
     if (error) throw new Error(`Supabase insert drinks failed: ${error.message}`);
   }
+  writeDrinkFlags(drinkFlags);
 
   const staffRows = [];
   Object.keys(seed.staff).forEach(dept => {
@@ -550,39 +633,44 @@ async function saveSeedLocal(seed) {
   writeJson(SEED_FILE, normalizeSeed(seed));
 }
 
-async function getStateLocal() {
-  const state = normalizeState(readJsonSafe(STATE_FILE, defaultState()));
+async function getStateLocal(appId = APP_MAIN) {
+  const statePath = stateFileForApp(appId);
+  const state = normalizeState(readJsonSafe(statePath, defaultState()));
   if (state.date !== todayISO()) {
     const reset = defaultState();
-    writeJson(STATE_FILE, reset);
+    writeJson(statePath, reset);
     return reset;
   }
   return state;
 }
 
-async function saveStateLocal(state) {
-  writeJson(STATE_FILE, normalizeState(state));
+async function saveStateLocal(appId = APP_MAIN, state) {
+  writeJson(stateFileForApp(appId), normalizeState(state));
 }
 
-async function resetDayLocal() {
-  writeJson(STATE_FILE, defaultState());
+async function resetDayLocal(appId = APP_MAIN) {
+  writeJson(stateFileForApp(appId), defaultState());
 }
 
-const storage = USE_SUPABASE
-  ? {
-      getSeed: getSeedSupabase,
-      saveSeed: saveSeedSupabase,
-      getState: getStateSupabase,
-      saveState: saveStateSupabase,
-      resetDay: resetDaySupabase
-    }
-  : {
-      getSeed: getSeedLocal,
-      saveSeed: saveSeedLocal,
-      getState: getStateLocal,
-      saveState: saveStateLocal,
-      resetDay: resetDayLocal
-    };
+const storage = {
+  getSeed: USE_SUPABASE ? getSeedSupabase : getSeedLocal,
+  saveSeed: USE_SUPABASE ? saveSeedSupabase : saveSeedLocal,
+  getState(appId = APP_MAIN) {
+    const normalizedAppId = normalizeAppId(appId);
+    if (USE_SUPABASE && normalizedAppId === APP_MAIN) return getStateSupabase();
+    return getStateLocal(normalizedAppId);
+  },
+  saveState(appId = APP_MAIN, state) {
+    const normalizedAppId = normalizeAppId(appId);
+    if (USE_SUPABASE && normalizedAppId === APP_MAIN) return saveStateSupabase(state);
+    return saveStateLocal(normalizedAppId, state);
+  },
+  resetDay(appId = APP_MAIN) {
+    const normalizedAppId = normalizeAppId(appId);
+    if (USE_SUPABASE && normalizedAppId === APP_MAIN) return resetDaySupabase();
+    return resetDayLocal(normalizedAppId);
+  }
+};
 
 function json(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -639,13 +727,41 @@ function toCsv(orders) {
   return lines.join('\n');
 }
 
-function serveStatic(reqPath, res) {
+function parseCookies(req) {
+  const header = String((req && req.headers && req.headers.cookie) || '');
+  return header.split(';').reduce((acc, part) => {
+    const idx = part.indexOf('=');
+    if (idx <= 0) return acc;
+    const key = part.slice(0, idx).trim();
+    const value = part.slice(idx + 1).trim();
+    if (key) acc[key] = decodeURIComponent(value);
+    return acc;
+  }, {});
+}
+
+function hasLadyRubyAccess(req) {
+  const cookies = parseCookies(req);
+  return cookies[LADY_RUBY_COOKIE] === '1';
+}
+
+function getAppIdFromRequest(urlObj, body) {
+  return normalizeAppId(
+    (urlObj && urlObj.searchParams && urlObj.searchParams.get('app'))
+      || (body && body.app)
+      || APP_MAIN
+  );
+}
+
+function serveStatic(req, reqPath, res) {
+  const isLadyRubyPage = reqPath === '/lady-ruby' || reqPath === '/lady-ruby/';
   let safePath = reqPath === '/'
     ? '/index.html'
     : ((reqPath === '/admin' || reqPath === '/admin/') ? '/admin.html' : reqPath);
+  if (isLadyRubyPage) safePath = '/lady-ruby.html';
   safePath = path.normalize(safePath).replace(/^\.\.(\\|\/|$)/, '');
   const filePath = path.join(PUBLIC_DIR, safePath);
   if (!filePath.startsWith(PUBLIC_DIR)) return text(res, 403, 'Forbidden');
+  if (isLadyRubyPage && !hasLadyRubyAccess(req)) return text(res, 404, 'Not found');
 
   fs.readFile(filePath, (err, data) => {
     if (err) return text(res, 404, 'Not found');
@@ -662,24 +778,41 @@ function isAdminAuthorized(password) {
 async function handleApi(req, res, urlObj) {
   const pathname = (urlObj.pathname || '/').replace(/\/+$/, '') || '/';
 
+  if (req.method === 'POST' && pathname === '/api/private-access') {
+    const body = await parseBody(req);
+    const target = normalizeAppId(body && body.target);
+    const password = normText(body && body.password);
+    if (target !== APP_LADY_RUBY || password !== LADY_RUBY_PASSWORD) {
+      return json(res, 403, { error: 'Invalid password' });
+    }
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Set-Cookie': `${LADY_RUBY_COOKIE}=1; Path=/; HttpOnly; SameSite=Lax`
+    });
+    return res.end(JSON.stringify({ ok: true, redirect: '/lady-ruby/' }));
+  }
+
   if (req.method === 'GET' && pathname === '/api/bootstrap') {
+    const appId = getAppIdFromRequest(urlObj);
     const seed = await storage.getSeed();
-    const state = await storage.getState();
+    const state = await storage.getState(appId);
     return json(res, 200, {
       date: state.date,
       restaurants: seed.restaurants,
-      staff: seed.staff,
+      staff: getScopedStaff(seed.staff, appId),
       drinks: seed.drinks,
       currentRestaurant: state.restaurant,
       cutoffTime: state.cutoffTime,
       cutoffPassed: isCutoffPassed(state.cutoffTime),
-      orders: state.orders
+      orders: state.orders,
+      app: appId
     });
   }
 
   if (req.method === 'GET' && pathname === '/api/menu') {
     const seed = await storage.getSeed();
-    const state = await storage.getState();
+    const appId = getAppIdFromRequest(urlObj);
+    const state = await storage.getState(appId);
     const restaurant = urlObj.searchParams.get('restaurant') || state.restaurant;
     if (!restaurant) return json(res, 400, { error: 'Restaurant is required' });
     const menu = seed.menus[restaurant];
@@ -688,9 +821,10 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'POST' && pathname === '/api/restaurant') {
-    const seed = await storage.getSeed();
-    const state = await storage.getState();
     const body = await parseBody(req);
+    const appId = getAppIdFromRequest(urlObj, body);
+    const seed = await storage.getSeed();
+    const state = await storage.getState(appId);
     const restaurant = normText(body.restaurant);
     const cutoffTime = normalizeCutoffTime(body.cutoffTime);
     const forceChange = Boolean(body.forceChange);
@@ -713,7 +847,7 @@ async function handleApi(req, res, urlObj) {
     state.cutoffTime = nextCutoff;
     const cleared = forceChange || restaurantChanged;
     if (cleared) state.orders = [];
-    await storage.saveState(state);
+    await storage.saveState(appId, state);
     return json(res, 200, {
       ok: true,
       currentRestaurant: state.restaurant,
@@ -726,13 +860,14 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'POST' && pathname === '/api/orders') {
-    const state = await storage.getState();
+    const body = await parseBody(req);
+    const appId = getAppIdFromRequest(urlObj, body);
+    const state = await storage.getState(appId);
     if (!state.restaurant) return json(res, 400, { error: 'Please set today restaurant first' });
     if (isCutoffPassed(state.cutoffTime)) {
       return json(res, 403, { error: 'Ordering cutoff has passed. Please contact your team leader or Simon to place an order.' });
     }
 
-    const body = await parseBody(req);
     const error = validateOrder(body);
     if (error) return json(res, 400, { error });
 
@@ -747,7 +882,7 @@ async function handleApi(req, res, urlObj) {
 
     const existed = state.orders.some(o => o.dept === clean.dept && o.name === clean.name);
 
-    if (USE_SUPABASE) {
+    if (USE_SUPABASE && appId === APP_MAIN) {
       await upsertOrderSupabase(state.date, clean);
       return json(res, 200, { ok: true, updated: existed });
     }
@@ -762,12 +897,13 @@ async function handleApi(req, res, urlObj) {
     }
 
     state.orders = state.orders.map((o, i) => ({ id: i + 1, ...o }));
-    await storage.saveState(state);
+    await storage.saveState(appId, state);
     return json(res, 200, { ok: true, updated });
   }
 
   if (req.method === 'GET' && pathname === '/api/orders') {
-    const state = await storage.getState();
+    const appId = getAppIdFromRequest(urlObj);
+    const state = await storage.getState(appId);
     return json(res, 200, {
       orders: state.orders,
       total: state.orders.reduce((sum, o) => sum + Number(o.price || 0), 0)
@@ -775,9 +911,11 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'GET' && pathname === '/api/export/csv') {
-    const state = await storage.getState();
+    const appId = getAppIdFromRequest(urlObj);
+    const state = await storage.getState(appId);
     const csv = toCsv(state.orders);
-    const fileName = `orders-${state.date}.csv`;
+    const suffix = appId === APP_LADY_RUBY ? '-lady-ruby' : '';
+    const fileName = `orders-${state.date}${suffix}.csv`;
     res.writeHead(200, {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': `attachment; filename="${fileName}"`
@@ -787,10 +925,11 @@ async function handleApi(req, res, urlObj) {
 
   if (req.method === 'POST' && pathname === '/api/import/seed') {
     const body = await parseBody(req);
+    const appId = getAppIdFromRequest(urlObj, body);
     const nextSeed = body && body.seed ? body.seed : null;
     if (!nextSeed || typeof nextSeed !== 'object') return json(res, 400, { error: 'seed payload is required' });
     await storage.saveSeed(nextSeed);
-    await storage.resetDay();
+    await storage.resetDay(appId);
     return json(res, 200, { ok: true });
   }
 
@@ -824,8 +963,9 @@ async function handleApi(req, res, urlObj) {
   if (req.method === 'POST' && pathname === '/api/admin/reset-day') {
     const body = await parseBody(req);
     const password = normText(body.password);
+    const appId = getAppIdFromRequest(urlObj, body);
     if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
-    await storage.resetDay();
+    await storage.resetDay(appId);
     return json(res, 200, { ok: true });
   }
 
@@ -838,7 +978,7 @@ function createHandler() {
       const host = req.headers.host || `${HOST}:${PORT}`;
       const urlObj = new URL(req.url, `http://${host}`);
       if (urlObj.pathname.startsWith('/api/')) return await handleApi(req, res, urlObj);
-      return serveStatic(urlObj.pathname, res);
+      return serveStatic(req, urlObj.pathname, res);
     } catch (err) {
       const message = err && err.message ? err.message : 'Server error';
       return json(res, 500, { error: message });

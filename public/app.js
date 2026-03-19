@@ -1,4 +1,5 @@
 ﻿const state = {
+  appId: document.body.dataset.appId || 'main',
   defaultCutoffTime: '13:00',
   restaurants: [],
   staff: {},
@@ -18,6 +19,7 @@
 const i18n = {
   tc: {
     appTitle: '加班 Order 飯系統',
+    appTitleLadyRuby: '加班 Order 飯系統 - Lady Ruby',
     exportCsv: '匯出 CSV',
     exportExcel: '匯出 XLSX',
     secRestaurant: '1) 今日餐廳',
@@ -77,10 +79,13 @@ const i18n = {
     badPrice: '\u50f9\u9322\u683c\u5f0f\u932f\u8aa4',
     busyProcessing: '\u7cfb\u7d71\u8655\u7406\u4e2d\uff0c\u8acb\u7a0d\u5019...',
     diagLoading: '\u8f09\u5165\u4e2d...',
-    loadFailedPrefix: '\u8f09\u5165\u5931\u6557\uff1a'
+    loadFailedPrefix: '\u8f09\u5165\u5931\u6557\uff1a',
+    secretAccessPrompt: '請輸入私人頁面密碼',
+    secretAccessError: '密碼錯誤，未能進入私人頁面。'
   },
   sc: {
     appTitle: '加班订餐系统',
+    appTitleLadyRuby: '加班订餐系统 - Lady Ruby',
     exportCsv: '导出 CSV',
     exportExcel: '导出 XLSX',
     secRestaurant: '1) 今日餐厅',
@@ -140,10 +145,13 @@ const i18n = {
     badPrice: '\u4ef7\u683c\u683c\u5f0f\u9519\u8bef',
     busyProcessing: '\u7cfb\u7edf\u5904\u7406\u4e2d\uff0c\u8bf7\u7a0d\u5019...',
     diagLoading: '\u8f7d\u5165\u4e2d...',
-    loadFailedPrefix: '\u8f7d\u5165\u5931\u8d25\uff1a'
+    loadFailedPrefix: '\u8f7d\u5165\u5931\u8d25\uff1a',
+    secretAccessPrompt: '请输入私人页面密码',
+    secretAccessError: '密码错误，无法进入私人页面。'
   },
   en: {
     appTitle: 'Overtime Meal Order',
+    appTitleLadyRuby: 'Overtime Meal Order - Lady Ruby',
     exportCsv: 'Export CSV',
     exportExcel: 'Export XLSX',
     secRestaurant: '1) Restaurant',
@@ -203,10 +211,14 @@ const i18n = {
     badPrice: 'Invalid price format',
     busyProcessing: 'Processing, please wait...',
     diagLoading: 'Loading...',
-    loadFailedPrefix: 'Load failed: '
+    loadFailedPrefix: 'Load failed: ',
+    secretAccessPrompt: 'Enter the private page password',
+    secretAccessError: 'Incorrect password. Private page access denied.'
   }
 };
 const el = {
+  appTitle: document.getElementById('appTitle'),
+  restaurantSectionTitle: document.getElementById('restaurantSectionTitle'),
   dateText: document.getElementById('dateText'),
   diagInfo: document.getElementById('diagInfo'),
   restaurantSelect: document.getElementById('restaurantSelect'),
@@ -228,6 +240,7 @@ const el = {
   ordersBody: document.getElementById('ordersBody'),
   totalPrice: document.getElementById('totalPrice'),
   drinkSummary: document.getElementById('drinkSummary'),
+  exportCsvLink: document.getElementById('exportCsvLink'),
   exportXlsxBtn: document.getElementById('exportXlsxBtn'),
   langTc: document.getElementById('langTc'),
   langSc: document.getElementById('langSc'),
@@ -319,8 +332,22 @@ function setBusy(isBusy) {
   el.busyOverlay.classList.toggle('flex', isBusy);
 }
 
+function apiPath(path) {
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}app=${encodeURIComponent(state.appId)}`;
+}
+
 async function api(path, options = {}) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
+  const requestOptions = { headers: { 'Content-Type': 'application/json' }, ...options };
+  if (requestOptions.body && typeof requestOptions.body === 'string' && String(requestOptions.body).trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(requestOptions.body);
+      if (!parsed.app) requestOptions.body = JSON.stringify({ ...parsed, app: state.appId });
+    } catch {
+    }
+  }
+
+  const res = await fetch(apiPath(path), requestOptions);
   if (!res.ok) {
     const payload = await res.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(payload.error || 'Request failed');
@@ -329,12 +356,12 @@ async function api(path, options = {}) {
 }
 
 function normalizeDrink(d) {
-  if (typeof d === 'string') return { tc: d, sc: d, en: d };
-  if (!d || typeof d !== 'object') return { tc: '', sc: '', en: '' };
+  if (typeof d === 'string') return { tc: d, sc: d, en: d, paused: false };
+  if (!d || typeof d !== 'object') return { tc: '', sc: '', en: '', paused: false };
   const tc = String(d.tc || d.name || '').trim();
   const sc = String(d.sc || tc).trim();
   const en = String(d.en || tc).trim();
-  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc };
+  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc, paused: Boolean(d.paused) };
 }
 
 function normalizeMenuItem(item) {
@@ -360,8 +387,15 @@ function applyI18n() {
   document.documentElement.lang = state.lang === 'en' ? 'en' : (state.lang === 'sc' ? 'zh-Hans' : 'zh-Hant');
   document.querySelectorAll('[data-i18n]').forEach(node => { node.textContent = t(node.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(node => { node.placeholder = t(node.getAttribute('data-i18n-placeholder')); });
+  const pageTitle = state.appId === 'lady-ruby' ? t('appTitleLadyRuby') : t('appTitle');
+  if (el.appTitle) el.appTitle.textContent = pageTitle;
+  document.title = pageTitle;
   if (!el.orderErrorNotice || el.orderErrorNotice.classList.contains('hidden')) return;
   if (state.cutoffPassed) showOrderError(t('orderBlockedNotice'));
+}
+
+function updateExportLinks() {
+  if (el.exportCsvLink) el.exportCsvLink.href = apiPath('/api/export/csv');
 }
 
 function fillSelect(select, items, placeholder) {
@@ -420,21 +454,32 @@ function renderRestaurants() {
 }
 
 function renderDepartments() {
-  fillSelect(el.deptSelect, Object.keys(state.staff || {}).map(d => ({ value: d, label: d })), t('selectDept'));
+  const departments = Object.keys(state.staff || {});
+  fillSelect(el.deptSelect, departments.map(d => ({ value: d, label: d })), t('selectDept'));
+  const singleDepartment = departments.length === 1 ? departments[0] : '';
+  el.deptSelect.disabled = Boolean(singleDepartment);
+  if (singleDepartment) el.deptSelect.value = singleDepartment;
   fillSelect(el.nameSelect, [], t('chooseDeptFirst'));
+  if (singleDepartment) {
+    fillSelect(el.nameSelect, (state.staff[singleDepartment] || []).map(name => ({ value: name, label: name })), t('selectName'));
+  }
 }
 
 function renderDrinks() {
   fillSelect(el.drinkSelect, (state.drinks || []).map(raw => {
     const d = normalizeDrink(raw);
+    if (d.paused) return null;
     return { value: d.tc, label: getLocalizedDrink(d) };
-  }), t('selectDrink'));
+  }).filter(Boolean), t('selectDrink'));
 }
 
 function renderCategories() {
-  fillSelect(el.categorySelect, Object.keys(state.menu || {}).map(c => ({ value: c, label: c })), t('selectCat'));
+  const categories = Object.keys(state.menu || {});
+  fillSelect(el.categorySelect, categories.map(c => ({ value: c, label: c })), t('selectCat'));
+  if (categories.length) el.categorySelect.value = categories[0];
   fillSelect(el.foodSelect, [], t('chooseCatFirst'));
   el.priceInput.value = '';
+  if (categories.length) renderFood();
 }
 
 function renderFood() {
@@ -500,6 +545,62 @@ function startAutoRefresh() {
     refreshOrdersSilently();
   }, 3000);
 }
+
+async function requestPrivateAccess() {
+  const password = window.prompt(t('secretAccessPrompt'));
+  if (password === null) return;
+
+  try {
+    setBusy(true);
+    const res = await fetch('/api/private-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: 'lady-ruby', password: String(password).trim() })
+    });
+    const payload = await res.json().catch(() => ({ error: t('secretAccessError') }));
+    if (!res.ok) throw new Error(payload.error || t('secretAccessError'));
+    window.location.href = payload.redirect || '/lady-ruby/';
+  } catch (err) {
+    window.alert(err.message || t('secretAccessError'));
+  } finally {
+    setBusy(false);
+  }
+}
+
+function requestAdminAccess() {
+  window.location.href = '/admin/';
+}
+
+function setupSecretEntry() {
+  if (state.appId !== 'main' || !el.appTitle) return;
+  let tapCount = 0;
+  let resetTimer = null;
+  const handleTap = () => {
+    tapCount += 1;
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(() => { tapCount = 0; }, 1200);
+    if (tapCount < 4) return;
+    tapCount = 0;
+    requestPrivateAccess();
+  };
+  el.appTitle.addEventListener('click', handleTap);
+}
+
+function setupAdminEntry() {
+  if (!el.restaurantSectionTitle) return;
+  let tapCount = 0;
+  let resetTimer = null;
+  const handleTap = () => {
+    tapCount += 1;
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(() => { tapCount = 0; }, 1200);
+    if (tapCount < 4) return;
+    tapCount = 0;
+    requestAdminAccess();
+  };
+  el.restaurantSectionTitle.addEventListener('click', handleTap);
+}
+
 function renderOrders() {
   const orders = [...(state.orders || [])];
   let total = 0;
@@ -747,8 +848,15 @@ function parsePriceInput(v) {
 }
 
 function resetOrderForm() {
-  el.deptSelect.value = '';
-  fillSelect(el.nameSelect, [], t('chooseDeptFirst'));
+  const departments = Object.keys(state.staff || {});
+  const singleDepartment = departments.length === 1 ? departments[0] : '';
+  el.deptSelect.disabled = Boolean(singleDepartment);
+  el.deptSelect.value = singleDepartment || '';
+  if (singleDepartment) {
+    fillSelect(el.nameSelect, (state.staff[singleDepartment] || []).map(n => ({ value: n, label: n })), t('selectName'));
+  } else {
+    fillSelect(el.nameSelect, [], t('chooseDeptFirst'));
+  }
   el.categorySelect.value = '';
   fillSelect(el.foodSelect, [], t('chooseCatFirst'));
   el.priceInput.value = '';
@@ -781,7 +889,8 @@ async function exportXlsx() {
   XLSX.utils.book_append_sheet(wb, ws, 'Orders');
 
   const datePart = state.date || new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `orders-${datePart}.xlsx`);
+  const suffix = state.appId === 'lady-ruby' ? '-lady-ruby' : '';
+  XLSX.writeFile(wb, `orders-${datePart}${suffix}.xlsx`);
 }
 
 el.deptSelect.addEventListener('change', () => {
@@ -899,11 +1008,10 @@ el.langEn.addEventListener('click', async () => { state.lang = 'en'; applyI18n()
 
 state.lang = detectPreferredLang();
 applyI18n();
+updateExportLinks();
+setupSecretEntry();
+setupAdminEntry();
 if (el.cutoffTimeInput && !el.cutoffTimeInput.value) el.cutoffTimeInput.value = state.defaultCutoffTime;
 el.cutoffTimeInput?.addEventListener('input', syncRestaurantLock);
 startAutoRefresh();
 loadBootstrap().catch(err => showToast(err.message, 3000));
-
-
-
-

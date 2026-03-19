@@ -15,6 +15,7 @@ const el = {
   logoutBtn: document.getElementById('logoutBtn'),
   saveBtn: document.getElementById('saveBtn'),
   resetDayBtn: document.getElementById('resetDayBtn'),
+  resetLadyRubyBtn: document.getElementById('resetLadyRubyBtn'),
   status: document.getElementById('status'),
 
   importFile: document.getElementById('importFile'),
@@ -194,8 +195,9 @@ function normalizeSeed() {
     const tc = String((d && d.tc) || '').trim();
     const sc = String((d && d.sc) || tc).trim();
     const en = String((d && d.en) || tc).trim();
+    const paused = Boolean(d && d.paused);
     if (!tc) return;
-    if (!drinkMap.has(tc)) drinkMap.set(tc, { tc, sc: sc || tc, en: en || tc });
+    if (!drinkMap.has(tc)) drinkMap.set(tc, { tc, sc: sc || tc, en: en || tc, paused });
   });
   state.seed.drinks = Array.from(drinkMap.values());
 
@@ -252,14 +254,29 @@ function renderDrinks() {
     const tc = d.tc || '';
     const sc = d.sc || tc;
     const en = d.en || tc;
+    const paused = Boolean(d.paused);
     return `<tr>
       <td class="border-b px-2 py-1">${tc}</td>
       <td class="border-b px-2 py-1">${sc}</td>
       <td class="border-b px-2 py-1">${en}</td>
-      <td class="border-b px-2 py-1"><button data-i="${i}" class="remove-drink rounded bg-red-600 px-2 py-1 text-xs text-white">刪除</button></td>
+      <td class="border-b px-2 py-1">${paused ? '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">已暫停</span>' : '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">供應中</span>'}</td>
+      <td class="border-b px-2 py-1">
+        <button data-i="${i}" class="toggle-drink rounded bg-slate-700 px-2 py-1 text-xs text-white">${paused ? '恢復' : '暫停'}</button>
+        <button data-i="${i}" class="remove-drink ml-1 rounded bg-red-600 px-2 py-1 text-xs text-white">刪除</button>
+      </td>
     </tr>`;
   }).join('');
-  el.drinkTable.innerHTML = `<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th></th></tr></thead><tbody>${rows}</tbody>`;
+  el.drinkTable.innerHTML = `<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">狀態</th><th></th></tr></thead><tbody>${rows}</tbody>`;
+  el.drinkTable.querySelectorAll('.toggle-drink').forEach(btn => {
+    btn.onclick = () => {
+      const i = Number(btn.dataset.i);
+      const current = state.seed.drinks[i];
+      if (!current) return;
+      current.paused = !current.paused;
+      renderDrinks();
+      markDirty(current.paused ? '已暫停飲品' : '已恢復飲品');
+    };
+  });
   el.drinkTable.querySelectorAll('.remove-drink').forEach(btn => {
     btn.onclick = () => {
       const i = Number(btn.dataset.i);
@@ -457,7 +474,7 @@ async function saveSection(section) {
       if (tc) {
         state.seed.drinks = state.seed.drinks || [];
         if (!state.seed.drinks.some(d => String(d.tc || '').trim() === tc)) {
-          state.seed.drinks.push({ tc, sc: sc || tc, en: en || tc });
+          state.seed.drinks.push({ tc, sc: sc || tc, en: en || tc, paused: false });
         }
         el.drinkTc.value = '';
         el.drinkSc.value = '';
@@ -568,12 +585,12 @@ async function saveSeed() {
   }
 }
 
-async function resetDay() {
+async function resetDay(app = 'main') {
   if (!requireAuth()) return;
   try {
     setBusy(true);
-    await api('/api/admin/reset-day', { method: 'POST', body: JSON.stringify({ password: state.password }) });
-    setStatus('已重置今日訂單與餐廳。');
+    await api('/api/admin/reset-day', { method: 'POST', body: JSON.stringify({ password: state.password, app }) });
+    setStatus(app === 'lady-ruby' ? '已重置 Lady Ruby 今日訂單與餐廳。' : '已重置主站今日訂單與餐廳。');
   } catch (err) {
     setStatus(err.message, true);
   } finally {
@@ -602,7 +619,9 @@ function rowsToSeed(rows) {
       if (!seed.staff[dept]) seed.staff[dept] = [];
       seed.staff[dept].push(name);
     }
-    if (type === 'DRINK' && drinkTc) seed.drinks.push({ tc: drinkTc, sc: drinkSc || drinkTc, en: drinkEn || drinkTc });
+    const pausedRaw = String(row.paused || row.PAUSED || '').trim().toLowerCase();
+    const paused = pausedRaw === '1' || pausedRaw === 'true' || pausedRaw === 'yes' || pausedRaw === 'y';
+    if (type === 'DRINK' && drinkTc) seed.drinks.push({ tc: drinkTc, sc: drinkSc || drinkTc, en: drinkEn || drinkTc, paused });
     if (type === 'MENU' && restaurant && category && itemTc && Number.isFinite(price)) {
       if (!seed.menus[restaurant]) seed.menus[restaurant] = {};
       if (!seed.menus[restaurant][category]) seed.menus[restaurant][category] = [];
@@ -659,7 +678,9 @@ function parseWorkbookSeed(wb) {
       const sc = pick(r, ['SC', 'sc', 'Simplified', '簡體', '简体'], 1) || tc;
       const en = pick(r, ['EN', 'en', 'English', '英文'], 2) || tc;
       if (!tc) return;
-      seed.drinks.push({ tc, sc, en });
+      const pausedRaw = pick(r, ['Paused', 'paused', '暫停', '暂停'], 3);
+      const paused = ['1', 'true', 'yes', 'y'].includes(String(pausedRaw || '').trim().toLowerCase());
+      seed.drinks.push({ tc, sc, en, paused });
     });
   }
 
@@ -781,7 +802,8 @@ el.loginPassword.addEventListener('keydown', e => {
 el.logoutBtn.onclick = logout;
 
 el.saveBtn.onclick = saveSeed;
-el.resetDayBtn.onclick = resetDay;
+el.resetDayBtn.onclick = () => resetDay('main');
+if (el.resetLadyRubyBtn) el.resetLadyRubyBtn.onclick = () => resetDay('lady-ruby');
 el.importBtn.onclick = importSeed;
 
 el.saveRestaurantBtn.onclick = () => saveSection('restaurants');
@@ -809,7 +831,7 @@ el.addDrinkBtn.onclick = () => {
   const sc = scInput || toSc(tcInput || tc);
   if (!tc) return setStatus('請輸入飲品名稱（繁體或簡體其一）。', true);
   const en = String(el.drinkEn.value || '').trim() || tc;
-  state.seed.drinks.push({ tc, sc, en });
+  state.seed.drinks.push({ tc, sc, en, paused: false });
   el.drinkTc.value = '';
   el.drinkSc.value = '';
   el.drinkEn.value = '';
