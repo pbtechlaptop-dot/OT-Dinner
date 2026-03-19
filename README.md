@@ -118,6 +118,10 @@ alter table public.orders
 add constraint orders_date_app_id_dept_name_key unique (date, app_id, dept, name);
 ```
 
+Important:
+- If `app_state.cutoff_time` is missing, changing cutoff time will fall back to `13:00` after refresh.
+- If `orders.app_id` is missing, main and Lady Ruby orders cannot be separated safely, and reset actions may affect the wrong page.
+
 ## Web Pages
 
 - Frontend: `/`

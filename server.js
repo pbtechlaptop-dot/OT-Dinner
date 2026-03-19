@@ -48,9 +48,6 @@ const TABLES = {
 };
 
 const DEFAULT_CUTOFF_TIME = '13:00';
-const legacySupabaseState = {
-  cutoffTime: DEFAULT_CUTOFF_TIME
-};
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -429,6 +426,14 @@ function isMissingSupabaseColumn(error, columnName) {
   return msg.includes(columnName) && (msg.includes('does not exist') || msg.includes('schema cache'));
 }
 
+function cutoffSchemaMigrationMessage() {
+  return 'Supabase app_state table is missing cutoff_time. Please run the SQL migration in README.md before changing cutoff time in production.';
+}
+
+function ordersSchemaMigrationMessage() {
+  return 'Supabase orders table is missing app_id. Please run the SQL migration in README.md before using main and Lady Ruby separately in production.';
+}
+
 async function supaDeleteAll(table, keyCol) {
   const { error } = await supabase.from(table).delete().not(keyCol, 'is', null);
   if (error) throw new Error(`Supabase delete failed on ${table}: ${error.message}`);
@@ -547,13 +552,7 @@ async function selectOrdersSupabase(date, appId) {
     });
   } catch (err) {
     if (!isMissingSupabaseColumn(err, 'app_id')) throw err;
-    if (appId !== APP_MAIN) {
-      throw new Error('Supabase orders table is missing app_id. Please run the SQL migration before using Lady Ruby in production.');
-    }
-    return supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price', {
-      eq: { date },
-      order: [{ column: 'dept' }, { column: 'name' }]
-    });
+    throw new Error(ordersSchemaMigrationMessage());
   }
 }
 
@@ -561,10 +560,7 @@ async function clearOrdersSupabase(date, appId) {
   let query = supabase.from(TABLES.orders).delete().eq('date', date).eq('app_id', appId);
   let result = await query;
   if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
-    if (appId !== APP_MAIN) {
-      throw new Error('Supabase orders table is missing app_id. Please run the SQL migration before using Lady Ruby in production.');
-    }
-    result = await supabase.from(TABLES.orders).delete().eq('date', date);
+    throw new Error(ordersSchemaMigrationMessage());
   }
   if (result.error) throw new Error(`Supabase clear orders failed: ${result.error.message}`);
 }
@@ -583,19 +579,7 @@ async function insertOrdersSupabase(date, appId, orders) {
   }));
   let result = await supabase.from(TABLES.orders).insert(rowsWithApp);
   if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
-    if (appId !== APP_MAIN) {
-      throw new Error('Supabase orders table is missing app_id. Please run the SQL migration before using Lady Ruby in production.');
-    }
-    const legacyRows = orders.map(o => ({
-      date,
-      dept: normText(o.dept),
-      name: normText(o.name),
-      food: normText(o.food),
-      addon: normText(o.addon),
-      drink: normText(o.drink),
-      price: Number(o.price || 0)
-    }));
-    result = await supabase.from(TABLES.orders).insert(legacyRows);
+    throw new Error(ordersSchemaMigrationMessage());
   }
   if (result.error) throw new Error(`Supabase insert orders failed: ${result.error.message}`);
 }
@@ -613,19 +597,7 @@ async function upsertOrderSupabase(appId, date, order) {
   };
   let result = await supabase.from(TABLES.orders).upsert(row, { onConflict: 'date,app_id,dept,name' });
   if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
-    if (appId !== APP_MAIN) {
-      throw new Error('Supabase orders table is missing app_id. Please run the SQL migration before using Lady Ruby in production.');
-    }
-    const legacyRow = {
-      date,
-      dept: normText(order.dept),
-      name: normText(order.name),
-      food: normText(order.food),
-      addon: normText(order.addon),
-      drink: normText(order.drink),
-      price: Number(order.price)
-    };
-    result = await supabase.from(TABLES.orders).upsert(legacyRow, { onConflict: 'date,dept,name' });
+    throw new Error(ordersSchemaMigrationMessage());
   }
   if (result.error) throw new Error(`Supabase upsert order failed: ${result.error.message}`);
 }
@@ -675,7 +647,7 @@ async function getStateSupabase(appId = APP_MAIN) {
   return {
     date: appState.date,
     restaurant: appState.restaurant ? normText(appState.restaurant) : null,
-    cutoffTime: normalizeCutoffTime(appState.cutoff_time) || legacySupabaseState.cutoffTime || DEFAULT_CUTOFF_TIME,
+    cutoffTime: normalizeCutoffTime(appState.cutoff_time) || DEFAULT_CUTOFF_TIME,
     orders
   };
 }
@@ -684,17 +656,13 @@ async function saveStateSupabase(appId = APP_MAIN, input) {
   const normalizedAppId = normalizeAppId(appId);
   const stateRowId = APP_STATE_ROW_IDS[normalizedAppId] || 1;
   const state = normalizeState(input);
-  legacySupabaseState.cutoffTime = state.cutoffTime;
   let e1 = null;
   const withCutoff = await supabase
     .from(TABLES.appState)
     .upsert({ id: stateRowId, date: state.date, restaurant: state.restaurant, cutoff_time: state.cutoffTime }, { onConflict: 'id' });
   e1 = withCutoff.error;
   if (e1 && isMissingSupabaseColumn(e1, 'cutoff_time')) {
-    const fallback = await supabase
-      .from(TABLES.appState)
-      .upsert({ id: stateRowId, date: state.date, restaurant: state.restaurant }, { onConflict: 'id' });
-    e1 = fallback.error;
+    throw new Error(cutoffSchemaMigrationMessage());
   }
   if (e1) throw new Error(`Supabase save app_state failed: ${e1.message}`);
 
