@@ -145,7 +145,11 @@ function readDrinkFlags() {
 }
 
 function writeDrinkFlags(flags) {
-  writeJson(DRINK_FLAGS_FILE, normalizeDrinkFlags(flags));
+  try {
+    writeJson(DRINK_FLAGS_FILE, normalizeDrinkFlags(flags));
+  } catch {
+    // Ignore read-only/serverless filesystem failures.
+  }
 }
 
 function applyDrinkFlags(seedInput, flagsInput) {
@@ -388,6 +392,17 @@ function normalizeState(input) {
     cutoffTime: normalizeCutoffTime(state.cutoffTime) || DEFAULT_CUTOFF_TIME,
     orders: Array.isArray(state.orders) ? state.orders : []
   };
+}
+
+async function ensureStateHasValidRestaurant(appId, seedInput, stateInput) {
+  const seed = normalizeSeed(seedInput);
+  const state = normalizeState(stateInput);
+  const restaurant = normText(state.restaurant);
+  if (!restaurant) return state;
+  if (seed.menus && seed.menus[restaurant]) return state;
+  const nextState = { ...state, restaurant: null };
+  await storage.saveState(appId, nextState);
+  return nextState;
 }
 
 async function supaSelect(table, columns, opts = {}) {
@@ -862,7 +877,8 @@ async function handleApi(req, res, urlObj) {
   if (req.method === 'GET' && pathname === '/api/bootstrap') {
     const appId = getAppIdFromRequest(urlObj);
     const seed = await storage.getSeed();
-    const state = await storage.getState(appId);
+    const rawState = await storage.getState(appId);
+    const state = await ensureStateHasValidRestaurant(appId, seed, rawState);
     return json(res, 200, {
       date: state.date,
       restaurants: seed.restaurants,
@@ -879,7 +895,8 @@ async function handleApi(req, res, urlObj) {
   if (req.method === 'GET' && pathname === '/api/menu') {
     const seed = await storage.getSeed();
     const appId = getAppIdFromRequest(urlObj);
-    const state = await storage.getState(appId);
+    const rawState = await storage.getState(appId);
+    const state = await ensureStateHasValidRestaurant(appId, seed, rawState);
     const restaurant = urlObj.searchParams.get('restaurant') || state.restaurant;
     if (!restaurant) return json(res, 400, { error: 'Restaurant is required' });
     const menu = seed.menus[restaurant];
