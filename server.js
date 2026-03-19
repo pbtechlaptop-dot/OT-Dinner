@@ -27,6 +27,10 @@ const APP_MAIN = 'main';
 const APP_LADY_RUBY = 'lady-ruby';
 const APP_IDS = new Set([APP_MAIN, APP_LADY_RUBY]);
 const LADY_RUBY_COOKIE = 'lady_ruby_access';
+const APP_STATE_ROW_IDS = {
+  [APP_MAIN]: 1,
+  [APP_LADY_RUBY]: 2
+};
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -520,20 +524,112 @@ async function saveSeedSupabase(input) {
   }
 }
 
-async function getStateSupabase() {
+async function selectOrdersSupabase(date, appId) {
+  try {
+    return await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id', {
+      eq: { date, app_id: appId },
+      order: [{ column: 'dept' }, { column: 'name' }]
+    });
+  } catch (err) {
+    if (!isMissingSupabaseColumn(err, 'app_id')) throw err;
+    if (appId !== APP_MAIN) {
+      throw new Error('Supabase orders table is missing app_id. Please run the SQL migration before using Lady Ruby in production.');
+    }
+    return supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price', {
+      eq: { date },
+      order: [{ column: 'dept' }, { column: 'name' }]
+    });
+  }
+}
+
+async function clearOrdersSupabase(date, appId) {
+  let query = supabase.from(TABLES.orders).delete().eq('date', date).eq('app_id', appId);
+  let result = await query;
+  if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
+    if (appId !== APP_MAIN) {
+      throw new Error('Supabase orders table is missing app_id. Please run the SQL migration before using Lady Ruby in production.');
+    }
+    result = await supabase.from(TABLES.orders).delete().eq('date', date);
+  }
+  if (result.error) throw new Error(`Supabase clear orders failed: ${result.error.message}`);
+}
+
+async function insertOrdersSupabase(date, appId, orders) {
+  if (!orders.length) return;
+  const rowsWithApp = orders.map(o => ({
+    app_id: appId,
+    date,
+    dept: normText(o.dept),
+    name: normText(o.name),
+    food: normText(o.food),
+    addon: normText(o.addon),
+    drink: normText(o.drink),
+    price: Number(o.price || 0)
+  }));
+  let result = await supabase.from(TABLES.orders).insert(rowsWithApp);
+  if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
+    if (appId !== APP_MAIN) {
+      throw new Error('Supabase orders table is missing app_id. Please run the SQL migration before using Lady Ruby in production.');
+    }
+    const legacyRows = orders.map(o => ({
+      date,
+      dept: normText(o.dept),
+      name: normText(o.name),
+      food: normText(o.food),
+      addon: normText(o.addon),
+      drink: normText(o.drink),
+      price: Number(o.price || 0)
+    }));
+    result = await supabase.from(TABLES.orders).insert(legacyRows);
+  }
+  if (result.error) throw new Error(`Supabase insert orders failed: ${result.error.message}`);
+}
+
+async function upsertOrderSupabase(appId, date, order) {
+  const row = {
+    app_id: appId,
+    date,
+    dept: normText(order.dept),
+    name: normText(order.name),
+    food: normText(order.food),
+    addon: normText(order.addon),
+    drink: normText(order.drink),
+    price: Number(order.price)
+  };
+  let result = await supabase.from(TABLES.orders).upsert(row, { onConflict: 'date,app_id,dept,name' });
+  if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
+    if (appId !== APP_MAIN) {
+      throw new Error('Supabase orders table is missing app_id. Please run the SQL migration before using Lady Ruby in production.');
+    }
+    const legacyRow = {
+      date,
+      dept: normText(order.dept),
+      name: normText(order.name),
+      food: normText(order.food),
+      addon: normText(order.addon),
+      drink: normText(order.drink),
+      price: Number(order.price)
+    };
+    result = await supabase.from(TABLES.orders).upsert(legacyRow, { onConflict: 'date,dept,name' });
+  }
+  if (result.error) throw new Error(`Supabase upsert order failed: ${result.error.message}`);
+}
+
+async function getStateSupabase(appId = APP_MAIN) {
+  const stateRowId = APP_STATE_ROW_IDS[normalizeAppId(appId)] || 1;
   let hasCutoffColumn = true;
   let appState = null;
   try {
-    appState = await supaSelect(TABLES.appState, 'id,date,restaurant,cutoff_time', { eq: { id: 1 }, maybeSingle: true });
+    appState = await supaSelect(TABLES.appState, 'id,date,restaurant,cutoff_time', { eq: { id: stateRowId }, maybeSingle: true });
   } catch (err) {
     if (!isMissingSupabaseColumn(err, 'cutoff_time')) throw err;
     hasCutoffColumn = false;
-    appState = await supaSelect(TABLES.appState, 'id,date,restaurant', { eq: { id: 1 }, maybeSingle: true });
+    appState = await supaSelect(TABLES.appState, 'id,date,restaurant', { eq: { id: stateRowId }, maybeSingle: true });
   }
   if (!appState) {
     const init = hasCutoffColumn
-      ? { id: 1, date: todayISO(), restaurant: null, cutoff_time: null }
-      : { id: 1, date: todayISO(), restaurant: null };
+      ? { id: stateRowId, date: todayISO(), restaurant: null, cutoff_time: null }
+      : { id: stateRowId, date: todayISO(), restaurant: null };
     const { error } = await supabase.from(TABLES.appState).upsert(init, { onConflict: 'id' });
     if (error) throw new Error(`Supabase init app_state failed: ${error.message}`);
     appState = init;
@@ -542,17 +638,14 @@ async function getStateSupabase() {
   const today = todayISO();
   if (normText(appState.date) !== today) {
     const rotatePayload = hasCutoffColumn
-      ? { id: 1, date: today, restaurant: null, cutoff_time: null }
-      : { id: 1, date: today, restaurant: null };
+      ? { id: stateRowId, date: today, restaurant: null, cutoff_time: null }
+      : { id: stateRowId, date: today, restaurant: null };
     const { error } = await supabase.from(TABLES.appState).upsert(rotatePayload, { onConflict: 'id' });
     if (error) throw new Error(`Supabase rotate day failed: ${error.message}`);
     appState = rotatePayload;
   }
 
-  const ordersRows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price', {
-    eq: { date: appState.date },
-    order: [{ column: 'dept' }, { column: 'name' }]
-  });
+  const ordersRows = await selectOrdersSupabase(appState.date, normalizeAppId(appId));
 
   const orders = (ordersRows || []).map((o, i) => ({
     id: i + 1,
@@ -572,57 +665,31 @@ async function getStateSupabase() {
   };
 }
 
-async function saveStateSupabase(input) {
+async function saveStateSupabase(appId = APP_MAIN, input) {
+  const normalizedAppId = normalizeAppId(appId);
+  const stateRowId = APP_STATE_ROW_IDS[normalizedAppId] || 1;
   const state = normalizeState(input);
   legacySupabaseState.cutoffTime = state.cutoffTime;
   let e1 = null;
   const withCutoff = await supabase
     .from(TABLES.appState)
-    .upsert({ id: 1, date: state.date, restaurant: state.restaurant, cutoff_time: state.cutoffTime }, { onConflict: 'id' });
+    .upsert({ id: stateRowId, date: state.date, restaurant: state.restaurant, cutoff_time: state.cutoffTime }, { onConflict: 'id' });
   e1 = withCutoff.error;
   if (e1 && isMissingSupabaseColumn(e1, 'cutoff_time')) {
     const fallback = await supabase
       .from(TABLES.appState)
-      .upsert({ id: 1, date: state.date, restaurant: state.restaurant }, { onConflict: 'id' });
+      .upsert({ id: stateRowId, date: state.date, restaurant: state.restaurant }, { onConflict: 'id' });
     e1 = fallback.error;
   }
   if (e1) throw new Error(`Supabase save app_state failed: ${e1.message}`);
 
-  const { error: eDel } = await supabase.from(TABLES.orders).delete().eq('date', state.date);
-  if (eDel) throw new Error(`Supabase clear orders failed: ${eDel.message}`);
-
-  if (state.orders.length) {
-    const rows = state.orders.map(o => ({
-      date: state.date,
-      dept: normText(o.dept),
-      name: normText(o.name),
-      food: normText(o.food),
-      addon: normText(o.addon),
-      drink: normText(o.drink),
-      price: Number(o.price || 0)
-    }));
-    const { error: eIns } = await supabase.from(TABLES.orders).insert(rows);
-    if (eIns) throw new Error(`Supabase insert orders failed: ${eIns.message}`);
-  }
+  await clearOrdersSupabase(state.date, normalizedAppId);
+  await insertOrdersSupabase(state.date, normalizedAppId, state.orders || []);
 }
 
-
-async function upsertOrderSupabase(date, order) {
-  const row = {
-    date,
-    dept: normText(order.dept),
-    name: normText(order.name),
-    food: normText(order.food),
-    addon: normText(order.addon),
-    drink: normText(order.drink),
-    price: Number(order.price)
-  };
-  const { error } = await supabase.from(TABLES.orders).upsert(row, { onConflict: 'date,dept,name' });
-  if (error) throw new Error(`Supabase upsert order failed: ${error.message}`);
-}
-async function resetDaySupabase() {
+async function resetDaySupabase(appId = APP_MAIN) {
   const reset = defaultState();
-  await saveStateSupabase(reset);
+  await saveStateSupabase(appId, reset);
 }
 
 async function getSeedLocal() {
@@ -657,17 +724,17 @@ const storage = {
   saveSeed: USE_SUPABASE ? saveSeedSupabase : saveSeedLocal,
   getState(appId = APP_MAIN) {
     const normalizedAppId = normalizeAppId(appId);
-    if (USE_SUPABASE && normalizedAppId === APP_MAIN) return getStateSupabase();
+    if (USE_SUPABASE) return getStateSupabase(normalizedAppId);
     return getStateLocal(normalizedAppId);
   },
   saveState(appId = APP_MAIN, state) {
     const normalizedAppId = normalizeAppId(appId);
-    if (USE_SUPABASE && normalizedAppId === APP_MAIN) return saveStateSupabase(state);
+    if (USE_SUPABASE) return saveStateSupabase(normalizedAppId, state);
     return saveStateLocal(normalizedAppId, state);
   },
   resetDay(appId = APP_MAIN) {
     const normalizedAppId = normalizeAppId(appId);
-    if (USE_SUPABASE && normalizedAppId === APP_MAIN) return resetDaySupabase();
+    if (USE_SUPABASE) return resetDaySupabase(normalizedAppId);
     return resetDayLocal(normalizedAppId);
   }
 };
@@ -882,8 +949,8 @@ async function handleApi(req, res, urlObj) {
 
     const existed = state.orders.some(o => o.dept === clean.dept && o.name === clean.name);
 
-    if (USE_SUPABASE && appId === APP_MAIN) {
-      await upsertOrderSupabase(state.date, clean);
+    if (USE_SUPABASE) {
+      await upsertOrderSupabase(appId, state.date, clean);
       return json(res, 200, { ok: true, updated: existed });
     }
 

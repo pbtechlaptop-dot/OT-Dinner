@@ -68,6 +68,7 @@ create table if not exists public.app_state (
 
 create table if not exists public.orders (
   id bigserial primary key,
+  app_id text not null default 'main',
   date text not null,
   dept text not null,
   name text not null,
@@ -75,7 +76,7 @@ create table if not exists public.orders (
   addon text not null default '',
   drink text not null default '',
   price numeric(10,2) not null,
-  unique (date, dept, name)
+  unique (date, app_id, dept, name)
 );
 
 insert into public.app_state (id, date, restaurant)
@@ -95,6 +96,26 @@ If `drinks` already exists, also run:
 ```sql
 alter table public.drinks
 add column if not exists paused boolean not null default false;
+```
+
+If `orders` already exists, also run:
+
+```sql
+alter table public.orders
+add column if not exists app_id text not null default 'main';
+
+update public.orders
+set app_id = 'main'
+where app_id is null or app_id = '';
+
+alter table public.orders
+drop constraint if exists orders_date_dept_name_key;
+
+alter table public.orders
+drop constraint if exists orders_date_app_id_dept_name_key;
+
+alter table public.orders
+add constraint orders_date_app_id_dept_name_key unique (date, app_id, dept, name);
 ```
 
 ## Web Pages
