@@ -581,7 +581,7 @@ function startAutoRefresh() {
   startAutoRefresh.tid = setInterval(() => {
     if (document.hidden) return;
     refreshOrdersSilently();
-  }, 3000);
+  }, 5000);
 }
 
 async function requestPrivateAccess() {
@@ -728,9 +728,15 @@ function updateCutoffUi() {
   }
 }
 
-async function loadMenu(restaurant) {
+async function loadMenu(restaurant, initialMenu) {
   if (!restaurant) {
     state.menu = {};
+    buildLookupMaps();
+    renderCategories();
+    return;
+  }
+  if (initialMenu && typeof initialMenu === 'object') {
+    state.menu = initialMenu;
     buildLookupMaps();
     renderCategories();
     return;
@@ -763,7 +769,7 @@ async function loadBootstrap() {
     renderRestaurants();
     renderDepartments();
     renderDrinks();
-    await loadMenu(state.currentRestaurant);
+    await loadMenu(state.currentRestaurant, payload.currentMenu || null);
     renderOrders();
     updateDiagSummary();
   } catch (err) {

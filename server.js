@@ -48,6 +48,9 @@ const TABLES = {
 };
 
 const DEFAULT_CUTOFF_TIME = '13:00';
+const SEED_CACHE_TTL_MS = Number(process.env.SEED_CACHE_TTL_MS || 30000);
+const AUTH_WINDOW_MS = Number(process.env.AUTH_WINDOW_MS || 10 * 60 * 1000);
+const AUTH_MAX_FAILURES = Number(process.env.AUTH_MAX_FAILURES || 8);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -57,6 +60,13 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png'
 };
+
+const seedCache = {
+  value: null,
+  expiresAt: 0
+};
+
+const authFailures = new Map();
 
 function todayISO() {
   try {
@@ -702,9 +712,28 @@ async function resetDayLocal(appId = APP_MAIN) {
   writeJson(stateFileForApp(appId), defaultState());
 }
 
+function invalidateSeedCache() {
+  seedCache.value = null;
+  seedCache.expiresAt = 0;
+}
+
+async function getSeedCached() {
+  const now = Date.now();
+  if (seedCache.value && seedCache.expiresAt > now) return seedCache.value;
+  const seed = await (USE_SUPABASE ? getSeedSupabase() : getSeedLocal());
+  seedCache.value = seed;
+  seedCache.expiresAt = now + SEED_CACHE_TTL_MS;
+  return seed;
+}
+
+async function saveSeedWithCache(seed) {
+  await (USE_SUPABASE ? saveSeedSupabase(seed) : saveSeedLocal(seed));
+  invalidateSeedCache();
+}
+
 const storage = {
-  getSeed: USE_SUPABASE ? getSeedSupabase : getSeedLocal,
-  saveSeed: USE_SUPABASE ? saveSeedSupabase : saveSeedLocal,
+  getSeed: getSeedCached,
+  saveSeed: saveSeedWithCache,
   getState(appId = APP_MAIN) {
     const normalizedAppId = normalizeAppId(appId);
     if (USE_SUPABASE) return getStateSupabase(normalizedAppId);
@@ -726,14 +755,56 @@ function json(res, status, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(body)
+    'Content-Length': Buffer.byteLength(body),
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Cross-Origin-Resource-Policy': 'same-origin'
   });
   res.end(body);
 }
 
 function text(res, status, payload, contentType = 'text/plain; charset=utf-8') {
-  res.writeHead(status, { 'Content-Type': contentType });
+  res.writeHead(status, {
+    'Content-Type': contentType,
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Cross-Origin-Resource-Policy': 'same-origin'
+  });
   res.end(payload);
+}
+
+function getRequestIp(req) {
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return forwarded || String(req.socket && req.socket.remoteAddress || 'unknown');
+}
+
+function isAuthRateLimited(req, scope) {
+  const key = `${scope}:${getRequestIp(req)}`;
+  const now = Date.now();
+  const entry = authFailures.get(key);
+  if (!entry) return false;
+  if (entry.resetAt <= now) {
+    authFailures.delete(key);
+    return false;
+  }
+  return entry.count >= AUTH_MAX_FAILURES;
+}
+
+function recordAuthFailure(req, scope) {
+  const key = `${scope}:${getRequestIp(req)}`;
+  const now = Date.now();
+  const entry = authFailures.get(key);
+  if (!entry || entry.resetAt <= now) {
+    authFailures.set(key, { count: 1, resetAt: now + AUTH_WINDOW_MS });
+    return;
+  }
+  entry.count += 1;
+}
+
+function clearAuthFailures(req, scope) {
+  authFailures.delete(`${scope}:${getRequestIp(req)}`);
 }
 
 function parseBody(req) {
@@ -816,7 +887,18 @@ function serveStatic(req, reqPath, res) {
   fs.readFile(filePath, (err, data) => {
     if (err) return text(res, 404, 'Not found');
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    const isVersionedAsset = /\.(css|js|png|svg)$/i.test(filePath) && /[?&]v=|-[0-9]{8,}/i.test(req.url || '');
+    const cacheControl = isVersionedAsset
+      ? 'public, max-age=31536000, immutable'
+      : (ext === '.html' ? 'no-store' : 'public, max-age=300');
+    res.writeHead(200, {
+      'Content-Type': MIME[ext] || 'application/octet-stream',
+      'Cache-Control': cacheControl,
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'SAMEORIGIN',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Cross-Origin-Resource-Policy': 'same-origin'
+    });
     res.end(data);
   });
 }
@@ -829,15 +911,25 @@ async function handleApi(req, res, urlObj) {
   const pathname = (urlObj.pathname || '/').replace(/\/+$/, '') || '/';
 
   if (req.method === 'POST' && pathname === '/api/private-access') {
+    if (isAuthRateLimited(req, 'private-access')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
     const body = await parseBody(req);
     const target = normalizeAppId(body && body.target);
     const password = normText(body && body.password);
     if (target !== APP_LADY_RUBY || password !== LADY_RUBY_PASSWORD) {
+      recordAuthFailure(req, 'private-access');
       return json(res, 403, { error: 'Invalid password' });
     }
+    clearAuthFailures(req, 'private-access');
+    const secureFlag = process.env.NODE_ENV === 'production' || Boolean(req.headers['x-forwarded-proto'] === 'https');
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
-      'Set-Cookie': `${LADY_RUBY_COOKIE}=1; Path=/; HttpOnly; SameSite=Lax`
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'SAMEORIGIN',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Cross-Origin-Resource-Policy': 'same-origin',
+      'Set-Cookie': `${LADY_RUBY_COOKIE}=1; Path=/; HttpOnly; SameSite=Lax; Max-Age=28800${secureFlag ? '; Secure' : ''}`
     });
     return res.end(JSON.stringify({ ok: true, redirect: '/lady-ruby/' }));
   }
@@ -856,6 +948,7 @@ async function handleApi(req, res, urlObj) {
       cutoffTime: state.cutoffTime,
       cutoffPassed: isCutoffPassed(state.cutoffTime),
       orders: state.orders,
+      currentMenu: state.restaurant ? (seed.menus[state.restaurant] || {}) : {},
       app: appId
     });
   }
@@ -873,6 +966,9 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'POST' && pathname === '/api/restaurant') {
+    if (isAuthRateLimited(req, 'restaurant-settings')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
     const body = await parseBody(req);
     const appId = getAppIdFromRequest(urlObj, body);
     const seed = await storage.getSeed();
@@ -891,8 +987,10 @@ async function handleApi(req, res, urlObj) {
       return json(res, 400, { error: 'cutoffTime must be HH:MM' });
     }
     if (password !== CHANGE_PASSWORD) {
+      recordAuthFailure(req, 'restaurant-settings');
       return json(res, 403, { error: 'Invalid password' });
     }
+    clearAuthFailures(req, 'restaurant-settings');
 
     state.restaurant = restaurant;
     state.cutoffTime = nextCutoff;
@@ -985,18 +1083,32 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/seed') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
     const seed = await storage.getSeed();
     const password = normText(urlObj.searchParams.get('password'));
-    if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
+    if (!isAdminAuthorized(password)) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin password' });
+    }
+    clearAuthFailures(req, 'admin');
     return json(res, 200, { seed });
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/seed') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
     const body = await parseBody(req);
     const password = normText(body.password);
     const nextSeed = body && body.seed ? body.seed : null;
     const merge = Boolean(body && body.merge);
-    if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
+    if (!isAdminAuthorized(password)) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin password' });
+    }
+    clearAuthFailures(req, 'admin');
     if (!nextSeed || typeof nextSeed !== 'object') return json(res, 400, { error: 'seed payload is required' });
 
     if (merge) {
@@ -1012,10 +1124,17 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/reset-day') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
     const body = await parseBody(req);
     const password = normText(body.password);
     const appId = getAppIdFromRequest(urlObj, body);
-    if (!isAdminAuthorized(password)) return json(res, 403, { error: 'Invalid admin password' });
+    if (!isAdminAuthorized(password)) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin password' });
+    }
+    clearAuthFailures(req, 'admin');
     await storage.resetDay(appId);
     return json(res, 200, { ok: true });
   }

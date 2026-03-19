@@ -122,6 +122,30 @@ Important:
 - If `app_state.cutoff_time` is missing, changing cutoff time will fall back to `13:00` after refresh.
 - If `orders.app_id` is missing, main and Lady Ruby orders cannot be separated safely, and reset actions may affect the wrong page.
 
+## Supabase Security Hardening
+
+This app uses the server-side `SUPABASE_SERVICE_ROLE_KEY`, so you can safely enable RLS on the tables below without breaking the website. The service role bypasses RLS, while direct browser access from `anon` / `authenticated` will be blocked.
+
+```sql
+alter table if exists public.restaurants enable row level security;
+alter table if exists public.drinks enable row level security;
+alter table if exists public.staff enable row level security;
+alter table if exists public.menus enable row level security;
+alter table if exists public.app_state enable row level security;
+alter table if exists public.orders enable row level security;
+alter table if exists public.app_kv enable row level security;
+
+revoke all on table public.restaurants from anon, authenticated;
+revoke all on table public.drinks from anon, authenticated;
+revoke all on table public.staff from anon, authenticated;
+revoke all on table public.menus from anon, authenticated;
+revoke all on table public.app_state from anon, authenticated;
+revoke all on table public.orders from anon, authenticated;
+revoke all on table public.app_kv from anon, authenticated;
+```
+
+If you later decide to use Supabase directly from the browser, add explicit policies for only the tables and actions you need before exposing them.
+
 ## Web Pages
 
 - Frontend: `/`
