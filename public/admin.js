@@ -120,6 +120,14 @@ function requireAuth() {
   return true;
 }
 
+function handleAdminPasswordError(err) {
+  if (!/Invalid admin password/i.test(String(err && err.message || ''))) return false;
+  logout();
+  setLoginHint('密碼已失效，請重新登入。', true);
+  setStatus('密碼錯誤，請重新登入。', true);
+  return true;
+}
+
 async function api(path, options = {}) {
   const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
   if (!res.ok) {
@@ -539,6 +547,7 @@ async function saveSection(section) {
   } catch (err) {
     setStatus(`儲存${label}失敗: ${err.message}`, true);
     showToast(`儲存${label}失敗`, true);
+    handleAdminPasswordError(err);
   } finally {
     setBusy(false);
   }
@@ -557,10 +566,7 @@ async function loadSeed() {
     showToast('載入成功');
   } catch (err) {
     setStatus(err.message, true);
-    if (/Invalid admin password/i.test(err.message)) {
-      logout();
-      setLoginHint('密碼已失效，請重新登入。', true);
-    }
+    handleAdminPasswordError(err);
   } finally {
     setBusy(false);
   }
@@ -580,6 +586,7 @@ async function saveSeed() {
     showToast('儲存成功');
   } catch (err) {
     setStatus(err.message, true);
+    handleAdminPasswordError(err);
   } finally {
     setBusy(false);
   }
@@ -593,6 +600,7 @@ async function resetDay(app = 'main') {
     setStatus(app === 'lady-ruby' ? '已重置 Lady Ruby 今日訂單與餐廳。' : '已重置主站今日訂單與餐廳。');
   } catch (err) {
     setStatus(err.message, true);
+    handleAdminPasswordError(err);
   } finally {
     setBusy(false);
   }

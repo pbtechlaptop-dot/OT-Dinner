@@ -44,18 +44,12 @@
     <section class="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
       <h2 id="restaurantSectionTitle" class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy select-none" data-i18n="secRestaurant">1) 今日餐廳</h2>
       <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <div class="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_0.7fr_auto] lg:items-end">
-          <label class="grid gap-2 text-sm text-slate-600">
-            <span class="font-semibold text-pbnavy" data-i18n="restaurantPicker">選擇餐廳</span>
-            <select id="restaurantSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
-          </label>
-          <label class="grid gap-2 text-sm text-slate-600">
-            <span class="font-semibold text-pbnavy" data-i18n="cutoffTime">截單時間</span>
-            <input id="cutoffTimeInput" type="time" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
-          </label>
-          <button class="rounded-md bg-pborange px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-pborangestrong disabled:cursor-not-allowed disabled:opacity-50" id="setRestaurantBtn" data-i18n="setRestaurant">設定餐廳</button>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p id="restaurantActionHint" class="text-xs text-slate-500" data-i18n="restaurantActionHint">按設定餐廳後，再於彈出的畫面選擇餐廳及截單時間。</p>
+          </div>
+          <button class="rounded-md bg-pborange px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="openRestaurantModalBtn" data-i18n="setRestaurant">設定餐廳</button>
         </div>
-        <p id="restaurantActionHint" class="mt-3 text-xs text-slate-500" data-i18n="restaurantActionHint">已選餐廳後，再按設定餐廳。</p>
       </div>
       <div class="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-3">
         <p class="text-sm text-slate-500" id="currentRestaurantText">目前：未設定</p>
@@ -137,7 +131,36 @@
       </div>
     </div>
   </div>
+  <div id="restaurantModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/45 px-4">
+    <div class="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
+      <div class="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-bold text-pbnavy" data-i18n="restaurantModalTitle">設定今日餐廳</h3>
+          <p class="mt-1 text-sm text-slate-500" data-i18n="restaurantModalHint">輸入密碼後，選擇餐廳及截單時間。</p>
+        </div>
+        <button id="closeRestaurantModalBtn" type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50" data-i18n="cancel">取消</button>
+      </div>
+      <div class="grid grid-cols-1 gap-3">
+        <label class="grid gap-2 text-sm text-slate-600">
+          <span class="font-semibold text-pbnavy" data-i18n="restaurantPicker">選擇餐廳</span>
+          <select id="restaurantSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-600">
+          <span class="font-semibold text-pbnavy" data-i18n="cutoffTime">截單時間</span>
+          <input id="cutoffTimeInput" type="time" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
+        </label>
+        <label class="grid gap-2 text-sm text-slate-600">
+          <span class="font-semibold text-pbnavy" data-i18n="passwordLabel">管理密碼</span>
+          <input id="restaurantPasswordInput" type="password" data-i18n-placeholder="enterAdminPassword" placeholder="請輸入管理密碼" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
+        </label>
+      </div>
+      <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button id="cancelRestaurantModalBtn" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-i18n="cancel">取消</button>
+        <button class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="setRestaurantBtn" type="button" data-i18n="saveRestaurantSettings">確認設定</button>
+      </div>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="/app.js?v=20260319-1"></script>
+  <script src="/app.js?v=20260320-1"></script>
 </body>
 </html>

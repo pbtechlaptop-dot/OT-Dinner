@@ -26,7 +26,7 @@ const i18n = {
     secRestaurant: '1) 今日餐廳',
     setRestaurant: '設定餐廳',
     restaurantPicker: '選擇餐廳',
-    restaurantActionHint: '已選餐廳後，再按設定餐廳。',
+    restaurantActionHint: '按設定餐廳後，再於彈出的畫面選擇餐廳及截單時間。',
     secOrder: '2) 填寫訂單',
     dept: '部門',
     name: '同事',
@@ -58,6 +58,7 @@ const i18n = {
     chooseRestaurantFirst: '請先揀餐廳',
     chooseNewRestaurantFirst: '請先揀新餐廳',
     enterAdminPassword: '請輸入管理密碼',
+    passwordLabel: '管理密碼',
     enterAdminPasswordPrompt: '請輸入管理密碼（更改餐廳會清空舊單）',
     settingsPasswordPrompt: '請輸入管理密碼以更改餐廳或截單時間',
     restaurantSet: '已設定今日餐廳',
@@ -70,6 +71,10 @@ const i18n = {
     cutoffAt: '今日截單時間：',
     cutoffPassedNotice: '下單時間已過，請聯絡部門主管或 Simon 下單。',
     cutoffActiveNotice: '請於截單前完成下單，如已過時請聯絡部門主管或 Simon。',
+    restaurantModalTitle: '設定今日餐廳',
+    restaurantModalHint: '輸入密碼後，選擇餐廳及截單時間。',
+    saveRestaurantSettings: '確認設定',
+    cancel: '取消',
     orderBlockedNotice: '下單沒有成功，請聯絡部門主管或 Simon 下單。',
     orderAdded: '已新增訂單',
     orderUpdated: '已更新訂單',
@@ -93,7 +98,7 @@ const i18n = {
     secRestaurant: '1) 今日餐厅',
     setRestaurant: '设置餐厅',
     restaurantPicker: '选择餐厅',
-    restaurantActionHint: '选好餐厅后，再按设置餐厅。',
+    restaurantActionHint: '按设置餐厅后，再于弹出的画面选择餐厅及截单时间。',
     secOrder: '2) 填写订单',
     dept: '部门',
     name: '人员',
@@ -125,6 +130,7 @@ const i18n = {
     chooseRestaurantFirst: '请先选餐厅',
     chooseNewRestaurantFirst: '请先选新餐厅',
     enterAdminPassword: '请输入管理密码',
+    passwordLabel: '管理密码',
     enterAdminPasswordPrompt: '请输入管理密码（更改餐厅会清空旧单）',
     settingsPasswordPrompt: '请输入管理密码以更改餐厅或截单时间',
     restaurantSet: '已设置今日餐厅',
@@ -137,6 +143,10 @@ const i18n = {
     cutoffAt: '今日截单时间：',
     cutoffPassedNotice: '下单时间已过，请联络部门主管或 Simon 下单。',
     cutoffActiveNotice: '请于截单前完成下单，如已过时请联络部门主管或 Simon。',
+    restaurantModalTitle: '设置今日餐厅',
+    restaurantModalHint: '输入密码后，选择餐厅及截单时间。',
+    saveRestaurantSettings: '确认设置',
+    cancel: '取消',
     orderBlockedNotice: '下单没有成功，请联络部门主管或 Simon 下单。',
     orderAdded: '已新增订单',
     orderUpdated: '已更新订单',
@@ -160,7 +170,7 @@ const i18n = {
     secRestaurant: '1) Restaurant',
     setRestaurant: 'Set Restaurant',
     restaurantPicker: 'Choose Restaurant',
-    restaurantActionHint: 'Choose a restaurant, then click Set Restaurant.',
+    restaurantActionHint: 'Click Set Restaurant, then choose the restaurant and cutoff time in the popup.',
     secOrder: '2) Place Order',
     dept: 'Department',
     name: 'Name',
@@ -192,6 +202,7 @@ const i18n = {
     chooseRestaurantFirst: 'Please select a restaurant first',
     chooseNewRestaurantFirst: 'Please select new restaurant first',
     enterAdminPassword: 'Please enter admin password',
+    passwordLabel: 'Admin Password',
     enterAdminPasswordPrompt: 'Enter admin password (changing restaurant clears old orders)',
     settingsPasswordPrompt: 'Enter admin password to change the restaurant or cutoff time',
     restaurantSet: 'Today restaurant set',
@@ -204,6 +215,10 @@ const i18n = {
     cutoffAt: 'Today cutoff time: ',
     cutoffPassedNotice: 'Ordering time has passed. Please contact your team leader or Simon to place an order.',
     cutoffActiveNotice: 'Please place your order before the cutoff time. After that, contact your team leader or Simon.',
+    restaurantModalTitle: 'Set Today Restaurant',
+    restaurantModalHint: 'Enter the password, then choose the restaurant and cutoff time.',
+    saveRestaurantSettings: 'Save Settings',
+    cancel: 'Cancel',
     orderBlockedNotice: 'Order was not placed successfully. Please contact your team leader or Simon to place an order.',
     orderAdded: 'Order added',
     orderUpdated: 'Order updated',
@@ -225,7 +240,12 @@ const el = {
   dateText: document.getElementById('dateText'),
   diagInfo: document.getElementById('diagInfo'),
   restaurantSelect: document.getElementById('restaurantSelect'),
+  openRestaurantModalBtn: document.getElementById('openRestaurantModalBtn'),
   setRestaurantBtn: document.getElementById('setRestaurantBtn'),
+  restaurantModal: document.getElementById('restaurantModal'),
+  closeRestaurantModalBtn: document.getElementById('closeRestaurantModalBtn'),
+  cancelRestaurantModalBtn: document.getElementById('cancelRestaurantModalBtn'),
+  restaurantPasswordInput: document.getElementById('restaurantPasswordInput'),
   restaurantActionHint: document.getElementById('restaurantActionHint'),
   currentRestaurantText: document.getElementById('currentRestaurantText'),
   cutoffTimeInput: document.getElementById('cutoffTimeInput'),
@@ -434,16 +454,31 @@ function buildLookupMaps() {
 }
 
 function syncRestaurantLock() {
-  const locked = Boolean(state.currentRestaurant);
-  const selected = el.restaurantSelect.value;
-  const changingRestaurant = locked && selected && selected !== state.currentRestaurant;
-  el.setRestaurantBtn.disabled = false;
-  if (el.cutoffTimeInput) el.cutoffTimeInput.disabled = changingRestaurant;
   if (el.restaurantActionHint) {
     el.restaurantActionHint.textContent = state.currentRestaurant
       ? t('settingsLockedHint')
       : t('restaurantActionHint');
   }
+}
+
+function openRestaurantModal() {
+  if (!el.restaurantModal) return;
+  if (el.restaurantSelect) {
+    fillSelect(el.restaurantSelect, (state.restaurants || []).map(r => ({ value: r, label: r })), t('selectRestaurant'));
+    el.restaurantSelect.value = state.currentRestaurant || '';
+  }
+  if (el.cutoffTimeInput) el.cutoffTimeInput.value = state.cutoffTime || state.defaultCutoffTime;
+  if (el.restaurantPasswordInput) el.restaurantPasswordInput.value = '';
+  el.restaurantModal.classList.remove('hidden');
+  el.restaurantModal.classList.add('flex');
+  setTimeout(() => el.restaurantSelect?.focus(), 0);
+}
+
+function closeRestaurantModal() {
+  if (!el.restaurantModal) return;
+  el.restaurantModal.classList.add('hidden');
+  el.restaurantModal.classList.remove('flex');
+  if (el.restaurantPasswordInput) el.restaurantPasswordInput.value = '';
 }
 
 function renderRestaurants() {
@@ -930,12 +965,17 @@ el.foodSelect.addEventListener('change', () => {
   const opt = el.foodSelect.options[el.foodSelect.selectedIndex];
   el.priceInput.value = opt && opt.dataset ? (opt.dataset.price || '') : '';
 });
-el.restaurantSelect.addEventListener('change', syncRestaurantLock);
+el.restaurantSelect?.addEventListener('change', syncRestaurantLock);
+el.openRestaurantModalBtn?.addEventListener('click', openRestaurantModal);
+el.closeRestaurantModalBtn?.addEventListener('click', closeRestaurantModal);
+el.cancelRestaurantModalBtn?.addEventListener('click', closeRestaurantModal);
+el.restaurantModal?.addEventListener('click', event => {
+  if (event.target === el.restaurantModal) closeRestaurantModal();
+});
 
 el.setRestaurantBtn.addEventListener('click', async () => {
   const restaurant = el.restaurantSelect.value;
   const changingRestaurant = Boolean(state.currentRestaurant && restaurant && restaurant !== state.currentRestaurant);
-  const changingCutoff = Boolean(state.currentRestaurant && getCutoffInputValue() !== (state.cutoffTime || state.defaultCutoffTime));
   const cutoffTime = getCutoffInputValue();
   if (!restaurant) return showToast(t('chooseRestaurantFirst'));
   const previousRestaurant = state.currentRestaurant;
@@ -944,17 +984,12 @@ el.setRestaurantBtn.addEventListener('click', async () => {
   const previousFoodLookup = state.foodLookup;
   try {
     setBusy(true);
-    let payload;
-    if (changingRestaurant || changingCutoff) {
-      const promptText = changingRestaurant ? t('enterAdminPasswordPrompt') : t('settingsPasswordPrompt');
-      const passwordRaw = window.prompt(promptText, '');
-      if (passwordRaw === null) return;
-      const password = String(passwordRaw || '').trim();
-      if (!password) return showToast(t('enterAdminPassword'));
-      payload = await api('/api/restaurant', { method: 'POST', body: JSON.stringify({ restaurant, cutoffTime, password, forceChange: changingRestaurant }) });
-    } else {
-      payload = await api('/api/restaurant', { method: 'POST', body: JSON.stringify({ restaurant, cutoffTime, forceChange: false }) });
-    }
+    const password = String(el.restaurantPasswordInput?.value || '').trim();
+    if (!password) return showToast(t('enterAdminPassword'));
+    const payload = await api('/api/restaurant', {
+      method: 'POST',
+      body: JSON.stringify({ restaurant, cutoffTime, password, forceChange: changingRestaurant })
+    });
     await loadMenu(restaurant);
     state.currentRestaurant = payload.currentRestaurant;
     state.cutoffTime = payload.cutoffTime || state.defaultCutoffTime;
@@ -962,6 +997,7 @@ el.setRestaurantBtn.addEventListener('click', async () => {
     el.currentRestaurantText.textContent = `${t('currentRestaurant')}${restaurant}`;
     if (payload.cleared) state.orders = [];
     renderRestaurants();
+    closeRestaurantModal();
     if (payload.restaurantChanged || payload.cleared) {
       renderOrders();
       resetOrderForm();
@@ -979,6 +1015,12 @@ el.setRestaurantBtn.addEventListener('click', async () => {
     buildLookupMaps();
     renderCategories();
     renderRestaurants();
+    if (/invalid password/i.test(String(err.message || ''))) {
+      if (el.restaurantPasswordInput) {
+        el.restaurantPasswordInput.value = '';
+        el.restaurantPasswordInput.focus();
+      }
+    }
     showToast(err.message);
   } finally {
     setBusy(false);

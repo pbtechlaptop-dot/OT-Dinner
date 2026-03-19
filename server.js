@@ -890,9 +890,8 @@ async function handleApi(req, res, urlObj) {
     if (body.cutoffTime !== undefined && body.cutoffTime !== null && normText(body.cutoffTime) && !cutoffTime) {
       return json(res, 400, { error: 'cutoffTime must be HH:MM' });
     }
-    if (forceChange && password !== CHANGE_PASSWORD) return json(res, 403, { error: 'Invalid password' });
-    if (state.restaurant && (restaurantChanged || cutoffChanged) && password !== CHANGE_PASSWORD) {
-      return json(res, 403, { error: 'Password is required to change restaurant or cutoff time.' });
+    if (password !== CHANGE_PASSWORD) {
+      return json(res, 403, { error: 'Invalid password' });
     }
 
     state.restaurant = restaurant;
