@@ -35,6 +35,18 @@ const APP_STATE_ROW_IDS = {
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const APP_TIMEZONE = process.env.APP_TIMEZONE || 'Pacific/Auckland';
+const SUPABASE_KEY_ROLE = (() => {
+  try {
+    if (String(SUPABASE_SERVICE_ROLE_KEY || '').startsWith('sb_secret_')) return 'service_role';
+    if (String(SUPABASE_SERVICE_ROLE_KEY || '').startsWith('sb_publishable_')) return 'anon';
+    const parts = String(SUPABASE_SERVICE_ROLE_KEY || '').split('.');
+    if (parts.length < 2) return '';
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    return String(payload.role || '');
+  } catch {
+    return '';
+  }
+})();
 const USE_SUPABASE = Boolean(createClient && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 const supabase = USE_SUPABASE ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } }) : null;
 
@@ -67,6 +79,12 @@ const seedCache = {
 };
 
 const authFailures = new Map();
+
+function assertSupabaseServiceRole() {
+  if (!USE_SUPABASE) return;
+  if (SUPABASE_KEY_ROLE === 'service_role') return;
+  throw new Error(`SUPABASE_SERVICE_ROLE_KEY is not a service_role key (current role: ${SUPABASE_KEY_ROLE || 'unknown'}). Replace it with the real service_role key in Vercel and .env.production.vercel.`);
+}
 
 function todayISO() {
   try {
@@ -908,6 +926,7 @@ function isAdminAuthorized(password) {
 }
 
 async function handleApi(req, res, urlObj) {
+  assertSupabaseServiceRole();
   const pathname = (urlObj.pathname || '/').replace(/\/+$/, '') || '/';
 
   if (req.method === 'POST' && pathname === '/api/private-access') {
@@ -1086,13 +1105,13 @@ async function handleApi(req, res, urlObj) {
     if (isAuthRateLimited(req, 'admin')) {
       return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
     }
-    const seed = await storage.getSeed();
     const password = normText(urlObj.searchParams.get('password'));
     if (!isAdminAuthorized(password)) {
       recordAuthFailure(req, 'admin');
       return json(res, 403, { error: 'Invalid admin password' });
     }
     clearAuthFailures(req, 'admin');
+    const seed = await storage.getSeed();
     return json(res, 200, { seed });
   }
 
