@@ -606,6 +606,24 @@ async function resetDay(app = 'main') {
   }
 }
 
+function parseImportedPrice(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  const raw = String(value ?? '').trim();
+  if (!raw) return NaN;
+  const cleaned = raw.replace(/[^\d,.\-]/g, '');
+  if (!cleaned) return NaN;
+  const hasComma = cleaned.includes(',');
+  const hasDot = cleaned.includes('.');
+  let normalized = cleaned;
+  if (hasComma && hasDot) {
+    normalized = cleaned.replace(/,/g, '');
+  } else if (hasComma) {
+    normalized = cleaned.replace(',', '.');
+  }
+  const price = Number(normalized);
+  return Number.isFinite(price) ? price : NaN;
+}
+
 function rowsToSeed(rows) {
   const seed = { restaurants: [], staff: {}, drinks: [], menus: {} };
   rows.forEach(row => {
@@ -620,7 +638,7 @@ function rowsToSeed(rows) {
     const drinkTc = String(row.drink_tc || row.DRINK_TC || row.drink || row.DRINK || '').trim();
     const drinkSc = String(row.drink_sc || row.DRINK_SC || drinkTc).trim();
     const drinkEn = String(row.drink_en || row.DRINK_EN || drinkTc).trim();
-    const price = Number(String(row.price || row.PRICE || '').replace(',', '.'));
+    const price = parseImportedPrice(row.price ?? row.PRICE);
 
     if (type === 'RESTAURANT' && restaurant) seed.restaurants.push(restaurant);
     if (type === 'STAFF' && dept && name) {
@@ -707,7 +725,7 @@ function parseWorkbookSeed(wb) {
       const en = pick(r, ['Name EN', 'Item EN', 'English', '英文名稱', '英文名称'], 1) || tc;
       const cat = pick(r, ['Category', 'Cat', '食物種類', '食物种类'], 2) || 'Others';
       const rawPrice = pick(r, ['Price', 'price', '價錢', '价格'], 3);
-      const price = Number(String(rawPrice).replace(',', '.'));
+      const price = parseImportedPrice(rawPrice);
       if (!tc || !Number.isFinite(price)) return;
 
       if (!seed.menus[restaurant][cat]) seed.menus[restaurant][cat] = [];
