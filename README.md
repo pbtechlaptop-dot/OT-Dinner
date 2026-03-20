@@ -134,6 +134,15 @@ alter table if exists public.menus enable row level security;
 alter table if exists public.app_state enable row level security;
 alter table if exists public.orders enable row level security;
 alter table if exists public.app_kv enable row level security;
+create table if not exists public.admin_users (
+  username text primary key,
+  password_hash text not null,
+  permissions jsonb not null default '[]'::jsonb,
+  staff_departments jsonb not null default '[]'::jsonb
+);
+alter table if exists public.admin_users
+add column if not exists staff_departments jsonb not null default '[]'::jsonb;
+alter table if exists public.admin_users enable row level security;
 
 revoke all on table public.restaurants from anon, authenticated;
 revoke all on table public.drinks from anon, authenticated;
@@ -142,6 +151,7 @@ revoke all on table public.menus from anon, authenticated;
 revoke all on table public.app_state from anon, authenticated;
 revoke all on table public.orders from anon, authenticated;
 revoke all on table public.app_kv from anon, authenticated;
+revoke all on table public.admin_users from anon, authenticated;
 ```
 
 If you later decide to use Supabase directly from the browser, add explicit policies for only the tables and actions you need before exposing them.

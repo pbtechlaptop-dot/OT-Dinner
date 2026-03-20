@@ -1,6 +1,7 @@
 ﻿const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { URL } = require('url');
 
 let createClient = null;
@@ -23,6 +24,7 @@ const SEED_FILE = path.join(DATA_DIR, 'seed.json');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const LADY_RUBY_STATE_FILE = path.join(DATA_DIR, 'state.lady-ruby.json');
 const DRINK_FLAGS_FILE = path.join(DATA_DIR, 'drink-flags.json');
+const ADMIN_USERS_FILE = path.join(DATA_DIR, 'admin-users.json');
 const APP_MAIN = 'main';
 const APP_LADY_RUBY = 'lady-ruby';
 const APP_IDS = new Set([APP_MAIN, APP_LADY_RUBY]);
@@ -56,13 +58,26 @@ const TABLES = {
   staff: process.env.SUPABASE_TABLE_STAFF || 'staff',
   menus: process.env.SUPABASE_TABLE_MENUS || 'menus',
   appState: process.env.SUPABASE_TABLE_APP_STATE || 'app_state',
-  orders: process.env.SUPABASE_TABLE_ORDERS || 'orders'
+  orders: process.env.SUPABASE_TABLE_ORDERS || 'orders',
+  adminUsers: process.env.SUPABASE_TABLE_ADMIN_USERS || 'admin_users'
 };
 
 const DEFAULT_CUTOFF_TIME = '13:00';
 const SEED_CACHE_TTL_MS = Number(process.env.SEED_CACHE_TTL_MS || 30000);
 const AUTH_WINDOW_MS = Number(process.env.AUTH_WINDOW_MS || 10 * 60 * 1000);
 const AUTH_MAX_FAILURES = Number(process.env.AUTH_MAX_FAILURES || 8);
+const ADMIN_USER_KV_KEY = 'admin_users';
+const ADMIN_PERMISSION_ALL = '*';
+const ADMIN_PERMISSIONS = [
+  'import',
+  'restaurants',
+  'drinks',
+  'staff',
+  'menus',
+  'reset_main',
+  'reset_lady_ruby',
+  'users'
+];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -84,6 +99,100 @@ function assertSupabaseServiceRole() {
   if (!USE_SUPABASE) return;
   if (SUPABASE_KEY_ROLE === 'service_role') return;
   throw new Error(`SUPABASE_SERVICE_ROLE_KEY is not a service_role key (current role: ${SUPABASE_KEY_ROLE || 'unknown'}). Replace it with the real service_role key in Vercel and .env.production.vercel.`);
+}
+
+function defaultAdminUsers() {
+  return [];
+}
+
+function normalizeAdminDepartments(input) {
+  const list = Array.isArray(input) ? input : [];
+  return [...new Set(list.map(v => normText(v)).filter(Boolean))];
+}
+
+function normalizeAdminUser(input) {
+  if (!input || typeof input !== 'object') return null;
+  const username = normText(input.username).toLowerCase();
+  if (!username || username === 'admin') return null;
+  const passwordHash = normText(input.passwordHash);
+  const permissionsIn = Array.isArray(input.permissions) ? input.permissions : [];
+  const permissions = [...new Set(
+    permissionsIn
+      .map(v => normText(v))
+      .filter(v => v && (v === ADMIN_PERMISSION_ALL || ADMIN_PERMISSIONS.includes(v)))
+  )];
+  const staffDepartments = permissions.includes('staff')
+    ? normalizeAdminDepartments(input.staffDepartments)
+    : [];
+  if (!passwordHash) return null;
+  return {
+    username,
+    passwordHash,
+    permissions: permissions.includes(ADMIN_PERMISSION_ALL) ? [ADMIN_PERMISSION_ALL] : permissions,
+    staffDepartments
+  };
+}
+
+function normalizeAdminUsers(input) {
+  const list = Array.isArray(input) ? input : defaultAdminUsers();
+  const out = [];
+  const seen = new Set();
+  list.map(normalizeAdminUser).filter(Boolean).forEach(user => {
+    if (seen.has(user.username)) return;
+    seen.add(user.username);
+    out.push(user);
+  });
+  return out;
+}
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const key = crypto.scryptSync(String(password || ''), salt, 64).toString('hex');
+  return `scrypt$${salt}$${key}`;
+}
+
+function verifyPassword(password, storedHash) {
+  const raw = String(storedHash || '');
+  if (!raw.startsWith('scrypt$')) return false;
+  const parts = raw.split('$');
+  if (parts.length !== 3) return false;
+  const [, salt, keyHex] = parts;
+  const actual = crypto.scryptSync(String(password || ''), salt, 64);
+  const expected = Buffer.from(keyHex, 'hex');
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+}
+
+function hasAdminPermission(user, permission) {
+  if (!user) return false;
+  const perms = Array.isArray(user.permissions) ? user.permissions : [];
+  return perms.includes(ADMIN_PERMISSION_ALL) || perms.includes(permission);
+}
+
+function getAdminStaffDepartments(user) {
+  if (!user || user.isRoot || !hasAdminPermission(user, 'staff')) return [];
+  return normalizeAdminDepartments(user.staffDepartments);
+}
+
+function scopeSeedForAdmin(seedInput, admin) {
+  const seed = normalizeSeed(seedInput);
+  const allowedDepartments = getAdminStaffDepartments(admin);
+  if (!allowedDepartments.length) return seed;
+  const staff = {};
+  allowedDepartments.forEach(dept => {
+    if (Array.isArray(seed.staff[dept])) staff[dept] = seed.staff[dept];
+  });
+  return { ...seed, staff };
+}
+
+function mergeScopedStaffSeed(currentSeedInput, nextSeedInput, admin) {
+  const currentSeed = normalizeSeed(currentSeedInput);
+  const nextSeed = normalizeSeed(nextSeedInput);
+  const allowedDepartments = getAdminStaffDepartments(admin);
+  if (!allowedDepartments.length) return nextSeed;
+  const mergedStaff = { ...(currentSeed.staff || {}) };
+  allowedDepartments.forEach(dept => {
+    mergedStaff[dept] = Array.isArray(nextSeed.staff && nextSeed.staff[dept]) ? nextSeed.staff[dept] : [];
+  });
+  return { ...nextSeed, staff: mergedStaff };
 }
 
 function todayISO() {
@@ -215,6 +324,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(STATE_FILE)) writeJson(STATE_FILE, defaultState());
   if (!fs.existsSync(LADY_RUBY_STATE_FILE)) writeJson(LADY_RUBY_STATE_FILE, defaultState());
   if (!fs.existsSync(DRINK_FLAGS_FILE)) writeJson(DRINK_FLAGS_FILE, defaultDrinkFlags());
+  if (!fs.existsSync(ADMIN_USERS_FILE)) writeJson(ADMIN_USERS_FILE, defaultAdminUsers());
 }
 
 function normText(v) {
@@ -454,6 +564,16 @@ function isMissingSupabaseColumn(error, columnName) {
   return msg.includes(columnName) && (msg.includes('does not exist') || msg.includes('schema cache'));
 }
 
+function isMissingSupabaseTable(error, tableName) {
+  const msg = String((error && error.message) || error || '');
+  return msg.includes(tableName) && (
+    msg.includes('does not exist')
+    || msg.includes('Could not find the table')
+    || msg.includes('schema cache')
+    || msg.includes('relation')
+  );
+}
+
 function cutoffSchemaMigrationMessage() {
   return 'Supabase app_state table is missing cutoff_time. Please run the SQL migration in README.md before changing cutoff time in production.';
 }
@@ -569,6 +689,62 @@ async function saveSeedSupabase(input) {
   if (menuRows.length) {
     const { error } = await supabase.from(TABLES.menus).insert(menuRows);
     if (error) throw new Error(`Supabase insert menus failed: ${error.message}`);
+  }
+}
+
+async function getAdminUsersSupabase() {
+  let rows = [];
+  let hasStaffDepartmentsColumn = true;
+  try {
+    rows = await supaSelect(TABLES.adminUsers, 'username,password_hash,permissions,staff_departments', {
+      order: [{ column: 'username' }]
+    });
+  } catch (err) {
+    if (isMissingSupabaseColumn(err, 'staff_departments')) {
+      hasStaffDepartmentsColumn = false;
+      rows = await supaSelect(TABLES.adminUsers, 'username,password_hash,permissions', {
+        order: [{ column: 'username' }]
+      });
+    } else if (!isMissingSupabaseTable(err, TABLES.adminUsers)) {
+      throw err;
+    } else {
+      return [];
+    }
+  }
+  return normalizeAdminUsers((rows || []).map(row => ({
+    username: row.username,
+    passwordHash: row.password_hash,
+    permissions: Array.isArray(row.permissions) ? row.permissions : [],
+    staffDepartments: hasStaffDepartmentsColumn && Array.isArray(row.staff_departments) ? row.staff_departments : []
+  })));
+}
+
+async function saveAdminUsersSupabase(users) {
+  const normalized = normalizeAdminUsers(users);
+  try {
+    await supaDeleteAll(TABLES.adminUsers, 'username');
+  } catch (err) {
+    if (isMissingSupabaseTable(err, TABLES.adminUsers)) {
+      throw new Error('Supabase table admin_users is missing. Please run the SQL in README.md before saving admin users.');
+    }
+    throw err;
+  }
+  if (!normalized.length) return;
+  const rows = normalized.map(user => ({
+    username: user.username,
+    password_hash: user.passwordHash,
+    permissions: user.permissions,
+    staff_departments: user.staffDepartments || []
+  }));
+  const { error } = await supabase.from(TABLES.adminUsers).insert(rows);
+  if (error) {
+    if (isMissingSupabaseColumn(error, 'staff_departments')) {
+      throw new Error('Supabase column admin_users.staff_departments is missing. Please run the SQL in README.md before saving scoped staff permissions.');
+    }
+    if (isMissingSupabaseTable(error, TABLES.adminUsers)) {
+      throw new Error('Supabase table admin_users is missing. Please run the SQL in README.md before saving admin users.');
+    }
+    throw new Error(`Supabase save admin_users failed: ${error.message}`);
   }
 }
 
@@ -711,6 +887,14 @@ async function saveSeedLocal(seed) {
   writeJson(SEED_FILE, normalizeSeed(seed));
 }
 
+async function getAdminUsersLocal() {
+  return normalizeAdminUsers(readJsonSafe(ADMIN_USERS_FILE, defaultAdminUsers()));
+}
+
+async function saveAdminUsersLocal(users) {
+  writeJson(ADMIN_USERS_FILE, normalizeAdminUsers(users));
+}
+
 async function getStateLocal(appId = APP_MAIN) {
   const statePath = stateFileForApp(appId);
   const state = normalizeState(readJsonSafe(statePath, defaultState()));
@@ -752,6 +936,14 @@ async function saveSeedWithCache(seed) {
 const storage = {
   getSeed: getSeedCached,
   saveSeed: saveSeedWithCache,
+  getAdminUsers() {
+    if (USE_SUPABASE) return getAdminUsersSupabase();
+    return getAdminUsersLocal();
+  },
+  saveAdminUsers(users) {
+    if (USE_SUPABASE) return saveAdminUsersSupabase(users);
+    return saveAdminUsersLocal(users);
+  },
   getState(appId = APP_MAIN) {
     const normalizedAppId = normalizeAppId(appId);
     if (USE_SUPABASE) return getStateSupabase(normalizedAppId);
@@ -925,6 +1117,40 @@ function isAdminAuthorized(password) {
   return normText(password) && normText(password) === ADMIN_PASSWORD;
 }
 
+async function authenticateAdmin(body = {}) {
+  const username = normText(body.username).toLowerCase() || 'admin';
+  const password = normText(body.password);
+  if (!password) return null;
+  if (username === 'admin') {
+    if (!isAdminAuthorized(password)) return null;
+    return { username: 'admin', permissions: [ADMIN_PERMISSION_ALL], staffDepartments: [], isRoot: true };
+  }
+  const users = await storage.getAdminUsers();
+  const user = users.find(entry => entry.username === username);
+  if (!user) return null;
+  if (!verifyPassword(password, user.passwordHash)) return null;
+  return { username: user.username, permissions: user.permissions || [], staffDepartments: user.staffDepartments || [], isRoot: false };
+}
+
+function requireAdminPermission(admin, permission) {
+  return hasAdminPermission(admin, permission);
+}
+
+function normalizeAdminSection(section) {
+  const raw = normText(section).toLowerCase();
+  const map = {
+    import: 'import',
+    restaurants: 'restaurants',
+    drinks: 'drinks',
+    staff: 'staff',
+    menus: 'menus',
+    users: 'users',
+    reset_main: 'reset_main',
+    reset_lady_ruby: 'reset_lady_ruby'
+  };
+  return map[raw] || '';
+}
+
 async function handleApi(req, res, urlObj) {
   assertSupabaseServiceRole();
   const pathname = (urlObj.pathname || '/').replace(/\/+$/, '') || '/';
@@ -970,6 +1196,12 @@ async function handleApi(req, res, urlObj) {
       currentMenu: state.restaurant ? (seed.menus[state.restaurant] || {}) : {},
       app: appId
     });
+  }
+
+  if (req.method === 'GET' && pathname === '/api/admin/usernames') {
+    const users = await storage.getAdminUsers().catch(() => []);
+    const usernames = ['admin'].concat(users.map(user => user.username)).filter((value, index, list) => value && list.indexOf(value) === index);
+    return json(res, 200, { usernames });
   }
 
   if (req.method === 'GET' && pathname === '/api/menu') {
@@ -1101,18 +1333,51 @@ async function handleApi(req, res, urlObj) {
     return json(res, 200, { ok: true });
   }
 
+  if (req.method === 'POST' && pathname === '/api/admin/login') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const body = await parseBody(req);
+    const admin = await authenticateAdmin(body);
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    return json(res, 200, {
+      ok: true,
+      user: {
+        username: admin.username,
+        permissions: admin.permissions,
+        staffDepartments: admin.staffDepartments || [],
+        isRoot: admin.isRoot
+      }
+    });
+  }
+
   if (req.method === 'GET' && pathname === '/api/admin/seed') {
     if (isAuthRateLimited(req, 'admin')) {
       return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
     }
-    const password = normText(urlObj.searchParams.get('password'));
-    if (!isAdminAuthorized(password)) {
+    const admin = await authenticateAdmin({
+      username: urlObj.searchParams.get('username'),
+      password: urlObj.searchParams.get('password')
+    });
+    if (!admin) {
       recordAuthFailure(req, 'admin');
-      return json(res, 403, { error: 'Invalid admin password' });
+      return json(res, 403, { error: 'Invalid admin username or password' });
     }
     clearAuthFailures(req, 'admin');
     const seed = await storage.getSeed();
-    return json(res, 200, { seed });
+    return json(res, 200, {
+      seed: scopeSeedForAdmin(seed, admin),
+      user: {
+        username: admin.username,
+        permissions: admin.permissions,
+        staffDepartments: admin.staffDepartments || [],
+        isRoot: admin.isRoot
+      }
+    });
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/seed') {
@@ -1120,15 +1385,27 @@ async function handleApi(req, res, urlObj) {
       return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
     }
     const body = await parseBody(req);
-    const password = normText(body.password);
+    const admin = await authenticateAdmin(body);
     const nextSeed = body && body.seed ? body.seed : null;
     const merge = Boolean(body && body.merge);
-    if (!isAdminAuthorized(password)) {
+    const section = normalizeAdminSection(body && body.section);
+    if (!admin) {
       recordAuthFailure(req, 'admin');
-      return json(res, 403, { error: 'Invalid admin password' });
+      return json(res, 403, { error: 'Invalid admin username or password' });
     }
     clearAuthFailures(req, 'admin');
     if (!nextSeed || typeof nextSeed !== 'object') return json(res, 400, { error: 'seed payload is required' });
+    if (merge) {
+      if (!requireAdminPermission(admin, 'import')) {
+        return json(res, 403, { error: 'You do not have permission to import data.' });
+      }
+    } else if (section) {
+      if (!requireAdminPermission(admin, section)) {
+        return json(res, 403, { error: `You do not have permission to edit ${section}.` });
+      }
+    } else if (!admin.isRoot) {
+      return json(res, 403, { error: 'You do not have permission to save all data.' });
+    }
 
     if (merge) {
       const currentSeed = await storage.getSeed();
@@ -1138,7 +1415,8 @@ async function handleApi(req, res, urlObj) {
       return json(res, 200, { ok: true, merged: true, seed: mergedSeed, added });
     }
 
-    await storage.saveSeed(nextSeed);
+    const finalSeed = section === 'staff' ? mergeScopedStaffSeed(await storage.getSeed(), nextSeed, admin) : nextSeed;
+    await storage.saveSeed(finalSeed);
     return json(res, 200, { ok: true, merged: false });
   }
 
@@ -1147,15 +1425,79 @@ async function handleApi(req, res, urlObj) {
       return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
     }
     const body = await parseBody(req);
-    const password = normText(body.password);
     const appId = getAppIdFromRequest(urlObj, body);
-    if (!isAdminAuthorized(password)) {
+    const admin = await authenticateAdmin(body);
+    if (!admin) {
       recordAuthFailure(req, 'admin');
-      return json(res, 403, { error: 'Invalid admin password' });
+      return json(res, 403, { error: 'Invalid admin username or password' });
     }
     clearAuthFailures(req, 'admin');
+    const neededPermission = appId === APP_LADY_RUBY ? 'reset_lady_ruby' : 'reset_main';
+    if (!requireAdminPermission(admin, neededPermission)) {
+      return json(res, 403, { error: 'You do not have permission to reset this page.' });
+    }
     await storage.resetDay(appId);
     return json(res, 200, { ok: true });
+  }
+
+  if (req.method === 'GET' && pathname === '/api/admin/users') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const admin = await authenticateAdmin({
+      username: urlObj.searchParams.get('username'),
+      password: urlObj.searchParams.get('password')
+    });
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    if (!requireAdminPermission(admin, 'users')) {
+      return json(res, 403, { error: 'You do not have permission to manage users.' });
+    }
+    const users = await storage.getAdminUsers();
+    return json(res, 200, {
+      users: users.map(user => ({ username: user.username, permissions: user.permissions, staffDepartments: user.staffDepartments || [] }))
+    });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/users') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const body = await parseBody(req);
+    const admin = await authenticateAdmin(body);
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    if (!requireAdminPermission(admin, 'users')) {
+      return json(res, 403, { error: 'You do not have permission to manage users.' });
+    }
+
+    const usersInput = Array.isArray(body.users) ? body.users : [];
+    const existingUsers = await storage.getAdminUsers();
+    const existingByUsername = new Map(existingUsers.map(user => [user.username, user]));
+    const nextUsers = [];
+    for (const item of usersInput) {
+      const username = normText(item && item.username).toLowerCase();
+      const password = normText(item && item.password);
+      const existingHash = normText(item && item.passwordHash) || normText(existingByUsername.get(username) && existingByUsername.get(username).passwordHash);
+      const permissions = Array.isArray(item && item.permissions) ? item.permissions : [];
+      const staffDepartments = Array.isArray(item && item.staffDepartments) ? item.staffDepartments : [];
+      if (!username || username === 'admin') continue;
+      const passwordHash = password ? hashPassword(password) : existingHash;
+      const normalized = normalizeAdminUser({ username, passwordHash, permissions, staffDepartments });
+      if (!normalized) continue;
+      nextUsers.push(normalized);
+    }
+    await storage.saveAdminUsers(nextUsers);
+    return json(res, 200, {
+      ok: true,
+      users: nextUsers.map(user => ({ username: user.username, permissions: user.permissions, staffDepartments: user.staffDepartments || [] }))
+    });
   }
 
   return json(res, 404, { error: 'API route not found', method: req.method, path: pathname });

@@ -1,13 +1,31 @@
-﻿const state = {
+const ADMIN_PERMISSION_ALL = '*';
+const ADMIN_PERMISSION_OPTIONS = [
+  { key: 'import', label: '匯入資料' },
+  { key: 'restaurants', label: '餐廳' },
+  { key: 'drinks', label: '飲品' },
+  { key: 'staff', label: '部門與人員' },
+  { key: 'menus', label: '菜單' },
+  { key: 'reset_main', label: '重置主站訂單' },
+  { key: 'reset_lady_ruby', label: '重置 Lady Ruby 訂單' },
+  { key: 'users', label: '用戶與權限' }
+];
+
+const state = {
   authenticated: false,
+  username: '',
   password: '',
+  permissions: [],
+  allowedStaffDepartments: [],
+  isRoot: false,
   dirty: false,
   menuEdit: null,
+  adminUsers: [],
   seed: { restaurants: [], staff: {}, drinks: [], menus: {} }
 };
 
 const el = {
   loginCard: document.getElementById('loginCard'),
+  loginUsername: document.getElementById('loginUsername'),
   loginPassword: document.getElementById('loginPassword'),
   loginBtn: document.getElementById('loginBtn'),
   loginHint: document.getElementById('loginHint'),
@@ -17,20 +35,25 @@ const el = {
   resetDayBtn: document.getElementById('resetDayBtn'),
   resetLadyRubyBtn: document.getElementById('resetLadyRubyBtn'),
   status: document.getElementById('status'),
+  currentUserText: document.getElementById('currentUserText'),
+
+  sectionImport: document.getElementById('sectionImport'),
+  sectionRestaurants: document.getElementById('sectionRestaurants'),
+  sectionDrinks: document.getElementById('sectionDrinks'),
+  sectionStaff: document.getElementById('sectionStaff'),
+  sectionMenus: document.getElementById('sectionMenus'),
+  sectionUsers: document.getElementById('sectionUsers'),
 
   importFile: document.getElementById('importFile'),
   importBtn: document.getElementById('importBtn'),
-
   restaurantList: document.getElementById('restaurantList'),
   newRestaurant: document.getElementById('newRestaurant'),
   addRestaurantBtn: document.getElementById('addRestaurantBtn'),
-
   drinkTable: document.getElementById('drinkTable'),
   drinkTc: document.getElementById('drinkTc'),
   drinkSc: document.getElementById('drinkSc'),
   drinkEn: document.getElementById('drinkEn'),
   addDrinkBtn: document.getElementById('addDrinkBtn'),
-
   deptSelect: document.getElementById('deptSelect'),
   newDept: document.getElementById('newDept'),
   addDeptBtn: document.getElementById('addDeptBtn'),
@@ -38,7 +61,6 @@ const el = {
   staffList: document.getElementById('staffList'),
   newStaff: document.getElementById('newStaff'),
   addStaffBtn: document.getElementById('addStaffBtn'),
-
   menuRestaurantSelect: document.getElementById('menuRestaurantSelect'),
   menuCategorySelect: document.getElementById('menuCategorySelect'),
   newCategory: document.getElementById('newCategory'),
@@ -49,12 +71,18 @@ const el = {
   menuEn: document.getElementById('menuEn'),
   menuPrice: document.getElementById('menuPrice'),
   addMenuBtn: document.getElementById('addMenuBtn'),
-
   saveRestaurantBtn: document.getElementById('saveRestaurantBtn'),
   saveDrinkBtn: document.getElementById('saveDrinkBtn'),
   saveStaffBtn: document.getElementById('saveStaffBtn'),
   saveMenuBtn: document.getElementById('saveMenuBtn'),
-
+  saveUsersBtn: document.getElementById('saveUsersBtn'),
+  adminUsersList: document.getElementById('adminUsersList'),
+  newAdminUsername: document.getElementById('newAdminUsername'),
+  newAdminPassword: document.getElementById('newAdminPassword'),
+  newAdminPermissions: document.getElementById('newAdminPermissions'),
+  newAdminDepartments: document.getElementById('newAdminDepartments'),
+  newAdminDepartmentOptions: document.getElementById('newAdminDepartmentOptions'),
+  addAdminUserBtn: document.getElementById('addAdminUserBtn'),
   toast: document.getElementById('toast'),
   busyOverlay: document.getElementById('busyOverlay'),
   busyText: document.getElementById('busyText')
@@ -75,7 +103,6 @@ function showToast(text, isError = false) {
   toastTimer = setTimeout(() => el.toast.classList.add('hidden'), 2200);
 }
 
-
 function setBusy(isBusy, text = '系統處理中，請稍候...') {
   if (el.busyText && text) el.busyText.textContent = text;
   if (!el.busyOverlay) return;
@@ -94,17 +121,67 @@ function formatImportAdded(added) {
   if (Number(added.menuItems || 0) > 0) parts.push(`餐點 +${added.menuItems}`);
   return parts.join('、');
 }
+
 function setLoginHint(text, isError = false) {
   el.loginHint.textContent = text;
   el.loginHint.className = `mt-2 text-sm ${isError ? 'text-red-600' : 'text-slate-500'}`;
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({ error: 'Request failed' }));
+    throw new Error(payload.error || 'Request failed');
+  }
+  return res.json();
+}
+
+function hasPermission(permission) {
+  if (state.isRoot) return true;
+  const permissions = Array.isArray(state.permissions) ? state.permissions : [];
+  return permissions.includes(ADMIN_PERMISSION_ALL) || permissions.includes(permission);
+}
+
+function permissionSummary(user = {}) {
+  const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+  if (user.isRoot || permissions.includes(ADMIN_PERMISSION_ALL)) return '全部權限';
+  const labels = ADMIN_PERMISSION_OPTIONS.filter(option => permissions.includes(option.key)).map(option => option.label);
+  return labels.length ? labels.join('、') : '沒有權限';
+}
+
+function setVisible(node, visible) {
+  if (!node) return;
+  node.classList.toggle('hidden', !visible);
+}
+
+function updateCurrentUserText() {
+  if (!el.currentUserText) return;
+  if (!state.authenticated) {
+    el.currentUserText.textContent = '';
+    return;
+  }
+  el.currentUserText.textContent = `目前登入：${state.username || 'admin'} ｜ ${permissionSummary({ permissions: state.permissions, isRoot: state.isRoot })}`;
+}
+
+function setSectionVisibility() {
+  setVisible(el.sectionImport, hasPermission('import'));
+  setVisible(el.sectionRestaurants, hasPermission('restaurants'));
+  setVisible(el.sectionDrinks, hasPermission('drinks'));
+  setVisible(el.sectionStaff, hasPermission('staff'));
+  setVisible(el.sectionMenus, hasPermission('menus'));
+  setVisible(el.sectionUsers, hasPermission('users'));
+  setVisible(el.saveBtn, state.isRoot);
+  setVisible(el.resetDayBtn, hasPermission('reset_main'));
+  setVisible(el.resetLadyRubyBtn, hasPermission('reset_lady_ruby'));
 }
 
 function setAuthUi(authenticated) {
   state.authenticated = authenticated;
   el.loginCard.classList.toggle('hidden', authenticated);
   el.adminApp.classList.toggle('hidden', !authenticated);
+  updateCurrentUserText();
+  if (authenticated) setSectionVisibility();
 }
-
 
 function markDirty(msg) {
   state.dirty = true;
@@ -112,7 +189,7 @@ function markDirty(msg) {
 }
 
 function requireAuth() {
-  if (!state.authenticated || !state.password) {
+  if (!state.authenticated || !state.username || !state.password) {
     setStatus('未登入或登入已失效，請重新登入。', true);
     setAuthUi(false);
     return false;
@@ -121,20 +198,206 @@ function requireAuth() {
 }
 
 function handleAdminPasswordError(err) {
-  if (!/Invalid admin password/i.test(String(err && err.message || ''))) return false;
+  if (!/Invalid admin username or password/i.test(String((err && err.message) || ''))) return false;
   logout();
-  setLoginHint('密碼已失效，請重新登入。', true);
-  setStatus('密碼錯誤，請重新登入。', true);
+  setLoginHint('帳號或密碼已失效，請重新登入。', true);
+  setStatus('帳號或密碼錯誤，請重新登入。', true);
   return true;
 }
 
-async function api(path, options = {}) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
-  if (!res.ok) {
-    const p = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(p.error || 'Request failed');
+function adminAuthBody(extra = {}) {
+  return { username: state.username, password: state.password, ...extra };
+}
+
+function buildPermissionCheckboxes(name, selected = []) {
+  return ADMIN_PERMISSION_OPTIONS.map(option => {
+    const checked = selected.includes(option.key) ? 'checked' : '';
+    return `<label class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+      <input type="checkbox" name="${name}" value="${option.key}" class="h-4 w-4" ${checked} />
+      <span>${option.label}</span>
+    </label>`;
+  }).join('');
+}
+
+function getCheckedPermissions(container, name) {
+  if (!container) return [];
+  return Array.from(container.querySelectorAll(`input[name="${name}"]:checked`))
+    .map(input => String(input.value || '').trim())
+    .filter(Boolean);
+}
+
+function getAllDepartments() {
+  return Object.keys(state.seed && state.seed.staff || {}).sort((a, b) => a.localeCompare(b));
+}
+
+function getVisibleStaffDepartments() {
+  const allDepartments = getAllDepartments();
+  if (state.isRoot) return allDepartments;
+  if (!hasPermission('staff')) return [];
+  if (!Array.isArray(state.allowedStaffDepartments) || !state.allowedStaffDepartments.length) return allDepartments;
+  return allDepartments.filter(dept => state.allowedStaffDepartments.includes(dept));
+}
+
+function buildDepartmentCheckboxes(name, selected = []) {
+  const departments = getAllDepartments();
+  if (!departments.length) {
+    return '<p class="text-xs text-slate-500">目前未有部門資料。</p>';
   }
-  return res.json();
+  return departments.map(dept => {
+    const checked = selected.includes(dept) ? 'checked' : '';
+    return `<label class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+      <input type="checkbox" name="${name}" value="${dept}" class="h-4 w-4" ${checked} />
+      <span>${dept}</span>
+    </label>`;
+  }).join('');
+}
+
+function toggleDepartmentChooserForNewUser() {
+  if (!el.newAdminDepartments || !el.newAdminPermissions || !el.newAdminDepartmentOptions) return;
+  const permissions = getCheckedPermissions(el.newAdminPermissions, 'new-admin-permission');
+  const show = permissions.includes('staff');
+  el.newAdminDepartments.classList.toggle('hidden', !show);
+  if (show) {
+    el.newAdminDepartmentOptions.innerHTML = buildDepartmentCheckboxes('new-admin-department', []);
+  }
+}
+
+function canManageDepartmentStructure() {
+  if (!hasPermission('staff')) return false;
+  return state.isRoot || !Array.isArray(state.allowedStaffDepartments) || !state.allowedStaffDepartments.length;
+}
+
+function renderNewUserPermissions() {
+  if (!el.newAdminPermissions) return;
+  el.newAdminPermissions.innerHTML = buildPermissionCheckboxes('new-admin-permission', []);
+  el.newAdminPermissions.querySelectorAll('input[name="new-admin-permission"]').forEach(input => {
+    input.addEventListener('change', toggleDepartmentChooserForNewUser);
+  });
+  toggleDepartmentChooserForNewUser();
+}
+
+function renderAdminUsers() {
+  if (!el.adminUsersList) return;
+  if (!hasPermission('users')) {
+    el.adminUsersList.innerHTML = '';
+    return;
+  }
+  if (!state.adminUsers.length) {
+    el.adminUsersList.innerHTML = '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">暫時未有額外用戶。</p>';
+    return;
+  }
+
+  el.adminUsersList.innerHTML = state.adminUsers.map((user, index) => `
+    <div class="rounded-lg border border-slate-200 p-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p class="font-semibold text-pbnavy">${user.username}</p>
+          <p class="text-xs text-slate-500">留空新密碼即保持原本密碼不變。</p>
+        </div>
+        <button type="button" data-index="${index}" class="remove-admin-user rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">刪除</button>
+      </div>
+      <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[240px_1fr]">
+        <input type="password" data-index="${index}" class="admin-user-password rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="輸入新密碼（可留空）" />
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-2 admin-user-permissions" data-index="${index}">
+          ${buildPermissionCheckboxes(`admin-permission-${index}`, Array.isArray(user.permissions) ? user.permissions : [])}
+        </div>
+      </div>
+      <div class="admin-user-departments-wrap mt-3 ${Array.isArray(user.permissions) && user.permissions.includes('staff') ? '' : 'hidden'}" data-index="${index}">
+        <p class="mb-2 text-xs font-semibold text-slate-600">可管理部門</p>
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-2 admin-user-departments" data-index="${index}">
+          ${buildDepartmentCheckboxes(`admin-department-${index}`, Array.isArray(user.staffDepartments) ? user.staffDepartments : [])}
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  el.adminUsersList.querySelectorAll('.admin-user-permissions').forEach(container => {
+    const index = container.dataset.index;
+    container.querySelectorAll(`input[name="admin-permission-${index}"]`).forEach(input => {
+      input.addEventListener('change', () => {
+        const checked = getCheckedPermissions(container, `admin-permission-${index}`);
+        const wrap = el.adminUsersList.querySelector(`.admin-user-departments-wrap[data-index="${index}"]`);
+        if (!wrap) return;
+        const show = checked.includes('staff');
+        wrap.classList.toggle('hidden', !show);
+        if (show) {
+          const deptContainer = wrap.querySelector(`.admin-user-departments[data-index="${index}"]`);
+          if (deptContainer) {
+            deptContainer.innerHTML = buildDepartmentCheckboxes(`admin-department-${index}`, getCheckedPermissions(deptContainer, `admin-department-${index}`));
+          }
+        }
+      });
+    });
+  });
+
+  el.adminUsersList.querySelectorAll('.remove-admin-user').forEach(button => {
+    button.onclick = () => {
+      const index = Number(button.dataset.index);
+      if (!Number.isInteger(index) || index < 0 || index >= state.adminUsers.length) return;
+      const removed = state.adminUsers[index];
+      state.adminUsers.splice(index, 1);
+      renderAdminUsers();
+      setStatus(`已移除用戶 ${removed.username}，請按「儲存此區」確認。`);
+    };
+  });
+}
+
+function collectAdminUsersPayload() {
+  return state.adminUsers.map((user, index) => {
+    const passwordInput = el.adminUsersList.querySelector(`.admin-user-password[data-index="${index}"]`);
+    const permissionsWrap = el.adminUsersList.querySelector(`.admin-user-permissions[data-index="${index}"]`);
+    const departmentsWrap = el.adminUsersList.querySelector(`.admin-user-departments[data-index="${index}"]`);
+    const permissions = getCheckedPermissions(permissionsWrap, `admin-permission-${index}`);
+    return {
+      username: user.username,
+      password: String((passwordInput && passwordInput.value) || '').trim(),
+      permissions,
+      staffDepartments: permissions.includes('staff')
+        ? getCheckedPermissions(departmentsWrap, `admin-department-${index}`)
+        : []
+    };
+  }).filter(user => user.username);
+}
+
+async function fetchSeedByCredentials(username, password) {
+  const payload = await api(`/api/admin/seed?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`);
+  return {
+    seed: payload.seed || { restaurants: [], staff: {}, drinks: [], menus: {} },
+    user: payload.user || { username, permissions: [], staffDepartments: [], isRoot: false }
+  };
+}
+
+async function fetchAdminUsers() {
+  const payload = await api(`/api/admin/users?username=${encodeURIComponent(state.username)}&password=${encodeURIComponent(state.password)}`);
+  return Array.isArray(payload.users) ? payload.users : [];
+}
+
+async function fetchAdminUsernames() {
+  const payload = await api('/api/admin/usernames');
+  return Array.isArray(payload.usernames) ? payload.usernames : ['admin'];
+}
+
+async function loadLoginUsernames() {
+  if (!el.loginUsername) return;
+  try {
+    const usernames = await fetchAdminUsernames();
+    el.loginUsername.innerHTML = usernames.map(username => `<option value="${username}">${username}</option>`).join('');
+    if (!usernames.includes('admin')) {
+      el.loginUsername.innerHTML = `<option value="admin">admin</option>${el.loginUsername.innerHTML}`;
+    }
+    el.loginUsername.value = 'admin';
+  } catch {
+    el.loginUsername.innerHTML = '<option value="admin">admin</option>';
+    el.loginUsername.value = 'admin';
+  }
+}
+
+async function loginRequest(username, password) {
+  const payload = await api('/api/admin/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password })
+  });
+  return payload.user || { username, permissions: [], staffDepartments: [], isRoot: false };
 }
 
 let toSc = v => String(v || '');
@@ -158,7 +421,6 @@ function attachAutoConvert() {
     const v = String(el.drinkSc.value || '').trim();
     if (v) el.drinkTc.value = toTc(v);
   });
-
   el.menuTc.addEventListener('input', () => {
     const v = String(el.menuTc.value || '').trim();
     if (v) el.menuSc.value = toSc(v);
@@ -293,16 +555,16 @@ function renderDrinks() {
       markDirty('已刪除飲品');
     };
   });
-  renderAllDataTables();
 }
 
 function renderDepartments() {
-  const depts = Object.keys(state.seed.staff || {});
+  const depts = getVisibleStaffDepartments();
   el.deptSelect.innerHTML = depts.length
-    ? depts.map(d => `<option value="${d}">${d}</option>`).join('' )
+    ? depts.map(d => `<option value="${d}">${d}</option>`).join('')
     : '<option value="">-- 無部門 --</option>';
+  if (el.addDeptBtn) el.addDeptBtn.disabled = !canManageDepartmentStructure();
+  if (el.removeDeptBtn) el.removeDeptBtn.disabled = !canManageDepartmentStructure();
   renderStaff();
-  renderAllDataTables();
 }
 
 function renderStaff() {
@@ -316,9 +578,7 @@ function renderStaff() {
       markDirty('已刪除人員');
     }));
   });
-  renderAllDataTables();
 }
-
 
 function currentMenuRestaurant() {
   return String(el.menuRestaurantSelect.value || '').trim();
@@ -372,7 +632,6 @@ function renderMenuItems() {
 
   menuInputs.forEach(node => { if (node) node.disabled = false; });
   const items = rest && cat && state.seed.menus[rest] && state.seed.menus[rest][cat] ? state.seed.menus[rest][cat] : [];
-
   const rows = items.map((it, i) => `<tr>
     <td class="border-b px-2 py-1">${it.nameTc || ''}</td>
     <td class="border-b px-2 py-1">${it.nameSc || ''}</td>
@@ -412,12 +671,6 @@ function renderMenuItems() {
       showToast('已載入餐點供更改');
     };
   });
-
-  renderAllDataTables();
-}
-
-function renderAllDataTables() {
-  // Section 6 removed from UI.
 }
 
 function renderAll() {
@@ -427,31 +680,32 @@ function renderAll() {
   renderDepartments();
   renderMenuCategories();
   renderMenuItems();
-  renderAllDataTables();
+  renderAdminUsers();
+  updateCurrentUserText();
+  setSectionVisibility();
 }
-
 
 async function persistIfDirty(reasonLabel) {
   if (!state.dirty) return true;
+  if (!state.isRoot) {
+    setStatus(`你未儲存的修改仍在畫面上，請先儲存目前區域後再進入「${reasonLabel}」。`, true);
+    return false;
+  }
   try {
     normalizeSeed();
-    const payload = await api('/api/admin/seed', {
+    await api('/api/admin/seed', {
       method: 'POST',
-      body: JSON.stringify({ password: state.password, seed: state.seed })
+      body: JSON.stringify(adminAuthBody({ seed: state.seed }))
     });
     state.dirty = false;
     setStatus(`已先儲存，再載入「${reasonLabel}」。`);
     return true;
   } catch (err) {
     setStatus(`自動儲存失敗: ${err.message}`, true);
+    handleAdminPasswordError(err);
     return false;
   }
 }
-async function fetchSeedByPassword(password) {
-  const payload = await api(`/api/admin/seed?password=${encodeURIComponent(password)}`);
-  return payload.seed || { restaurants: [], staff: {}, drinks: [], menus: {} };
-}
-
 
 async function saveSection(section) {
   if (!requireAuth()) return;
@@ -465,7 +719,7 @@ async function saveSection(section) {
 
   try {
     if (section === 'restaurants') {
-      const pending = String(el.newRestaurant?.value || '').trim();
+      const pending = String((el.newRestaurant && el.newRestaurant.value) || '').trim();
       if (pending && !state.seed.restaurants.includes(pending)) {
         state.seed.restaurants.push(pending);
         if (!state.seed.menus[pending]) state.seed.menus[pending] = {};
@@ -474,11 +728,11 @@ async function saveSection(section) {
     }
 
     if (section === 'drinks') {
-      const tcInput = String(el.drinkTc?.value || '').trim();
-      const scInput = String(el.drinkSc?.value || '').trim();
+      const tcInput = String((el.drinkTc && el.drinkTc.value) || '').trim();
+      const scInput = String((el.drinkSc && el.drinkSc.value) || '').trim();
       const tc = tcInput || toTc(scInput);
       const sc = scInput || toSc(tcInput || tc);
-      const en = String(el.drinkEn?.value || '').trim() || tc;
+      const en = String((el.drinkEn && el.drinkEn.value) || '').trim() || tc;
       if (tc) {
         state.seed.drinks = state.seed.drinks || [];
         if (!state.seed.drinks.some(d => String(d.tc || '').trim() === tc)) {
@@ -491,15 +745,15 @@ async function saveSection(section) {
     }
 
     if (section === 'staff') {
-      const pendingDept = String(el.newDept?.value || '').trim();
+      const pendingDept = String((el.newDept && el.newDept.value) || '').trim();
       if (pendingDept) {
         state.seed.staff = state.seed.staff || {};
         if (!state.seed.staff[pendingDept]) state.seed.staff[pendingDept] = [];
         el.newDept.value = '';
       }
 
-      const dept = String(el.deptSelect?.value || pendingDept).trim();
-      const pendingName = String(el.newStaff?.value || '').trim();
+      const dept = String((el.deptSelect && el.deptSelect.value) || pendingDept).trim();
+      const pendingName = String((el.newStaff && el.newStaff.value) || '').trim();
       if (dept && pendingName) {
         state.seed.staff = state.seed.staff || {};
         if (!state.seed.staff[dept]) state.seed.staff[dept] = [];
@@ -509,14 +763,14 @@ async function saveSection(section) {
     }
 
     if (section === 'menus') {
-      const rest = String(el.menuRestaurantSelect?.value || '').trim();
-      const cat = String(el.menuCategorySelect?.value || '').trim();
-      const tcInput = String(el.menuTc?.value || '').trim();
-      const scInput = String(el.menuSc?.value || '').trim();
+      const rest = String((el.menuRestaurantSelect && el.menuRestaurantSelect.value) || '').trim();
+      const cat = String((el.menuCategorySelect && el.menuCategorySelect.value) || '').trim();
+      const tcInput = String((el.menuTc && el.menuTc.value) || '').trim();
+      const scInput = String((el.menuSc && el.menuSc.value) || '').trim();
       const nameTc = tcInput || toTc(scInput);
       const nameSc = scInput || toSc(tcInput || nameTc);
-      const nameEn = String(el.menuEn?.value || '').trim() || nameTc;
-      const price = Number(String(el.menuPrice?.value || '').trim());
+      const nameEn = String((el.menuEn && el.menuEn.value) || '').trim() || nameTc;
+      const price = Number(String((el.menuPrice && el.menuPrice.value) || '').trim());
 
       if (rest && cat && nameTc && Number.isFinite(price) && price >= 0) {
         state.seed.menus = state.seed.menus || {};
@@ -525,7 +779,6 @@ async function saveSection(section) {
         if (!state.seed.menus[rest][cat].some(it => String(it.nameTc || '').trim() === nameTc)) {
           state.seed.menus[rest][cat].push({ nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price });
         }
-
         el.menuTc.value = '';
         el.menuSc.value = '';
         el.menuEn.value = '';
@@ -535,11 +788,10 @@ async function saveSection(section) {
 
     normalizeSeed();
     setBusy(true);
-    const payload = await api('/api/admin/seed', {
+    await api('/api/admin/seed', {
       method: 'POST',
-      body: JSON.stringify({ password: state.password, seed: state.seed })
+      body: JSON.stringify(adminAuthBody({ seed: state.seed, section }))
     });
-
     state.dirty = false;
     renderAll();
     setStatus(`已儲存「${label}」。`);
@@ -559,7 +811,12 @@ async function loadSeed() {
   if (!okPersist) return;
   try {
     setBusy(true);
-    state.seed = await fetchSeedByPassword(state.password);
+    const payload = await fetchSeedByCredentials(state.username, state.password);
+    state.seed = payload.seed;
+    state.permissions = Array.isArray(payload.user.permissions) ? payload.user.permissions : [];
+    state.allowedStaffDepartments = Array.isArray(payload.user.staffDepartments) ? payload.user.staffDepartments : [];
+    state.isRoot = Boolean(payload.user.isRoot);
+    state.adminUsers = hasPermission('users') ? await fetchAdminUsers() : [];
     state.dirty = false;
     renderAll();
     setStatus('已載入資料。');
@@ -574,12 +831,16 @@ async function loadSeed() {
 
 async function saveSeed() {
   if (!requireAuth()) return;
+  if (!state.isRoot) {
+    setStatus('只有 admin 可以使用「儲存全部」。', true);
+    return;
+  }
   try {
     normalizeSeed();
     setBusy(true);
-    const payload = await api('/api/admin/seed', {
+    await api('/api/admin/seed', {
       method: 'POST',
-      body: JSON.stringify({ password: state.password, seed: state.seed })
+      body: JSON.stringify(adminAuthBody({ seed: state.seed }))
     });
     state.dirty = false;
     setStatus('儲存成功。');
@@ -592,11 +853,45 @@ async function saveSeed() {
   }
 }
 
+async function saveAdminUsers() {
+  if (!requireAuth()) return;
+  if (!hasPermission('users')) {
+    setStatus('你沒有管理用戶的權限。', true);
+    return;
+  }
+  try {
+    const usersPayload = collectAdminUsersPayload();
+    const invalidScopedUser = usersPayload.find(user => user.permissions.includes('staff') && !user.staffDepartments.length);
+    if (invalidScopedUser) {
+      setStatus(`請為 ${invalidScopedUser.username} 選擇至少一個可管理部門。`, true);
+      return;
+    }
+    setBusy(true);
+    const payload = await api('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(adminAuthBody({ users: usersPayload }))
+    });
+    state.adminUsers = Array.isArray(payload.users) ? payload.users : [];
+    renderAdminUsers();
+    setStatus('已儲存用戶與權限。');
+    showToast('已儲存用戶與權限');
+  } catch (err) {
+    setStatus(`儲存用戶失敗: ${err.message}`, true);
+    showToast('儲存用戶失敗', true);
+    handleAdminPasswordError(err);
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function resetDay(app = 'main') {
   if (!requireAuth()) return;
   try {
     setBusy(true);
-    await api('/api/admin/reset-day', { method: 'POST', body: JSON.stringify({ password: state.password, app }) });
+    await api('/api/admin/reset-day', {
+      method: 'POST',
+      body: JSON.stringify(adminAuthBody({ app }))
+    });
     setStatus(app === 'lady-ruby' ? '已重置 Lady Ruby 今日訂單與餐廳。' : '已重置主站今日訂單與餐廳。');
   } catch (err) {
     setStatus(err.message, true);
@@ -749,8 +1044,7 @@ async function readImportSeed(file) {
 
   if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
     const parsed = parseWorkbookSeed(wb);
-    const hasMenus = Object.keys(parsed.menus || {}).length > 0;
-    if (hasMenus) return parsed;
+    if (Object.keys(parsed.menus || {}).length > 0) return parsed;
   }
 
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -769,43 +1063,69 @@ async function importSeed() {
     const seed = await readImportSeed(file);
     const payload = await api('/api/admin/seed', {
       method: 'POST',
-      body: JSON.stringify({ password: state.password, seed, merge: true })
+      body: JSON.stringify(adminAuthBody({ seed, merge: true, section: 'import' }))
     });
     state.seed = payload.seed || state.seed;
     state.dirty = false;
     renderAll();
     el.importFile.value = '';
     const summary = formatImportAdded(payload.added);
-    const baseMsg = '匯入成功，已合併新資料（舊資料保留，重複已略過）。';
+    const baseMsg = '匯入成功，已合併新資料（舊資料保留，重複略過）。';
     setStatus(summary ? `${baseMsg} 新增：${summary}` : `${baseMsg}（沒有新增資料）`);
-    showToast(summary ? `匯入成功：${summary}` : '匯入成功（沒有新增資料）', 3200);
+    showToast(summary ? `匯入成功：${summary}` : '匯入成功（沒有新增資料）');
   } catch (err) {
     setStatus(`匯入失敗: ${err.message}`, true);
+    handleAdminPasswordError(err);
   } finally {
     setBusy(false);
   }
 }
 
 async function login() {
-  const pwd = String(el.loginPassword.value || '').trim();
-  if (!pwd) return setLoginHint('請輸入管理密碼。', true);
+  const username = String(el.loginUsername.value || '').trim().toLowerCase() || 'admin';
+  const password = String(el.loginPassword.value || '').trim();
+  if (!password) return setLoginHint('請輸入帳號及密碼。', true);
   try {
     setBusy(true, '正在登入後台，請稍候...');
     setLoginHint('正在登入，請稍候...');
-    const loadedSeed = await fetchSeedByPassword(pwd);
-    state.password = pwd;
-    state.seed = loadedSeed;
+    const user = await loginRequest(username, password);
+    const payload = await fetchSeedByCredentials(username, password);
+    state.username = user.username || username;
+    state.password = password;
+    state.permissions = Array.isArray(user.permissions) ? user.permissions : [];
+    state.allowedStaffDepartments = Array.isArray(user.staffDepartments) ? user.staffDepartments : [];
+    state.isRoot = Boolean(user.isRoot);
+    state.seed = payload.seed;
+    if (hasPermission('users')) {
+      try {
+        state.adminUsers = await fetchAdminUsers();
+      } catch (err) {
+        state.adminUsers = [];
+        if (!/admin_users is missing/i.test(String((err && err.message) || ''))) throw err;
+      }
+    } else {
+      state.adminUsers = [];
+    }
     state.dirty = false;
     setAuthUi(true);
+    renderNewUserPermissions();
     renderAll();
-    setStatus('已載入資料。');
+    const tableMissingNote = hasPermission('users') && !state.adminUsers.length
+      ? '已登入。若要新增限權用戶，請先在 Supabase 建立 admin_users table。'
+      : '已載入資料。';
+    setStatus(tableMissingNote);
     showToast('已登入後台');
     setLoginHint('');
     el.loginPassword.value = '';
   } catch (err) {
+    state.username = '';
     state.password = '';
+    state.permissions = [];
+    state.allowedStaffDepartments = [];
+    state.isRoot = false;
+    state.adminUsers = [];
     setAuthUi(false);
-    setLoginHint('密碼錯誤，請再試一次。', true);
+    setLoginHint('帳號或密碼錯誤，請再試一次。', true);
     setStatus(err.message, true);
   } finally {
     setBusy(false);
@@ -813,18 +1133,30 @@ async function login() {
 }
 
 function logout() {
+  state.username = '';
   state.password = '';
+  state.permissions = [];
+  state.allowedStaffDepartments = [];
+  state.isRoot = false;
   state.authenticated = false;
   state.dirty = false;
+  state.menuEdit = null;
+  state.adminUsers = [];
   setAuthUi(false);
   setStatus('登入後可操作。');
   setLoginHint('已登出。');
+  if (el.loginPassword) el.loginPassword.value = '';
 }
 
 el.loginBtn.onclick = login;
 el.loginPassword.addEventListener('keydown', e => {
   if (e.key === 'Enter') login();
 });
+if (el.loginUsername) {
+  el.loginUsername.addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+}
 el.logoutBtn.onclick = logout;
 
 el.saveBtn.onclick = saveSeed;
@@ -836,6 +1168,33 @@ el.saveRestaurantBtn.onclick = () => saveSection('restaurants');
 el.saveDrinkBtn.onclick = () => saveSection('drinks');
 el.saveStaffBtn.onclick = () => saveSection('staff');
 el.saveMenuBtn.onclick = () => saveSection('menus');
+if (el.saveUsersBtn) el.saveUsersBtn.onclick = saveAdminUsers;
+
+if (el.addAdminUserBtn) {
+  el.addAdminUserBtn.onclick = () => {
+    if (!requireAuth()) return;
+    const username = String(((el.newAdminUsername && el.newAdminUsername.value) || '')).trim().toLowerCase();
+    const password = String(((el.newAdminPassword && el.newAdminPassword.value) || '')).trim();
+    const permissions = getCheckedPermissions(el.newAdminPermissions, 'new-admin-permission');
+    const staffDepartments = permissions.includes('staff')
+      ? getCheckedPermissions(el.newAdminDepartmentOptions, 'new-admin-department')
+      : [];
+    if (!username) return setStatus('請輸入新帳號。', true);
+    if (username === 'admin') return setStatus('admin 為系統固定帳號，不能在此新增。', true);
+    if (!password) return setStatus('請輸入新用戶密碼。', true);
+    if (!permissions.length) return setStatus('請至少選擇一項權限。', true);
+    if (permissions.includes('staff') && !staffDepartments.length) return setStatus('如有部門權限，請至少選擇一個部門。', true);
+    if (state.adminUsers.some(user => user.username === username)) return setStatus('此帳號已存在。', true);
+    state.adminUsers.push({ username, permissions, staffDepartments });
+    el.newAdminUsername.value = '';
+    el.newAdminPassword.value = '';
+    renderNewUserPermissions();
+    renderAdminUsers();
+    const passwordField = el.adminUsersList.querySelector(`.admin-user-password[data-index="${state.adminUsers.length - 1}"]`);
+    if (passwordField) passwordField.value = password;
+    setStatus(`已新增用戶 ${username}，請按「儲存此區」確認。`);
+  };
+}
 
 el.addRestaurantBtn.onclick = () => {
   if (!requireAuth()) return;
@@ -867,6 +1226,7 @@ el.addDrinkBtn.onclick = () => {
 
 el.addDeptBtn.onclick = () => {
   if (!requireAuth()) return;
+  if (!canManageDepartmentStructure()) return setStatus('此帳號只可管理指定部門人員，不能新增部門。', true);
   const dept = String(el.newDept.value || '').trim();
   if (!dept) return setStatus('請輸入部門名稱。', true);
   if (state.seed.staff[dept]) return setStatus('部門已存在。', true);
@@ -880,6 +1240,7 @@ el.addDeptBtn.onclick = () => {
 
 el.removeDeptBtn.onclick = () => {
   if (!requireAuth()) return;
+  if (!canManageDepartmentStructure()) return setStatus('此帳號只可管理指定部門人員，不能刪除部門。', true);
   const dept = el.deptSelect.value;
   if (!dept) return setStatus('請先選擇部門。', true);
   delete state.seed.staff[dept];
@@ -967,56 +1328,6 @@ el.addMenuBtn.onclick = () => {
 };
 
 attachAutoConvert();
+renderNewUserPermissions();
+loadLoginUsernames();
 setAuthUi(false);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
