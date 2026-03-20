@@ -267,6 +267,23 @@ function canManageDepartmentStructure() {
   return state.isRoot || !Array.isArray(state.allowedStaffDepartments) || !state.allowedStaffDepartments.length;
 }
 
+function updateStaffStructureControls() {
+  const canManageStructure = canManageDepartmentStructure();
+  if (el.newDept) {
+    el.newDept.disabled = !canManageStructure;
+    el.newDept.classList.toggle('hidden', !canManageStructure);
+    if (!canManageStructure) el.newDept.value = '';
+  }
+  if (el.addDeptBtn) {
+    el.addDeptBtn.disabled = !canManageStructure;
+    el.addDeptBtn.classList.toggle('hidden', !canManageStructure);
+  }
+  if (el.removeDeptBtn) {
+    el.removeDeptBtn.disabled = !canManageStructure;
+    el.removeDeptBtn.classList.toggle('hidden', !canManageStructure);
+  }
+}
+
 function renderNewUserPermissions() {
   if (!el.newAdminPermissions) return;
   el.newAdminPermissions.innerHTML = buildPermissionCheckboxes('new-admin-permission', []);
@@ -562,8 +579,7 @@ function renderDepartments() {
   el.deptSelect.innerHTML = depts.length
     ? depts.map(d => `<option value="${d}">${d}</option>`).join('')
     : '<option value="">-- 無部門 --</option>';
-  if (el.addDeptBtn) el.addDeptBtn.disabled = !canManageDepartmentStructure();
-  if (el.removeDeptBtn) el.removeDeptBtn.disabled = !canManageDepartmentStructure();
+  updateStaffStructureControls();
   renderStaff();
 }
 
@@ -745,8 +761,11 @@ async function saveSection(section) {
     }
 
     if (section === 'staff') {
+      if (!canManageDepartmentStructure()) {
+        if (el.newDept) el.newDept.value = '';
+      }
       const pendingDept = String((el.newDept && el.newDept.value) || '').trim();
-      if (pendingDept) {
+      if (pendingDept && canManageDepartmentStructure()) {
         state.seed.staff = state.seed.staff || {};
         if (!state.seed.staff[pendingDept]) state.seed.staff[pendingDept] = [];
         el.newDept.value = '';
