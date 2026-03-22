@@ -25,6 +25,7 @@ const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const LADY_RUBY_STATE_FILE = path.join(DATA_DIR, 'state.lady-ruby.json');
 const DRINK_FLAGS_FILE = path.join(DATA_DIR, 'drink-flags.json');
 const ADMIN_USERS_FILE = path.join(DATA_DIR, 'admin-users.json');
+const ADMIN_LOGS_FILE = path.join(DATA_DIR, 'admin-logs.json');
 const APP_MAIN = 'main';
 const APP_LADY_RUBY = 'lady-ruby';
 const APP_IDS = new Set([APP_MAIN, APP_LADY_RUBY]);
@@ -59,7 +60,8 @@ const TABLES = {
   menus: process.env.SUPABASE_TABLE_MENUS || 'menus',
   appState: process.env.SUPABASE_TABLE_APP_STATE || 'app_state',
   orders: process.env.SUPABASE_TABLE_ORDERS || 'orders',
-  adminUsers: process.env.SUPABASE_TABLE_ADMIN_USERS || 'admin_users'
+  adminUsers: process.env.SUPABASE_TABLE_ADMIN_USERS || 'admin_users',
+  adminLogs: process.env.SUPABASE_TABLE_ADMIN_LOGS || 'admin_logs'
 };
 
 const DEFAULT_CUTOFF_TIME = '13:00';
@@ -103,6 +105,272 @@ function assertSupabaseServiceRole() {
 
 function defaultAdminUsers() {
   return [];
+}
+
+function defaultAdminLogs() {
+  return [];
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function uniqueSortedTextList(items) {
+  return [...new Set((Array.isArray(items) ? items : []).map(v => normText(v)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function summarizeItems(items, limit = 5) {
+  const list = uniqueSortedTextList(items);
+  if (!list.length) return '';
+  if (list.length <= limit) return list.join('、');
+  return `${list.slice(0, limit).join('、')} 等 ${list.length} 項`;
+}
+
+function makeLogChange(label, items) {
+  const normalizedItems = uniqueSortedTextList(items);
+  if (!normalizedItems.length) return null;
+  return { label: normText(label), items: normalizedItems };
+}
+
+function makeLogSummary(changes) {
+  const list = (Array.isArray(changes) ? changes : []).filter(change => change && change.label && Array.isArray(change.items) && change.items.length);
+  return list.map(change => `${change.label} ${change.items.length} 項`).join('；');
+}
+
+function normalizeAdminLogEntry(input) {
+  if (!input || typeof input !== 'object') return null;
+  const createdAt = normText(input.createdAt || input.created_at) || nowIso();
+  const username = normText(input.username).toLowerCase() || 'admin';
+  const action = normText(input.action) || 'save';
+  const section = normText(input.section) || 'all';
+  const summary = normText(input.summary) || '已更新資料';
+  const details = input.details && typeof input.details === 'object' ? input.details : {};
+  const id = normText(input.id) || `${createdAt}-${username}-${Math.random().toString(36).slice(2, 8)}`;
+  return { id, createdAt, username, action, section, summary, details };
+}
+
+function normalizeAdminLogs(input) {
+  return (Array.isArray(input) ? input : [])
+    .map(normalizeAdminLogEntry)
+    .filter(Boolean)
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+}
+
+function mapDrinksByKey(seedInput) {
+  const seed = normalizeSeed(seedInput);
+  const map = new Map();
+  (seed.drinks || []).forEach(drink => {
+    const key = normText(drink.tc);
+    if (!key) return;
+    map.set(key, {
+      tc: key,
+      sc: normText(drink.sc) || key,
+      en: normText(drink.en) || key,
+      paused: Boolean(drink.paused)
+    });
+  });
+  return map;
+}
+
+function mapMenuItemsByKey(seedInput) {
+  const seed = normalizeSeed(seedInput);
+  const map = new Map();
+  Object.keys(seed.menus || {}).forEach(restaurant => {
+    Object.keys(seed.menus[restaurant] || {}).forEach(category => {
+      (seed.menus[restaurant][category] || []).forEach(item => {
+        const nameTc = normText(item.nameTc);
+        if (!nameTc) return;
+        map.set(`${restaurant}|${category}|${nameTc}`, {
+          restaurant,
+          category,
+          nameTc,
+          nameSc: normText(item.nameSc) || nameTc,
+          nameEn: normText(item.nameEn) || nameTc,
+          price: Number(item.price || 0)
+        });
+      });
+    });
+  });
+  return map;
+}
+
+function buildSeedLogDetails(beforeSeedInput, afterSeedInput) {
+  const beforeSeed = normalizeSeed(beforeSeedInput);
+  const afterSeed = normalizeSeed(afterSeedInput);
+  const changes = [];
+
+  changes.push(makeLogChange(
+    '新增餐廳',
+    afterSeed.restaurants.filter(name => !beforeSeed.restaurants.includes(name))
+  ));
+  changes.push(makeLogChange(
+    '刪除餐廳',
+    beforeSeed.restaurants.filter(name => !afterSeed.restaurants.includes(name))
+  ));
+
+  const beforeDrinks = mapDrinksByKey(beforeSeed);
+  const afterDrinks = mapDrinksByKey(afterSeed);
+  const addedDrinks = [];
+  const removedDrinks = [];
+  const updatedDrinks = [];
+  afterDrinks.forEach((drink, key) => {
+    if (!beforeDrinks.has(key)) {
+      addedDrinks.push(drink.tc);
+      return;
+    }
+    const prev = beforeDrinks.get(key);
+    const diffParts = [];
+    if (prev.sc !== drink.sc || prev.en !== drink.en) diffParts.push('名稱');
+    if (prev.paused !== drink.paused) diffParts.push(drink.paused ? '已暫停' : '已恢復');
+    if (diffParts.length) updatedDrinks.push(`${drink.tc} (${diffParts.join(' / ')})`);
+  });
+  beforeDrinks.forEach((drink, key) => {
+    if (!afterDrinks.has(key)) removedDrinks.push(drink.tc);
+  });
+  changes.push(makeLogChange('新增飲品', addedDrinks));
+  changes.push(makeLogChange('刪除飲品', removedDrinks));
+  changes.push(makeLogChange('更新飲品', updatedDrinks));
+
+  const beforeDepartments = Object.keys(beforeSeed.staff || {});
+  const afterDepartments = Object.keys(afterSeed.staff || {});
+  changes.push(makeLogChange('新增部門', afterDepartments.filter(name => !beforeDepartments.includes(name))));
+  changes.push(makeLogChange('刪除部門', beforeDepartments.filter(name => !afterDepartments.includes(name))));
+  const addedStaff = [];
+  const removedStaff = [];
+  const departmentNames = [...new Set(beforeDepartments.concat(afterDepartments))];
+  departmentNames.forEach(dept => {
+    const beforeNames = uniqueSortedTextList(beforeSeed.staff && beforeSeed.staff[dept]);
+    const afterNames = uniqueSortedTextList(afterSeed.staff && afterSeed.staff[dept]);
+    afterNames.forEach(name => {
+      if (!beforeNames.includes(name)) addedStaff.push(`${dept}: ${name}`);
+    });
+    beforeNames.forEach(name => {
+      if (!afterNames.includes(name)) removedStaff.push(`${dept}: ${name}`);
+    });
+  });
+  changes.push(makeLogChange('新增人員', addedStaff));
+  changes.push(makeLogChange('刪除人員', removedStaff));
+
+  const beforeCategorySet = new Set();
+  const afterCategorySet = new Set();
+  Object.keys(beforeSeed.menus || {}).forEach(rest => {
+    Object.keys(beforeSeed.menus[rest] || {}).forEach(cat => beforeCategorySet.add(`${rest} / ${cat}`));
+  });
+  Object.keys(afterSeed.menus || {}).forEach(rest => {
+    Object.keys(afterSeed.menus[rest] || {}).forEach(cat => afterCategorySet.add(`${rest} / ${cat}`));
+  });
+  changes.push(makeLogChange('新增分類', Array.from(afterCategorySet).filter(key => !beforeCategorySet.has(key))));
+  changes.push(makeLogChange('刪除分類', Array.from(beforeCategorySet).filter(key => !afterCategorySet.has(key))));
+
+  const beforeMenus = mapMenuItemsByKey(beforeSeed);
+  const afterMenus = mapMenuItemsByKey(afterSeed);
+  const addedMenus = [];
+  const removedMenus = [];
+  const updatedMenus = [];
+  afterMenus.forEach((item, key) => {
+    if (!beforeMenus.has(key)) {
+      addedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc}`);
+      return;
+    }
+    const prev = beforeMenus.get(key);
+    const diffParts = [];
+    if (prev.nameSc !== item.nameSc || prev.nameEn !== item.nameEn) diffParts.push('名稱');
+    if (prev.price !== item.price) diffParts.push(`價錢 ${prev.price} -> ${item.price}`);
+    if (diffParts.length) updatedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc} (${diffParts.join(' / ')})`);
+  });
+  beforeMenus.forEach((item, key) => {
+    if (!afterMenus.has(key)) removedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc}`);
+  });
+  changes.push(makeLogChange('新增餐點', addedMenus));
+  changes.push(makeLogChange('刪除餐點', removedMenus));
+  changes.push(makeLogChange('更新餐點', updatedMenus));
+
+  return { changes: changes.filter(Boolean) };
+}
+
+function buildSeedLogEntry({ admin, section, merge, beforeSeed, afterSeed, added }) {
+  const details = buildSeedLogDetails(beforeSeed, afterSeed);
+  const detailSummary = makeLogSummary(details.changes);
+  const importSummary = added ? formatImportAdded(added) : '';
+  const summary = merge
+    ? (importSummary ? `匯入資料: ${importSummary}` : '匯入資料，沒有新增項目')
+    : (detailSummary || `已更新${section === 'all' ? '全部資料' : section}`);
+  return normalizeAdminLogEntry({
+    username: admin && admin.username,
+    action: merge ? 'import' : 'save',
+    section: section || 'all',
+    summary,
+    details: {
+      ...(details || {}),
+      added: added && typeof added === 'object' ? added : undefined
+    }
+  });
+}
+
+function describePermissions(permissions) {
+  const normalized = uniqueSortedTextList(permissions);
+  if (!normalized.length) return '沒有權限';
+  if (normalized.includes(ADMIN_PERMISSION_ALL)) return '全部權限';
+  return normalized.join('、');
+}
+
+function buildAdminUsersLogEntry(admin, beforeUsers, afterUsers) {
+  const beforeMap = new Map(normalizeAdminUsers(beforeUsers).map(user => [user.username, user]));
+  const afterMap = new Map(normalizeAdminUsers(afterUsers).map(user => [user.username, user]));
+  const added = [];
+  const removed = [];
+  const updated = [];
+
+  afterMap.forEach((user, username) => {
+    if (!beforeMap.has(username)) {
+      added.push(`${username} (${describePermissions(user.permissions)})`);
+      return;
+    }
+    const prev = beforeMap.get(username);
+    const diffParts = [];
+    if (describePermissions(prev.permissions) !== describePermissions(user.permissions)) {
+      diffParts.push(`權限: ${describePermissions(prev.permissions)} -> ${describePermissions(user.permissions)}`);
+    }
+    if (summarizeItems(prev.staffDepartments) !== summarizeItems(user.staffDepartments)) {
+      diffParts.push(`部門: ${summarizeItems(prev.staffDepartments) || '全部'} -> ${summarizeItems(user.staffDepartments) || '全部'}`);
+    }
+    if (prev.passwordHash !== user.passwordHash) diffParts.push('密碼已更新');
+    if (diffParts.length) updated.push(`${username} (${diffParts.join(' / ')})`);
+  });
+
+  beforeMap.forEach((user, username) => {
+    if (!afterMap.has(username)) removed.push(username);
+  });
+
+  const changes = [
+    makeLogChange('新增用戶', added),
+    makeLogChange('刪除用戶', removed),
+    makeLogChange('更新用戶', updated)
+  ].filter(Boolean);
+
+  return normalizeAdminLogEntry({
+    username: admin && admin.username,
+    action: 'users',
+    section: 'users',
+    summary: makeLogSummary(changes) || '已更新用戶與權限',
+    details: { changes }
+  });
+}
+
+function buildResetLogEntry(admin, appId) {
+  const target = normalizeAppId(appId) === APP_LADY_RUBY ? 'Lady Ruby' : '主站';
+  return normalizeAdminLogEntry({
+    username: admin && admin.username,
+    action: 'reset',
+    section: normalizeAppId(appId) === APP_LADY_RUBY ? 'reset_lady_ruby' : 'reset_main',
+    summary: `重置${target}今日訂單`,
+    details: {
+      app: normalizeAppId(appId),
+      changes: [
+        { label: '操作', items: [`已重置${target}今日訂單與餐廳設定`] }
+      ]
+    }
+  });
 }
 
 function normalizeAdminDepartments(input) {
@@ -519,6 +787,27 @@ function diffSeedAdded(beforeSeed, afterSeed) {
     menuItems: countAdded(before.menuItems, after.menuItems)
   };
 }
+
+function formatImportAdded(added) {
+  if (!added || typeof added !== 'object') return '';
+  const parts = [];
+  if (Number(added.restaurants || 0) > 0) parts.push(`餐廳 +${added.restaurants}`);
+  if (Number(added.drinks || 0) > 0) parts.push(`飲品 +${added.drinks}`);
+  if (Number(added.departments || 0) > 0) parts.push(`部門 +${added.departments}`);
+  if (Number(added.staff || 0) > 0) parts.push(`人員 +${added.staff}`);
+  if (Number(added.menuCategories || 0) > 0) parts.push(`分類 +${added.menuCategories}`);
+  if (Number(added.menuItems || 0) > 0) parts.push(`餐點 +${added.menuItems}`);
+  return parts.join('、');
+}
+
+async function appendAdminLogSafe(entry) {
+  try {
+    await storage.appendAdminLog(entry);
+  } catch (err) {
+    console.warn('Admin log write failed:', err && err.message ? err.message : err);
+  }
+}
+
 function normalizeState(input) {
   const state = input && typeof input === 'object' ? input : defaultState();
   return {
@@ -552,6 +841,7 @@ async function supaSelect(table, columns, opts = {}) {
       q = q.order(o.column, { ascending: o.ascending !== false });
     });
   }
+  if (Number.isInteger(opts.limit) && opts.limit > 0) q = q.limit(opts.limit);
   if (opts.single) q = q.single();
   if (opts.maybeSingle) q = q.maybeSingle();
   const { data, error } = await q;
@@ -748,6 +1038,45 @@ async function saveAdminUsersSupabase(users) {
   }
 }
 
+async function getAdminLogsSupabase(limit = 100) {
+  try {
+    const rows = await supaSelect(TABLES.adminLogs, 'id,created_at,username,action,section,summary,details', {
+      order: [{ column: 'created_at', ascending: false }],
+      limit
+    });
+    return normalizeAdminLogs((rows || []).map(row => ({
+      id: row.id,
+      createdAt: row.created_at,
+      username: row.username,
+      action: row.action,
+      section: row.section,
+      summary: row.summary,
+      details: row.details
+    })));
+  } catch (err) {
+    if (isMissingSupabaseTable(err, TABLES.adminLogs)) return [];
+    throw err;
+  }
+}
+
+async function appendAdminLogSupabase(entry) {
+  const normalized = normalizeAdminLogEntry(entry);
+  if (!normalized) return;
+  const { error } = await supabase.from(TABLES.adminLogs).insert({
+    id: normalized.id,
+    created_at: normalized.createdAt,
+    username: normalized.username,
+    action: normalized.action,
+    section: normalized.section,
+    summary: normalized.summary,
+    details: normalized.details || {}
+  });
+  if (error) {
+    if (isMissingSupabaseTable(error, TABLES.adminLogs)) return;
+    throw new Error(`Supabase save admin_logs failed: ${error.message}`);
+  }
+}
+
 async function selectOrdersSupabase(date, appId) {
   try {
     return await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id', {
@@ -895,6 +1224,18 @@ async function saveAdminUsersLocal(users) {
   writeJson(ADMIN_USERS_FILE, normalizeAdminUsers(users));
 }
 
+async function getAdminLogsLocal(limit = 100) {
+  return normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, defaultAdminLogs())).slice(0, Math.max(1, limit));
+}
+
+async function appendAdminLogLocal(entry) {
+  const normalized = normalizeAdminLogEntry(entry);
+  if (!normalized) return;
+  const logs = normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, defaultAdminLogs()));
+  logs.unshift(normalized);
+  writeJson(ADMIN_LOGS_FILE, logs.slice(0, 500));
+}
+
 async function getStateLocal(appId = APP_MAIN) {
   const statePath = stateFileForApp(appId);
   const state = normalizeState(readJsonSafe(statePath, defaultState()));
@@ -943,6 +1284,14 @@ const storage = {
   saveAdminUsers(users) {
     if (USE_SUPABASE) return saveAdminUsersSupabase(users);
     return saveAdminUsersLocal(users);
+  },
+  getAdminLogs(limit = 100) {
+    if (USE_SUPABASE) return getAdminLogsSupabase(limit);
+    return getAdminLogsLocal(limit);
+  },
+  appendAdminLog(entry) {
+    if (USE_SUPABASE) return appendAdminLogSupabase(entry);
+    return appendAdminLogLocal(entry);
   },
   getState(appId = APP_MAIN) {
     const normalizedAppId = normalizeAppId(appId);
@@ -1407,16 +1756,32 @@ async function handleApi(req, res, urlObj) {
       return json(res, 403, { error: 'You do not have permission to save all data.' });
     }
 
+    const currentSeed = await storage.getSeed();
+
     if (merge) {
-      const currentSeed = await storage.getSeed();
       const mergedSeed = mergeSeeds(currentSeed, nextSeed);
       const added = diffSeedAdded(currentSeed, mergedSeed);
       await storage.saveSeed(mergedSeed);
+      await appendAdminLogSafe(buildSeedLogEntry({
+        admin,
+        section: 'import',
+        merge: true,
+        beforeSeed: currentSeed,
+        afterSeed: mergedSeed,
+        added
+      }));
       return json(res, 200, { ok: true, merged: true, seed: mergedSeed, added });
     }
 
-    const finalSeed = section === 'staff' ? mergeScopedStaffSeed(await storage.getSeed(), nextSeed, admin) : nextSeed;
+    const finalSeed = section === 'staff' ? mergeScopedStaffSeed(currentSeed, nextSeed, admin) : nextSeed;
     await storage.saveSeed(finalSeed);
+    await appendAdminLogSafe(buildSeedLogEntry({
+      admin,
+      section: section || 'all',
+      merge: false,
+      beforeSeed: currentSeed,
+      afterSeed: finalSeed
+    }));
     return json(res, 200, { ok: true, merged: false });
   }
 
@@ -1437,7 +1802,27 @@ async function handleApi(req, res, urlObj) {
       return json(res, 403, { error: 'You do not have permission to reset this page.' });
     }
     await storage.resetDay(appId);
+    await appendAdminLogSafe(buildResetLogEntry(admin, appId));
     return json(res, 200, { ok: true });
+  }
+
+  if (req.method === 'GET' && pathname === '/api/admin/logs') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const admin = await authenticateAdmin({
+      username: urlObj.searchParams.get('username'),
+      password: urlObj.searchParams.get('password')
+    });
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    const limitRaw = Number(urlObj.searchParams.get('limit') || 100);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+    const logs = await storage.getAdminLogs(limit);
+    return json(res, 200, { logs });
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/users') {
@@ -1494,6 +1879,7 @@ async function handleApi(req, res, urlObj) {
       nextUsers.push(normalized);
     }
     await storage.saveAdminUsers(nextUsers);
+    await appendAdminLogSafe(buildAdminUsersLogEntry(admin, existingUsers, nextUsers));
     return json(res, 200, {
       ok: true,
       users: nextUsers.map(user => ({ username: user.username, permissions: user.permissions, staffDepartments: user.staffDepartments || [] }))

@@ -20,6 +20,7 @@ const state = {
   dirty: false,
   menuEdit: null,
   adminUsers: [],
+  logs: [],
   seed: { restaurants: [], staff: {}, drinks: [], menus: {} }
 };
 
@@ -43,6 +44,7 @@ const el = {
   sectionStaff: document.getElementById('sectionStaff'),
   sectionMenus: document.getElementById('sectionMenus'),
   sectionUsers: document.getElementById('sectionUsers'),
+  sectionLogs: document.getElementById('sectionLogs'),
 
   importFile: document.getElementById('importFile'),
   importBtn: document.getElementById('importBtn'),
@@ -83,6 +85,9 @@ const el = {
   newAdminDepartments: document.getElementById('newAdminDepartments'),
   newAdminDepartmentOptions: document.getElementById('newAdminDepartmentOptions'),
   addAdminUserBtn: document.getElementById('addAdminUserBtn'),
+  refreshLogsBtn: document.getElementById('refreshLogsBtn'),
+  logsHint: document.getElementById('logsHint'),
+  adminLogsList: document.getElementById('adminLogsList'),
   toast: document.getElementById('toast'),
   busyOverlay: document.getElementById('busyOverlay'),
   busyText: document.getElementById('busyText')
@@ -387,6 +392,11 @@ async function fetchSeedByCredentials(username, password) {
 async function fetchAdminUsers() {
   const payload = await api(`/api/admin/users?username=${encodeURIComponent(state.username)}&password=${encodeURIComponent(state.password)}`);
   return Array.isArray(payload.users) ? payload.users : [];
+}
+
+async function fetchAdminLogs(limit = 100) {
+  const payload = await api(`/api/admin/logs?username=${encodeURIComponent(state.username)}&password=${encodeURIComponent(state.password)}&limit=${encodeURIComponent(limit)}`);
+  return Array.isArray(payload.logs) ? payload.logs : [];
 }
 
 async function fetchAdminUsernames() {
@@ -697,8 +707,73 @@ function renderAll() {
   renderMenuCategories();
   renderMenuItems();
   renderAdminUsers();
+  renderLogs();
   updateCurrentUserText();
   setSectionVisibility();
+}
+
+function formatLogTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || '-';
+  try {
+    return new Intl.DateTimeFormat('zh-Hant', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(date);
+  } catch {
+    return date.toLocaleString();
+  }
+}
+
+function renderLogChange(change) {
+  const items = Array.isArray(change && change.items) ? change.items : [];
+  if (!change || !change.label || !items.length) return '';
+  const preview = items.slice(0, 8);
+  const extra = items.length - preview.length;
+  return `<div class="rounded-md bg-slate-50 px-3 py-2">
+    <p class="text-xs font-semibold text-slate-600">${change.label}</p>
+    <p class="mt-1 text-sm text-slate-700">${preview.join('、')}${extra > 0 ? ` 等 ${items.length} 項` : ''}</p>
+  </div>`;
+}
+
+function renderLogs() {
+  if (!el.adminLogsList || !el.logsHint) return;
+  const logs = Array.isArray(state.logs) ? state.logs : [];
+  el.logsHint.textContent = logs.length ? `顯示最近 ${logs.length} 筆操作紀錄` : '暫時未有操作紀錄。';
+  if (!logs.length) {
+    el.adminLogsList.innerHTML = '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">未有可顯示的紀錄。</p>';
+    return;
+  }
+
+  el.adminLogsList.innerHTML = logs.map(log => {
+    const changes = Array.isArray(log && log.details && log.details.changes) ? log.details.changes : [];
+    const changesHtml = changes.map(renderLogChange).filter(Boolean).join('');
+    return `<article class="rounded-lg border border-slate-200 p-3">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p class="font-semibold text-pbnavy">${log.summary || '已更新資料'}</p>
+          <p class="mt-1 text-xs text-slate-500">帳號：${log.username || 'admin'} ｜ 區域：${log.section || 'all'} ｜ ${formatLogTime(log.createdAt)}</p>
+        </div>
+        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">${log.action || 'save'}</span>
+      </div>
+      ${changesHtml ? `<div class="mt-3 grid grid-cols-1 gap-2">${changesHtml}</div>` : ''}
+    </article>`;
+  }).join('');
+}
+
+async function loadAdminLogs(options = {}) {
+  const { silent = false } = options;
+  if (!requireAuth()) return;
+  try {
+    const logs = await fetchAdminLogs();
+    state.logs = logs;
+    renderLogs();
+  } catch (err) {
+    state.logs = [];
+    renderLogs();
+    if (!silent) setStatus(`載入操作紀錄失敗: ${err.message}`, true);
+    handleAdminPasswordError(err);
+  }
 }
 
 async function persistIfDirty(reasonLabel) {
@@ -714,6 +789,7 @@ async function persistIfDirty(reasonLabel) {
       body: JSON.stringify(adminAuthBody({ seed: state.seed }))
     });
     state.dirty = false;
+    await loadAdminLogs({ silent: true });
     setStatus(`已先儲存，再載入「${reasonLabel}」。`);
     return true;
   } catch (err) {
@@ -812,6 +888,7 @@ async function saveSection(section) {
       body: JSON.stringify(adminAuthBody({ seed: state.seed, section }))
     });
     state.dirty = false;
+    await loadAdminLogs({ silent: true });
     renderAll();
     setStatus(`已儲存「${label}」。`);
     showToast(`已儲存${label}`);
@@ -862,6 +939,7 @@ async function saveSeed() {
       body: JSON.stringify(adminAuthBody({ seed: state.seed }))
     });
     state.dirty = false;
+    await loadAdminLogs({ silent: true });
     setStatus('儲存成功。');
     showToast('儲存成功');
   } catch (err) {
@@ -891,6 +969,7 @@ async function saveAdminUsers() {
       body: JSON.stringify(adminAuthBody({ users: usersPayload }))
     });
     state.adminUsers = Array.isArray(payload.users) ? payload.users : [];
+    await loadAdminLogs({ silent: true });
     renderAdminUsers();
     setStatus('已儲存用戶與權限。');
     showToast('已儲存用戶與權限');
@@ -911,6 +990,7 @@ async function resetDay(app = 'main') {
       method: 'POST',
       body: JSON.stringify(adminAuthBody({ app }))
     });
+    await loadAdminLogs({ silent: true });
     setStatus(app === 'lady-ruby' ? '已重置 Lady Ruby 今日訂單與餐廳。' : '已重置主站今日訂單與餐廳。');
   } catch (err) {
     setStatus(err.message, true);
@@ -1086,6 +1166,7 @@ async function importSeed() {
     });
     state.seed = payload.seed || state.seed;
     state.dirty = false;
+    await loadAdminLogs({ silent: true });
     renderAll();
     el.importFile.value = '';
     const summary = formatImportAdded(payload.added);
@@ -1128,6 +1209,11 @@ async function login() {
     state.dirty = false;
     setAuthUi(true);
     renderNewUserPermissions();
+    try {
+      state.logs = await fetchAdminLogs();
+    } catch {
+      state.logs = [];
+    }
     renderAll();
     const tableMissingNote = hasPermission('users') && !state.adminUsers.length
       ? '已登入。若要新增限權用戶，請先在 Supabase 建立 admin_users table。'
@@ -1143,6 +1229,7 @@ async function login() {
     state.allowedStaffDepartments = [];
     state.isRoot = false;
     state.adminUsers = [];
+    state.logs = [];
     setAuthUi(false);
     setLoginHint('帳號或密碼錯誤，請再試一次。', true);
     setStatus(err.message, true);
@@ -1161,10 +1248,12 @@ function logout() {
   state.dirty = false;
   state.menuEdit = null;
   state.adminUsers = [];
+  state.logs = [];
   setAuthUi(false);
   setStatus('登入後可操作。');
   setLoginHint('已登出。');
   if (el.loginPassword) el.loginPassword.value = '';
+  renderLogs();
 }
 
 el.loginBtn.onclick = login;
@@ -1188,6 +1277,7 @@ el.saveDrinkBtn.onclick = () => saveSection('drinks');
 el.saveStaffBtn.onclick = () => saveSection('staff');
 el.saveMenuBtn.onclick = () => saveSection('menus');
 if (el.saveUsersBtn) el.saveUsersBtn.onclick = saveAdminUsers;
+if (el.refreshLogsBtn) el.refreshLogsBtn.onclick = () => loadAdminLogs();
 
 if (el.addAdminUserBtn) {
   el.addAdminUserBtn.onclick = () => {

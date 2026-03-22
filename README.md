@@ -21,6 +21,7 @@ Open: `http://127.0.0.1:3000`
 No Supabase env set -> use local files:
 - `data/seed.json`
 - `data/state.json`
+- `data/admin-logs.json`
 
 ### 2) Supabase mode (for Vercel)
 Set both env vars:
@@ -140,9 +141,19 @@ create table if not exists public.admin_users (
   permissions jsonb not null default '[]'::jsonb,
   staff_departments jsonb not null default '[]'::jsonb
 );
+create table if not exists public.admin_logs (
+  id text primary key,
+  created_at timestamptz not null default now(),
+  username text not null,
+  action text not null,
+  section text not null,
+  summary text not null,
+  details jsonb not null default '{}'::jsonb
+);
 alter table if exists public.admin_users
 add column if not exists staff_departments jsonb not null default '[]'::jsonb;
 alter table if exists public.admin_users enable row level security;
+alter table if exists public.admin_logs enable row level security;
 
 revoke all on table public.restaurants from anon, authenticated;
 revoke all on table public.drinks from anon, authenticated;
@@ -152,6 +163,7 @@ revoke all on table public.app_state from anon, authenticated;
 revoke all on table public.orders from anon, authenticated;
 revoke all on table public.app_kv from anon, authenticated;
 revoke all on table public.admin_users from anon, authenticated;
+revoke all on table public.admin_logs from anon, authenticated;
 ```
 
 If you later decide to use Supabase directly from the browser, add explicit policies for only the tables and actions you need before exposing them.
