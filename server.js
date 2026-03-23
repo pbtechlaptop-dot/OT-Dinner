@@ -833,6 +833,24 @@ async function appendAdminLogSafe(entry) {
   }
 }
 
+async function ensureRecentLoginLog(admin) {
+  if (!admin || admin.isRoot) return;
+  try {
+    const recentLogs = await storage.getAdminLogs({ limit: 10, username: admin.username });
+    const now = Date.now();
+    const hasRecentLogin = recentLogs.some(log => {
+      if (normText(log && log.action).toLowerCase() !== 'login') return false;
+      const createdAt = Date.parse(log && log.createdAt);
+      return Number.isFinite(createdAt) && Math.abs(now - createdAt) <= 2 * 60 * 1000;
+    });
+    if (!hasRecentLogin) {
+      await appendAdminLogSafe(buildLoginLogEntry(admin));
+    }
+  } catch (err) {
+    console.warn('Ensure login log failed:', err && err.message ? err.message : err);
+  }
+}
+
 function normalizeState(input) {
   const state = input && typeof input === 'object' ? input : defaultState();
   return {
@@ -1762,9 +1780,7 @@ async function handleApi(req, res, urlObj) {
       return json(res, 403, { error: 'Invalid admin username or password' });
     }
     clearAuthFailures(req, 'admin');
-    if (!admin.isRoot) {
-      await appendAdminLogSafe(buildLoginLogEntry(admin));
-    }
+    await ensureRecentLoginLog(admin);
     return json(res, 200, {
       ok: true,
       user: {
@@ -1789,6 +1805,7 @@ async function handleApi(req, res, urlObj) {
       return json(res, 403, { error: 'Invalid admin username or password' });
     }
     clearAuthFailures(req, 'admin');
+    await ensureRecentLoginLog(admin);
     const seed = await storage.getSeed();
     return json(res, 200, {
       seed: scopeSeedForAdmin(seed, admin),
