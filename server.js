@@ -384,6 +384,20 @@ function buildResetLogEntry(admin, appId) {
   });
 }
 
+function buildLoginLogEntry(admin) {
+  return normalizeAdminLogEntry({
+    username: admin && admin.username,
+    action: 'login',
+    section: 'login',
+    summary: '登入後台',
+    details: {
+      changes: [
+        { label: '操作', items: ['成功登入後台'] }
+      ]
+    }
+  });
+}
+
 function normalizeAdminDepartments(input) {
   const list = Array.isArray(input) ? input : [];
   return [...new Set(list.map(v => normText(v)).filter(Boolean))];
@@ -1052,12 +1066,16 @@ async function saveAdminUsersSupabase(users) {
 async function getAdminLogsSupabase(options = {}) {
   const limit = Number.isFinite(options.limit) ? Math.max(1, Math.min(200, Math.floor(options.limit))) : 100;
   const username = normText(options.username).toLowerCase();
+  const excludedActions = uniqueSortedTextList(options.excludeActions);
   try {
-    const rows = await supaSelect(TABLES.adminLogs, 'id,created_at,username,action,section,summary,details', {
+    let rows = await supaSelect(TABLES.adminLogs, 'id,created_at,username,action,section,summary,details', {
       eq: username ? { username } : undefined,
       order: [{ column: 'created_at', ascending: false }],
-      limit
+      limit: excludedActions.length ? Math.min(500, limit * 5) : limit
     });
+    if (excludedActions.length) {
+      rows = (rows || []).filter(row => !excludedActions.includes(normText(row.action).toLowerCase())).slice(0, limit);
+    }
     return normalizeAdminLogs((rows || []).map(row => ({
       id: row.id,
       createdAt: row.created_at,
@@ -1255,8 +1273,13 @@ async function saveAdminUsersLocal(users) {
 async function getAdminLogsLocal(options = {}) {
   const limit = Number.isFinite(options.limit) ? Math.max(1, Math.min(200, Math.floor(options.limit))) : 100;
   const username = normText(options.username).toLowerCase();
+  const excludedActions = uniqueSortedTextList(options.excludeActions);
   const logs = normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, defaultAdminLogs()));
-  const filtered = username ? logs.filter(log => normText(log.username).toLowerCase() === username) : logs;
+  const filtered = logs.filter(log => {
+    if (username && normText(log.username).toLowerCase() !== username) return false;
+    if (excludedActions.includes(normText(log.action).toLowerCase())) return false;
+    return true;
+  });
   return filtered.slice(0, limit);
 }
 
@@ -1739,6 +1762,9 @@ async function handleApi(req, res, urlObj) {
       return json(res, 403, { error: 'Invalid admin username or password' });
     }
     clearAuthFailures(req, 'admin');
+    if (!admin.isRoot) {
+      await appendAdminLogSafe(buildLoginLogEntry(admin));
+    }
     return json(res, 200, {
       ok: true,
       user: {
@@ -1869,7 +1895,8 @@ async function handleApi(req, res, urlObj) {
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
     const logs = await storage.getAdminLogs({
       limit,
-      username: admin.isRoot ? '' : admin.username
+      username: admin.isRoot ? '' : admin.username,
+      excludeActions: admin.isRoot ? [] : ['login']
     });
     return json(res, 200, { logs });
   }
