@@ -194,102 +194,113 @@ function mapMenuItemsByKey(seedInput) {
   return map;
 }
 
-function buildSeedLogDetails(beforeSeedInput, afterSeedInput) {
+function buildSeedLogDetails(beforeSeedInput, afterSeedInput, section = 'all') {
   const beforeSeed = normalizeSeed(beforeSeedInput);
   const afterSeed = normalizeSeed(afterSeedInput);
   const changes = [];
+  const normalizedSection = normText(section).toLowerCase() || 'all';
+  const includeAll = normalizedSection === 'all' || normalizedSection === 'import';
+  const shouldInclude = key => includeAll || normalizedSection === key;
 
-  changes.push(makeLogChange(
-    '新增餐廳',
-    afterSeed.restaurants.filter(name => !beforeSeed.restaurants.includes(name))
-  ));
-  changes.push(makeLogChange(
-    '刪除餐廳',
-    beforeSeed.restaurants.filter(name => !afterSeed.restaurants.includes(name))
-  ));
+  if (shouldInclude('restaurants')) {
+    changes.push(makeLogChange(
+      '新增餐廳',
+      afterSeed.restaurants.filter(name => !beforeSeed.restaurants.includes(name))
+    ));
+    changes.push(makeLogChange(
+      '刪除餐廳',
+      beforeSeed.restaurants.filter(name => !afterSeed.restaurants.includes(name))
+    ));
+  }
 
-  const beforeDrinks = mapDrinksByKey(beforeSeed);
-  const afterDrinks = mapDrinksByKey(afterSeed);
-  const addedDrinks = [];
-  const removedDrinks = [];
-  const updatedDrinks = [];
-  afterDrinks.forEach((drink, key) => {
-    if (!beforeDrinks.has(key)) {
-      addedDrinks.push(drink.tc);
-      return;
-    }
-    const prev = beforeDrinks.get(key);
-    const diffParts = [];
-    if (prev.sc !== drink.sc || prev.en !== drink.en) diffParts.push('名稱');
-    if (prev.paused !== drink.paused) diffParts.push(drink.paused ? '已暫停' : '已恢復');
-    if (diffParts.length) updatedDrinks.push(`${drink.tc} (${diffParts.join(' / ')})`);
-  });
-  beforeDrinks.forEach((drink, key) => {
-    if (!afterDrinks.has(key)) removedDrinks.push(drink.tc);
-  });
-  changes.push(makeLogChange('新增飲品', addedDrinks));
-  changes.push(makeLogChange('刪除飲品', removedDrinks));
-  changes.push(makeLogChange('更新飲品', updatedDrinks));
-
-  const beforeDepartments = Object.keys(beforeSeed.staff || {});
-  const afterDepartments = Object.keys(afterSeed.staff || {});
-  changes.push(makeLogChange('新增部門', afterDepartments.filter(name => !beforeDepartments.includes(name))));
-  changes.push(makeLogChange('刪除部門', beforeDepartments.filter(name => !afterDepartments.includes(name))));
-  const addedStaff = [];
-  const removedStaff = [];
-  const departmentNames = [...new Set(beforeDepartments.concat(afterDepartments))];
-  departmentNames.forEach(dept => {
-    const beforeNames = uniqueSortedTextList(beforeSeed.staff && beforeSeed.staff[dept]);
-    const afterNames = uniqueSortedTextList(afterSeed.staff && afterSeed.staff[dept]);
-    afterNames.forEach(name => {
-      if (!beforeNames.includes(name)) addedStaff.push(`${dept}: ${name}`);
+  if (shouldInclude('drinks')) {
+    const beforeDrinks = mapDrinksByKey(beforeSeed);
+    const afterDrinks = mapDrinksByKey(afterSeed);
+    const addedDrinks = [];
+    const removedDrinks = [];
+    const updatedDrinks = [];
+    afterDrinks.forEach((drink, key) => {
+      if (!beforeDrinks.has(key)) {
+        addedDrinks.push(drink.tc);
+        return;
+      }
+      const prev = beforeDrinks.get(key);
+      const diffParts = [];
+      if (prev.sc !== drink.sc || prev.en !== drink.en) diffParts.push('名稱');
+      if (prev.paused !== drink.paused) diffParts.push(drink.paused ? '已暫停' : '已恢復');
+      if (diffParts.length) updatedDrinks.push(`${drink.tc} (${diffParts.join(' / ')})`);
     });
-    beforeNames.forEach(name => {
-      if (!afterNames.includes(name)) removedStaff.push(`${dept}: ${name}`);
+    beforeDrinks.forEach((drink, key) => {
+      if (!afterDrinks.has(key)) removedDrinks.push(drink.tc);
     });
-  });
-  changes.push(makeLogChange('新增人員', addedStaff));
-  changes.push(makeLogChange('刪除人員', removedStaff));
+    changes.push(makeLogChange('新增飲品', addedDrinks));
+    changes.push(makeLogChange('刪除飲品', removedDrinks));
+    changes.push(makeLogChange('更新飲品', updatedDrinks));
+  }
 
-  const beforeCategorySet = new Set();
-  const afterCategorySet = new Set();
-  Object.keys(beforeSeed.menus || {}).forEach(rest => {
-    Object.keys(beforeSeed.menus[rest] || {}).forEach(cat => beforeCategorySet.add(`${rest} / ${cat}`));
-  });
-  Object.keys(afterSeed.menus || {}).forEach(rest => {
-    Object.keys(afterSeed.menus[rest] || {}).forEach(cat => afterCategorySet.add(`${rest} / ${cat}`));
-  });
-  changes.push(makeLogChange('新增分類', Array.from(afterCategorySet).filter(key => !beforeCategorySet.has(key))));
-  changes.push(makeLogChange('刪除分類', Array.from(beforeCategorySet).filter(key => !afterCategorySet.has(key))));
+  if (shouldInclude('staff')) {
+    const beforeDepartments = Object.keys(beforeSeed.staff || {});
+    const afterDepartments = Object.keys(afterSeed.staff || {});
+    changes.push(makeLogChange('新增部門', afterDepartments.filter(name => !beforeDepartments.includes(name))));
+    changes.push(makeLogChange('刪除部門', beforeDepartments.filter(name => !afterDepartments.includes(name))));
+    const addedStaff = [];
+    const removedStaff = [];
+    const departmentNames = [...new Set(beforeDepartments.concat(afterDepartments))];
+    departmentNames.forEach(dept => {
+      const beforeNames = uniqueSortedTextList(beforeSeed.staff && beforeSeed.staff[dept]);
+      const afterNames = uniqueSortedTextList(afterSeed.staff && afterSeed.staff[dept]);
+      afterNames.forEach(name => {
+        if (!beforeNames.includes(name)) addedStaff.push(`${dept}: ${name}`);
+      });
+      beforeNames.forEach(name => {
+        if (!afterNames.includes(name)) removedStaff.push(`${dept}: ${name}`);
+      });
+    });
+    changes.push(makeLogChange('新增人員', addedStaff));
+    changes.push(makeLogChange('刪除人員', removedStaff));
+  }
 
-  const beforeMenus = mapMenuItemsByKey(beforeSeed);
-  const afterMenus = mapMenuItemsByKey(afterSeed);
-  const addedMenus = [];
-  const removedMenus = [];
-  const updatedMenus = [];
-  afterMenus.forEach((item, key) => {
-    if (!beforeMenus.has(key)) {
-      addedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc}`);
-      return;
-    }
-    const prev = beforeMenus.get(key);
-    const diffParts = [];
-    if (prev.nameSc !== item.nameSc || prev.nameEn !== item.nameEn) diffParts.push('名稱');
-    if (prev.price !== item.price) diffParts.push(`價錢 ${prev.price} -> ${item.price}`);
-    if (diffParts.length) updatedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc} (${diffParts.join(' / ')})`);
-  });
-  beforeMenus.forEach((item, key) => {
-    if (!afterMenus.has(key)) removedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc}`);
-  });
-  changes.push(makeLogChange('新增餐點', addedMenus));
-  changes.push(makeLogChange('刪除餐點', removedMenus));
-  changes.push(makeLogChange('更新餐點', updatedMenus));
+  if (shouldInclude('menus')) {
+    const beforeCategorySet = new Set();
+    const afterCategorySet = new Set();
+    Object.keys(beforeSeed.menus || {}).forEach(rest => {
+      Object.keys(beforeSeed.menus[rest] || {}).forEach(cat => beforeCategorySet.add(`${rest} / ${cat}`));
+    });
+    Object.keys(afterSeed.menus || {}).forEach(rest => {
+      Object.keys(afterSeed.menus[rest] || {}).forEach(cat => afterCategorySet.add(`${rest} / ${cat}`));
+    });
+    changes.push(makeLogChange('新增分類', Array.from(afterCategorySet).filter(key => !beforeCategorySet.has(key))));
+    changes.push(makeLogChange('刪除分類', Array.from(beforeCategorySet).filter(key => !afterCategorySet.has(key))));
+
+    const beforeMenus = mapMenuItemsByKey(beforeSeed);
+    const afterMenus = mapMenuItemsByKey(afterSeed);
+    const addedMenus = [];
+    const removedMenus = [];
+    const updatedMenus = [];
+    afterMenus.forEach((item, key) => {
+      if (!beforeMenus.has(key)) {
+        addedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc}`);
+        return;
+      }
+      const prev = beforeMenus.get(key);
+      const diffParts = [];
+      if (prev.nameSc !== item.nameSc || prev.nameEn !== item.nameEn) diffParts.push('名稱');
+      if (prev.price !== item.price) diffParts.push(`價錢 ${prev.price} -> ${item.price}`);
+      if (diffParts.length) updatedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc} (${diffParts.join(' / ')})`);
+    });
+    beforeMenus.forEach((item, key) => {
+      if (!afterMenus.has(key)) removedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc}`);
+    });
+    changes.push(makeLogChange('新增餐點', addedMenus));
+    changes.push(makeLogChange('刪除餐點', removedMenus));
+    changes.push(makeLogChange('更新餐點', updatedMenus));
+  }
 
   return { changes: changes.filter(Boolean) };
 }
 
 function buildSeedLogEntry({ admin, section, merge, beforeSeed, afterSeed, added }) {
-  const details = buildSeedLogDetails(beforeSeed, afterSeed);
+  const details = buildSeedLogDetails(beforeSeed, afterSeed, section);
   const detailSummary = makeLogSummary(details.changes);
   const importSummary = added ? formatImportAdded(added) : '';
   const summary = merge
