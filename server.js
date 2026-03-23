@@ -1038,9 +1038,12 @@ async function saveAdminUsersSupabase(users) {
   }
 }
 
-async function getAdminLogsSupabase(limit = 100) {
+async function getAdminLogsSupabase(options = {}) {
+  const limit = Number.isFinite(options.limit) ? Math.max(1, Math.min(200, Math.floor(options.limit))) : 100;
+  const username = normText(options.username).toLowerCase();
   try {
     const rows = await supaSelect(TABLES.adminLogs, 'id,created_at,username,action,section,summary,details', {
+      eq: username ? { username } : undefined,
       order: [{ column: 'created_at', ascending: false }],
       limit
     });
@@ -1224,8 +1227,12 @@ async function saveAdminUsersLocal(users) {
   writeJson(ADMIN_USERS_FILE, normalizeAdminUsers(users));
 }
 
-async function getAdminLogsLocal(limit = 100) {
-  return normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, defaultAdminLogs())).slice(0, Math.max(1, limit));
+async function getAdminLogsLocal(options = {}) {
+  const limit = Number.isFinite(options.limit) ? Math.max(1, Math.min(200, Math.floor(options.limit))) : 100;
+  const username = normText(options.username).toLowerCase();
+  const logs = normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, defaultAdminLogs()));
+  const filtered = username ? logs.filter(log => normText(log.username).toLowerCase() === username) : logs;
+  return filtered.slice(0, limit);
 }
 
 async function appendAdminLogLocal(entry) {
@@ -1285,9 +1292,9 @@ const storage = {
     if (USE_SUPABASE) return saveAdminUsersSupabase(users);
     return saveAdminUsersLocal(users);
   },
-  getAdminLogs(limit = 100) {
-    if (USE_SUPABASE) return getAdminLogsSupabase(limit);
-    return getAdminLogsLocal(limit);
+  getAdminLogs(options = {}) {
+    if (USE_SUPABASE) return getAdminLogsSupabase(options);
+    return getAdminLogsLocal(options);
   },
   appendAdminLog(entry) {
     if (USE_SUPABASE) return appendAdminLogSupabase(entry);
@@ -1821,7 +1828,10 @@ async function handleApi(req, res, urlObj) {
     clearAuthFailures(req, 'admin');
     const limitRaw = Number(urlObj.searchParams.get('limit') || 100);
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
-    const logs = await storage.getAdminLogs(limit);
+    const logs = await storage.getAdminLogs({
+      limit,
+      username: admin.isRoot ? '' : admin.username
+    });
     return json(res, 200, { logs });
   }
 

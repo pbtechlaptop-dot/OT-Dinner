@@ -175,6 +175,7 @@ function setSectionVisibility() {
   setVisible(el.sectionStaff, hasPermission('staff'));
   setVisible(el.sectionMenus, hasPermission('menus'));
   setVisible(el.sectionUsers, hasPermission('users'));
+  setVisible(el.sectionLogs, state.authenticated);
   setVisible(el.saveBtn, state.isRoot);
   setVisible(el.resetDayBtn, hasPermission('reset_main'));
   setVisible(el.resetLadyRubyBtn, hasPermission('reset_lady_ruby'));
@@ -739,7 +740,8 @@ function renderLogChange(change) {
 function renderLogs() {
   if (!el.adminLogsList || !el.logsHint) return;
   const logs = Array.isArray(state.logs) ? state.logs : [];
-  el.logsHint.textContent = logs.length ? `顯示最近 ${logs.length} 筆操作紀錄` : '暫時未有操作紀錄。';
+  const scopeLabel = state.isRoot ? '全部操作紀錄' : '你自己的操作紀錄';
+  el.logsHint.textContent = logs.length ? `顯示最近 ${logs.length} 筆${scopeLabel}` : `暫時未有${scopeLabel}。`;
   if (!logs.length) {
     el.adminLogsList.innerHTML = '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">未有可顯示的紀錄。</p>';
     return;
