@@ -400,6 +400,14 @@ async function fetchAdminLogs(limit = 100) {
   return Array.isArray(payload.logs) ? payload.logs : [];
 }
 
+async function deleteAdminLog(id) {
+  const payload = await api('/api/admin/logs/delete', {
+    method: 'POST',
+    body: JSON.stringify(adminAuthBody({ id }))
+  });
+  return Boolean(payload && payload.deleted);
+}
+
 async function fetchAdminUsernames() {
   const payload = await api('/api/admin/usernames');
   return Array.isArray(payload.usernames) ? payload.usernames : ['admin'];
@@ -756,11 +764,37 @@ function renderLogs() {
           <p class="font-semibold text-pbnavy">${log.summary || '已更新資料'}</p>
           <p class="mt-1 text-xs text-slate-500">帳號：${log.username || 'admin'} ｜ 區域：${log.section || 'all'} ｜ ${formatLogTime(log.createdAt)}</p>
         </div>
-        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">${log.action || 'save'}</span>
+        <div class="flex items-center gap-2">
+          <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">${log.action || 'save'}</span>
+          ${state.isRoot ? `<button type="button" data-id="${log.id || ''}" class="delete-log rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700">刪除紀錄</button>` : ''}
+        </div>
       </div>
       ${changesHtml ? `<div class="mt-3 grid grid-cols-1 gap-2">${changesHtml}</div>` : ''}
     </article>`;
   }).join('');
+
+  if (state.isRoot) {
+    el.adminLogsList.querySelectorAll('.delete-log').forEach(button => {
+      button.onclick = async () => {
+        const id = String(button.dataset.id || '').trim();
+        if (!id) return;
+        if (!window.confirm('確定要刪除這筆操作紀錄？此操作不能還原。')) return;
+        try {
+          button.disabled = true;
+          await deleteAdminLog(id);
+          state.logs = state.logs.filter(log => String(log.id || '') !== id);
+          renderLogs();
+          setStatus('已刪除操作紀錄。');
+          showToast('已刪除操作紀錄');
+        } catch (err) {
+          setStatus(`刪除操作紀錄失敗: ${err.message}`, true);
+          showToast('刪除操作紀錄失敗', true);
+          handleAdminPasswordError(err);
+          button.disabled = false;
+        }
+      };
+    });
+  }
 }
 
 async function loadAdminLogs(options = {}) {

@@ -1091,6 +1091,20 @@ async function appendAdminLogSupabase(entry) {
   }
 }
 
+async function deleteAdminLogSupabase(id) {
+  const logId = normText(id);
+  if (!logId) return false;
+  const { error, count } = await supabase
+    .from(TABLES.adminLogs)
+    .delete({ count: 'exact' })
+    .eq('id', logId);
+  if (error) {
+    if (isMissingSupabaseTable(error, TABLES.adminLogs)) return false;
+    throw new Error(`Supabase delete admin_logs failed: ${error.message}`);
+  }
+  return Number(count || 0) > 0;
+}
+
 async function selectOrdersSupabase(date, appId) {
   try {
     return await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id', {
@@ -1254,6 +1268,16 @@ async function appendAdminLogLocal(entry) {
   writeJson(ADMIN_LOGS_FILE, logs.slice(0, 500));
 }
 
+async function deleteAdminLogLocal(id) {
+  const logId = normText(id);
+  if (!logId) return false;
+  const logs = normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, defaultAdminLogs()));
+  const nextLogs = logs.filter(log => normText(log.id) !== logId);
+  const deleted = nextLogs.length !== logs.length;
+  if (deleted) writeJson(ADMIN_LOGS_FILE, nextLogs);
+  return deleted;
+}
+
 async function getStateLocal(appId = APP_MAIN) {
   const statePath = stateFileForApp(appId);
   const state = normalizeState(readJsonSafe(statePath, defaultState()));
@@ -1310,6 +1334,10 @@ const storage = {
   appendAdminLog(entry) {
     if (USE_SUPABASE) return appendAdminLogSupabase(entry);
     return appendAdminLogLocal(entry);
+  },
+  deleteAdminLog(id) {
+    if (USE_SUPABASE) return deleteAdminLogSupabase(id);
+    return deleteAdminLogLocal(id);
   },
   getState(appId = APP_MAIN) {
     const normalizedAppId = normalizeAppId(appId);
@@ -1844,6 +1872,24 @@ async function handleApi(req, res, urlObj) {
       username: admin.isRoot ? '' : admin.username
     });
     return json(res, 200, { logs });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/logs/delete') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const body = await parseBody(req);
+    const admin = await authenticateAdmin(body);
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    if (!admin.isRoot) {
+      return json(res, 403, { error: 'Only admin can delete logs.' });
+    }
+    const deleted = await storage.deleteAdminLog(body && body.id);
+    return json(res, 200, { ok: true, deleted });
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/users') {
