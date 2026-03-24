@@ -115,6 +115,13 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function normalizeOrderTimestamp(value) {
+  const raw = normText(value);
+  if (!raw) return '';
+  const time = Date.parse(raw);
+  return Number.isFinite(time) ? new Date(time).toISOString() : '';
+}
+
 function uniqueSortedTextList(items) {
   return [...new Set((Array.isArray(items) ? items : []).map(v => normText(v)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
@@ -857,7 +864,10 @@ function normalizeState(input) {
     date: normText(state.date) || todayISO(),
     restaurant: state.restaurant ? normText(state.restaurant) : null,
     cutoffTime: normalizeCutoffTime(state.cutoffTime) || DEFAULT_CUTOFF_TIME,
-    orders: Array.isArray(state.orders) ? state.orders : []
+    orders: (Array.isArray(state.orders) ? state.orders : []).map(order => ({
+      ...order,
+      orderedAt: normalizeOrderTimestamp(order && order.orderedAt)
+    }))
   };
 }
 
@@ -913,6 +923,10 @@ function cutoffSchemaMigrationMessage() {
 
 function ordersSchemaMigrationMessage() {
   return 'Supabase orders table is missing app_id. Please run the SQL migration in README.md before using main and Lady Ruby separately in production.';
+}
+
+function orderTimeSchemaMigrationMessage() {
+  return 'Supabase orders table is missing ordered_at. Please run the SQL migration in README.md before recording order timestamps.';
 }
 
 async function supaDeleteAll(table, keyCol) {
@@ -1143,11 +1157,18 @@ async function deleteAdminLogSupabase(id) {
 
 async function selectOrdersSupabase(date, appId) {
   try {
-    return await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id', {
+    return await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id,ordered_at', {
       eq: { date, app_id: appId },
       order: [{ column: 'dept' }, { column: 'name' }]
     });
   } catch (err) {
+    if (isMissingSupabaseColumn(err, 'ordered_at')) {
+      const rows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id', {
+        eq: { date, app_id: appId },
+        order: [{ column: 'dept' }, { column: 'name' }]
+      });
+      return (rows || []).map(row => ({ ...row, ordered_at: null }));
+    }
     if (!isMissingSupabaseColumn(err, 'app_id')) throw err;
     throw new Error(ordersSchemaMigrationMessage());
   }
@@ -1172,9 +1193,13 @@ async function insertOrdersSupabase(date, appId, orders) {
     food: normText(o.food),
     addon: normText(o.addon),
     drink: normText(o.drink),
-    price: Number(o.price || 0)
+    price: Number(o.price || 0),
+    ordered_at: normalizeOrderTimestamp(o.orderedAt) || nowIso()
   }));
   let result = await supabase.from(TABLES.orders).insert(rowsWithApp);
+  if (result.error && isMissingSupabaseColumn(result.error, 'ordered_at')) {
+    throw new Error(orderTimeSchemaMigrationMessage());
+  }
   if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
     throw new Error(ordersSchemaMigrationMessage());
   }
@@ -1190,9 +1215,13 @@ async function upsertOrderSupabase(appId, date, order) {
     food: normText(order.food),
     addon: normText(order.addon),
     drink: normText(order.drink),
-    price: Number(order.price)
+    price: Number(order.price),
+    ordered_at: nowIso()
   };
   let result = await supabase.from(TABLES.orders).upsert(row, { onConflict: 'date,app_id,dept,name' });
+  if (result.error && isMissingSupabaseColumn(result.error, 'ordered_at')) {
+    throw new Error(orderTimeSchemaMigrationMessage());
+  }
   if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
     throw new Error(ordersSchemaMigrationMessage());
   }
@@ -1238,7 +1267,8 @@ async function getStateSupabase(appId = APP_MAIN) {
     food: normText(o.food),
     addon: normText(o.addon),
     drink: normText(o.drink),
-    price: Number(o.price || 0)
+    price: Number(o.price || 0),
+    orderedAt: normalizeOrderTimestamp(o.ordered_at)
   }));
 
   return {
@@ -1713,7 +1743,8 @@ async function handleApi(req, res, urlObj) {
       food: normText(body.food),
       addon: normText(body.addon),
       drink: normText(body.drink),
-      price: Number(body.price)
+      price: Number(body.price),
+      orderedAt: nowIso()
     };
 
     const existed = state.orders.some(o => o.dept === clean.dept && o.name === clean.name);

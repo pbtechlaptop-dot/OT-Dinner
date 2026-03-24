@@ -76,6 +76,7 @@ create table if not exists public.orders (
   food text not null,
   addon text not null default '',
   drink text not null default '',
+  ordered_at timestamptz null,
   price numeric(10,2) not null,
   unique (date, app_id, dept, name)
 );
@@ -104,6 +105,9 @@ If `orders` already exists, also run:
 ```sql
 alter table public.orders
 add column if not exists app_id text not null default 'main';
+
+alter table public.orders
+add column if not exists ordered_at timestamptz null;
 
 update public.orders
 set app_id = 'main'
