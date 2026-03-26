@@ -72,6 +72,7 @@ const el = {
   menuSc: document.getElementById('menuSc'),
   menuEn: document.getElementById('menuEn'),
   menuPrice: document.getElementById('menuPrice'),
+  menuOptions: document.getElementById('menuOptions'),
   addMenuBtn: document.getElementById('addMenuBtn'),
   saveRestaurantBtn: document.getElementById('saveRestaurantBtn'),
   saveDrinkBtn: document.getElementById('saveDrinkBtn'),
@@ -511,6 +512,15 @@ function parseOptionGroups(input) {
   return cleaned;
 }
 
+function parseOptionGroupsInput(rawInput) {
+  const trimmed = String(rawInput || '').trim();
+  if (!trimmed) return { groups: [], error: '' };
+  if (trimmed === '[]') return { groups: [], error: '' };
+  const groups = parseOptionGroups(trimmed);
+  if (!groups.length) return { groups: [], error: '選項格式錯誤（需為JSON）' };
+  return { groups, error: '' };
+}
+
 function normalizeSeed() {
   const restaurants = [...new Set((state.seed.restaurants || []).map(v => String(v || '').trim()).filter(Boolean))];
   state.seed.restaurants = restaurants;
@@ -681,13 +691,14 @@ function renderMenuCategories() {
 
 function resetMenuEdit() {
   state.menuEdit = null;
-  if (el.addMenuBtn) el.addMenuBtn.textContent = '新增餐點';
+  if (el.addMenuBtn) el.addMenuBtn.textContent = '\u65b0\u589e\u9910\u9ede';
+  if (el.menuOptions) el.menuOptions.value = '';
 }
 
 function renderMenuItems() {
   const rest = currentMenuRestaurant();
   const cat = currentMenuCategory();
-  const menuInputs = [el.menuTc, el.menuSc, el.menuEn, el.menuPrice, el.addMenuBtn];
+  const menuInputs = [el.menuTc, el.menuSc, el.menuEn, el.menuPrice, el.menuOptions, el.addMenuBtn];
 
   if (!rest) {
     menuInputs.forEach(node => { if (node) node.disabled = true; });
@@ -738,8 +749,13 @@ function renderMenuItems() {
       el.menuSc.value = it.nameSc || '';
       el.menuEn.value = it.nameEn || '';
       el.menuPrice.value = String(it.price ?? '');
-      el.addMenuBtn.textContent = '更新餐點';
-      showToast('已載入餐點供更改');
+      if (el.menuOptions) {
+        el.menuOptions.value = Array.isArray(it.optionGroups) && it.optionGroups.length
+          ? JSON.stringify(it.optionGroups)
+          : '';
+      }
+      el.addMenuBtn.textContent = '\u66f4\u65b0\u9910\u9ede';
+      showToast('\u5df2\u8f09\u5165\u9910\u9ede\u4f9b\u66f4\u6539');
     };
   });
 }
@@ -1508,10 +1524,14 @@ el.addMenuBtn.onclick = () => {
   const nameSc = scInput || toSc(tcInput || nameTc);
   const nameEn = String(el.menuEn.value || '').trim() || nameTc;
   const price = Number(String(el.menuPrice.value || '').trim());
-  if (!rest) return setStatus('請先選擇餐廳。', true);
-  if (!cat) return setStatus('請先選擇分類。', true);
-  if (!nameTc) return setStatus('請輸入餐點名稱。', true);
-  if (!Number.isFinite(price) || price < 0) return setStatus('請輸入有效價錢。', true);
+  if (!rest) return setStatus('\u8acb\u5148\u9078\u64c7\u9910\u5ef3\u3002', true);
+  if (!cat) return setStatus('\u8acb\u5148\u9078\u64c7\u5206\u985e\u3002', true);
+  if (!nameTc) return setStatus('\u8acb\u8f38\u5165\u9910\u9ede\u540d\u7a31\u3002', true);
+  if (!Number.isFinite(price) || price < 0) return setStatus('\u8acb\u8f38\u5165\u6709\u6548\u50f9\u9322\u3002', true);
+
+  const optionInput = el.menuOptions ? el.menuOptions.value : '';
+  const optionParsed = parseOptionGroupsInput(optionInput);
+  if (optionParsed.error) return setStatus(optionParsed.error, true);
 
   if (!state.seed.menus[rest]) state.seed.menus[rest] = {};
   if (!state.seed.menus[rest][cat]) state.seed.menus[rest][cat] = [];
@@ -1519,23 +1539,23 @@ el.addMenuBtn.onclick = () => {
   if (state.menuEdit && state.menuEdit.rest === rest && state.menuEdit.cat === cat) {
     const idx = state.menuEdit.index;
     if (idx >= 0 && idx < state.seed.menus[rest][cat].length) {
-      const existing = state.seed.menus[rest][cat][idx] || {};
       const entry = { nameTc, nameSc, nameEn, price };
-      if (Array.isArray(existing.optionGroups) && existing.optionGroups.length) {
-        entry.optionGroups = existing.optionGroups;
-      }
+      if (optionParsed.groups.length) entry.optionGroups = optionParsed.groups;
       state.seed.menus[rest][cat][idx] = entry;
-      markDirty('已更新餐點');
+      markDirty('\u5df2\u66f4\u65b0\u9910\u9ede');
     }
   } else {
-    state.seed.menus[rest][cat].push({ nameTc, nameSc, nameEn, price });
-    markDirty('已新增餐點');
+    const entry = { nameTc, nameSc, nameEn, price };
+    if (optionParsed.groups.length) entry.optionGroups = optionParsed.groups;
+    state.seed.menus[rest][cat].push(entry);
+    markDirty('\u5df2\u65b0\u589e\u9910\u9ede');
   }
 
   el.menuTc.value = '';
   el.menuSc.value = '';
   el.menuEn.value = '';
   el.menuPrice.value = '';
+  if (el.menuOptions) el.menuOptions.value = '';
   resetMenuEdit();
   renderMenuItems();
 };
@@ -1544,6 +1564,20 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -130,6 +130,10 @@
           <input id="menuPrice" type="number" step="0.01" min="0" placeholder="價錢" class="rounded-md border border-slate-300 px-3 py-2" />
           <button id="addMenuBtn" class="rounded-md bg-pbnavy px-3 py-2 text-white">新增餐點</button>
         </div>
+        <div class="mt-2">
+          <textarea id="menuOptions" rows="3" placeholder="選項 JSON（例如：[{'id':'pair','label':'雙拼','min':2,'max':2,'choices':['雞','燒肉','叉燒','燒鴨']}]）" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+          <p class="mt-1 text-xs text-slate-500">只有需要選項的餐點才填，留空代表沒有選項。</p>
+        </div>
       </section>
 
       <section id="sectionUsers" class="rounded-xl border border-slate-200 bg-white p-4">
