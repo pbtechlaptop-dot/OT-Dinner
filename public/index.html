@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
@@ -86,6 +86,10 @@
           <span data-i18n="drink">飲品</span>
           <select id="drinkSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
+        <div id="optionGroupsWrap" class="col-span-1 hidden gap-2 text-sm text-slate-600 md:col-span-2">
+          <span class="font-semibold text-slate-600" data-i18n="optionsTitle">選項</span>
+          <div id="optionGroupsList" class="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3"></div>
+        </div>
         <label class="col-span-1 grid gap-1 text-sm text-slate-600 md:col-span-2">
           <span data-i18n="addon">加配</span>
           <input id="addonInput" type="text" data-i18n-placeholder="addonHint" placeholder="例如：走蔥、加飯" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
@@ -161,6 +165,8 @@
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="/app.js?v=20260320-1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.min.js"></script>
+  <script src="/app.js?v=20260326-4"></script>
 </body>
 </html>
+

@@ -1,4 +1,4 @@
-﻿const state = {
+const state = {
   appId: document.body.dataset.appId || 'main',
   defaultCutoffTime: '13:00',
   restaurants: [],
@@ -15,6 +15,18 @@
   drinkLookup: {},
   lastOrdersSignature: ''
 };
+
+let toSc = v => String(v || '');
+let toTc = v => String(v || '');
+try {
+  if (window.OpenCC && window.OpenCC.Converter) {
+    toSc = window.OpenCC.Converter({ from: 'tw', to: 'cn' });
+    toTc = window.OpenCC.Converter({ from: 'cn', to: 'tw' });
+  }
+} catch {
+  toSc = v => String(v || '');
+  toTc = v => String(v || '');
+}
 
 const i18n = {
   tc: {
@@ -34,6 +46,8 @@ const i18n = {
     food: '餐點',
     price: '價錢',
     drink: '飲品',
+    optionsTitle: '選項',
+    optionsHint: '請選擇：',
     addon: '加配',
     addonHint: '例如：走蔥、加飯',
     submitOrder: '提交訂單',
@@ -47,6 +61,8 @@ const i18n = {
     notSet: '未設定',
     noOrders: '未有訂單',
     noDrink: '無',
+    optionRequired: '請先完成選項選擇。',
+    optionTooMany: '選項超出數量限制。',
     selectRestaurant: '-- 選擇餐廳 --',
     selectDept: '-- 選擇部門 --',
     selectName: '-- 選擇同事 --',
@@ -106,6 +122,8 @@ const i18n = {
     food: '餐点',
     price: '价格',
     drink: '饮品',
+    optionsTitle: '选项',
+    optionsHint: '请选择：',
     addon: '加配',
     addonHint: '例如：走葱、加饭',
     submitOrder: '提交订单',
@@ -119,6 +137,8 @@ const i18n = {
     notSet: '未设置',
     noOrders: '暂无订单',
     noDrink: '无',
+    optionRequired: '请先完成选项选择。',
+    optionTooMany: '选项超出数量限制。',
     selectRestaurant: '-- 选择餐厅 --',
     selectDept: '-- 选择部门 --',
     selectName: '-- 选择人员 --',
@@ -178,6 +198,8 @@ const i18n = {
     food: 'Food',
     price: 'Price',
     drink: 'Drink',
+    optionsTitle: 'Options',
+    optionsHint: 'Please choose:',
     addon: 'Addon',
     addonHint: 'e.g. no onion, extra rice',
     submitOrder: 'Submit Order',
@@ -191,6 +213,8 @@ const i18n = {
     notSet: 'Not set',
     noOrders: 'No orders yet',
     noDrink: 'No drink',
+    optionRequired: 'Please complete required options.',
+    optionTooMany: 'Too many options selected.',
     selectRestaurant: '-- Select Restaurant --',
     selectDept: '-- Select Department --',
     selectName: '-- Select Name --',
@@ -258,6 +282,8 @@ const el = {
   foodSelect: document.getElementById('foodSelect'),
   priceInput: document.getElementById('priceInput'),
   drinkSelect: document.getElementById('drinkSelect'),
+  optionGroupsWrap: document.getElementById('optionGroupsWrap'),
+  optionGroupsList: document.getElementById('optionGroupsList'),
   addonInput: document.getElementById('addonInput'),
   orderForm: document.getElementById('orderForm'),
   ordersBody: document.getElementById('ordersBody'),
@@ -400,12 +426,22 @@ function normalizeMenuItem(item) {
 
 function getLocalizedDrink(drink) {
   const d = normalizeDrink(drink);
-  return state.lang === 'en' ? d.en : state.lang === 'sc' ? d.sc : d.tc;
+  if (state.lang === 'en') return d.en;
+  if (state.lang === 'sc') {
+    const sc = d.sc || d.tc;
+    return sc === d.tc ? toSc(d.tc) : sc;
+  }
+  return d.tc;
 }
 
 function getLocalizedFood(item) {
   const f = normalizeMenuItem(item);
-  return state.lang === 'en' ? f.nameEn : state.lang === 'sc' ? f.nameSc : f.nameTc;
+  if (state.lang === 'en') return f.nameEn;
+  if (state.lang === 'sc') {
+    const sc = f.nameSc || f.nameTc;
+    return sc === f.nameTc ? toSc(f.nameTc) : sc;
+  }
+  return f.nameTc;
 }
 
 function applyI18n() {
@@ -434,6 +470,13 @@ function fillSelect(select, items, placeholder) {
     opt.value = item.value;
     opt.textContent = item.label;
     if (item.price !== undefined) opt.dataset.price = String(item.price);
+    if (item.optionGroups !== undefined) {
+      try {
+        opt.dataset.optionGroups = JSON.stringify(item.optionGroups || []);
+      } catch {
+        opt.dataset.optionGroups = '[]';
+      }
+    }
     select.appendChild(opt);
   });
 }
@@ -527,9 +570,10 @@ function renderFood() {
   const items = (state.menu && state.menu[cat]) ? state.menu[cat] : [];
   fillSelect(el.foodSelect, items.map(raw => {
     const f = normalizeMenuItem(raw);
-    return { value: f.nameTc, label: `${getLocalizedFood(f)} ($${f.price})`, price: f.price };
+    return { value: f.nameTc, label: `${getLocalizedFood(f)} ($${f.price})`, price: f.price, optionGroups: f.optionGroups };
   }), t('selectFood'));
   el.priceInput.value = '';
+  renderOptionGroupsFromSelection();
 }
 
 function displayFood(foodKey) {
@@ -541,6 +585,115 @@ function displayDrink(drinkKey) {
   if (!drinkKey) return t('noDrink');
   const d = state.drinkLookup[drinkKey];
   return d ? getLocalizedDrink(d) : drinkKey;
+}
+
+function displayAddon(addonText) {
+  const raw = String(addonText || '').trim();
+  if (!raw) return '';
+  const hasCjk = /[\u3400-\u9fff]/.test(raw);
+  if (!hasCjk) return raw;
+  let out = '';
+  for (const ch of raw) {
+    if (/[\u3400-\u9fff]/.test(ch)) out += ch;
+    else if (/[0-9]/.test(ch)) out += ch;
+    else if (/[+,;\\/、]/.test(ch)) out += ch;
+    else if (/\s/.test(ch)) out += ' ';
+  }
+  out = out.replace(/\s+/g, ' ').replace(/\s*([+,;\\/、])\s*/g, '$1').trim();
+  return out || raw;
+}
+
+function renderOptionGroups(foodKey, optionGroupsRaw) {
+  if (!el.optionGroupsWrap || !el.optionGroupsList) return;
+  el.optionGroupsList.innerHTML = '';
+  let groups = [];
+  if (optionGroupsRaw) {
+    try {
+      const parsed = JSON.parse(optionGroupsRaw);
+      if (Array.isArray(parsed)) groups = parsed;
+    } catch {
+      groups = [];
+    }
+  } else {
+    const item = state.foodLookup[foodKey];
+    groups = item && Array.isArray(item.optionGroups) ? item.optionGroups : [];
+  }
+  if (!groups.length) {
+    el.optionGroupsWrap.classList.add('hidden');
+    return;
+  }
+
+  el.optionGroupsWrap.classList.remove('hidden');
+  groups.forEach((group, gIndex) => {
+    const label = group.label || t('optionsTitle');
+    const min = Number.isFinite(group.min) ? group.min : 0;
+    const max = Number.isFinite(group.max) ? group.max : group.choices.length;
+    const isSingle = max === 1 && min <= 1;
+    const wrap = document.createElement('div');
+    wrap.className = 'rounded-md border border-slate-200 bg-white p-2';
+
+    const header = document.createElement('div');
+    header.className = 'mb-1 text-sm font-semibold text-slate-700';
+    header.textContent = `${label} (${t('optionsHint')}${min}${max === min ? '' : `-${max}`})`;
+    wrap.appendChild(header);
+
+    const optionsWrap = document.createElement('div');
+    optionsWrap.className = 'grid gap-1 sm:grid-cols-2';
+    (group.choices || []).forEach((choice, cIndex) => {
+      const choiceLabel = String(choice);
+      const optLabel = document.createElement('label');
+      optLabel.className = 'flex items-center gap-2 text-sm text-slate-700';
+      const input = document.createElement('input');
+      input.type = isSingle ? 'radio' : 'checkbox';
+      input.name = `opt-${gIndex}`;
+      input.value = String(choiceLabel);
+      input.dataset.groupIndex = String(gIndex);
+      input.dataset.groupMin = String(min);
+      input.dataset.groupMax = String(max);
+      input.className = 'h-4 w-4 accent-pbnavy';
+      optLabel.appendChild(input);
+      const span = document.createElement('span');
+      span.textContent = choiceLabel;
+      optLabel.appendChild(span);
+      optionsWrap.appendChild(optLabel);
+    });
+    wrap.appendChild(optionsWrap);
+    el.optionGroupsList.appendChild(wrap);
+  });
+}
+
+function renderOptionGroupsFromSelection() {
+  const opt = el.foodSelect.options[el.foodSelect.selectedIndex];
+  const raw = opt && opt.dataset ? opt.dataset.optionGroups : '';
+  renderOptionGroups(el.foodSelect.value, raw);
+}
+
+function collectOptionSelections() {
+  if (!el.optionGroupsWrap || el.optionGroupsWrap.classList.contains('hidden')) {
+    return { ok: true, text: '' };
+  }
+  const groups = Array.from(el.optionGroupsList.children || []);
+  const selections = [];
+  let anyError = false;
+  const normalizeChoiceLabel = value => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const matches = raw.match(/[\u3400-\u9fff]+/g);
+    if (matches && matches.length) return matches.join('');
+    return raw;
+  };
+  for (const groupEl of groups) {
+    const inputs = Array.from(groupEl.querySelectorAll('input'));
+    if (!inputs.length) continue;
+    const min = Number(inputs[0].dataset.groupMin || 0);
+    const max = Number(inputs[0].dataset.groupMax || inputs.length);
+    const chosen = inputs.filter(i => i.checked).map(i => normalizeChoiceLabel(i.value)).filter(Boolean);
+    if (chosen.length < min) anyError = true;
+    if (chosen.length > max) return { ok: false, text: '', error: t('optionTooMany') };
+    if (chosen.length) selections.push(chosen.join('+'));
+  }
+  if (anyError) return { ok: false, text: '', error: t('optionRequired') };
+  return { ok: true, text: selections.join(', ') };
 }
 
 function orderSignature(orders) {
@@ -679,7 +832,7 @@ function renderOrders() {
   el.ordersBody.innerHTML = orders.map((o, i) => {
     const p = Number(o.price || 0);
     total += p;
-    return `<tr><td>${i + 1}</td><td>${o.dept}</td><td>${o.name}</td><td>${displayFood(o.food)}</td><td>${o.addon || ''}</td><td>${displayDrink(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
+    return `<tr><td>${i + 1}</td><td>${o.dept}</td><td>${o.name}</td><td>${displayFood(o.food)}</td><td>${displayAddon(o.addon || '')}</td><td>${displayDrink(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
   }).join('');
   el.totalPrice.textContent = total.toFixed(2);
 
@@ -950,6 +1103,7 @@ function resetOrderForm() {
   el.priceInput.value = '';
   el.drinkSelect.value = '';
   el.addonInput.value = '';
+  renderOptionGroups('');
 }
 
 async function exportXlsx() {
@@ -964,7 +1118,7 @@ async function exportXlsx() {
     o.dept || '',
     o.name || '',
     displayFood(o.food || ''),
-    o.addon || '',
+    displayAddon(o.addon || ''),
     displayDrink(o.drink || ''),
     Number(o.price || 0)
   ]);
@@ -990,6 +1144,7 @@ el.categorySelect.addEventListener('change', renderFood);
 el.foodSelect.addEventListener('change', () => {
   const opt = el.foodSelect.options[el.foodSelect.selectedIndex];
   el.priceInput.value = opt && opt.dataset ? (opt.dataset.price || '') : '';
+  renderOptionGroupsFromSelection();
 });
 el.restaurantSelect?.addEventListener('change', syncRestaurantLock);
 el.openRestaurantModalBtn?.addEventListener('click', openRestaurantModal);
@@ -1061,7 +1216,14 @@ el.orderForm.addEventListener('submit', async event => {
   const price = parsePriceInput(selectedPrice || el.priceInput.value);
   if (!Number.isFinite(price)) return showToast(t('badPrice'));
 
-  const order = { dept: el.deptSelect.value, name: el.nameSelect.value, food: el.foodSelect.value, price, addon: el.addonInput.value, drink: el.drinkSelect.value };
+  const optionSummary = collectOptionSelections();
+  if (!optionSummary.ok) return showOrderError(optionSummary.error || t('optionRequired'));
+  const addonText = String(el.addonInput.value || '').trim();
+  const mergedAddon = optionSummary.text
+    ? (addonText ? `${addonText}, ${optionSummary.text}` : optionSummary.text)
+    : addonText;
+
+  const order = { dept: el.deptSelect.value, name: el.nameSelect.value, food: el.foodSelect.value, price, addon: mergedAddon, drink: el.drinkSelect.value };
   try {
     setBusy(true);
     const payload = await api('/api/orders', { method: 'POST', body: JSON.stringify(order) });
