@@ -23,26 +23,59 @@
   <body>
     <h1>Option Groups Builder</h1>
     <div class="panel">
+      <h2 style="margin: 0 0 8px; font-size: 14px;">Group A (Main)</h2>
       <div class="row">
         <div class="flex-1">
-          <label for="label">Label</label>
-          <input id="label" type="text" placeholder="e.g. Double combo (pick 2)" />
+          <label for="labelA">Label</label>
+          <input id="labelA" type="text" placeholder="e.g. Double combo (pick 2)" />
         </div>
         <div class="flex-1">
-          <label for="min">Min</label>
-          <input id="min" type="number" min="0" step="1" placeholder="e.g. 2" />
+          <label for="minA">Min</label>
+          <input id="minA" type="number" min="0" step="1" placeholder="e.g. 2" />
         </div>
         <div class="flex-1">
-          <label for="max">Max</label>
-          <input id="max" type="number" min="0" step="1" placeholder="e.g. 2" />
+          <label for="maxA">Max</label>
+          <input id="maxA" type="number" min="0" step="1" placeholder="e.g. 2" />
         </div>
         <div class="flex-1">
-          <label for="id">Id (optional)</label>
-          <input id="id" type="text" placeholder="e.g. pair" />
+          <label for="idA">Id (optional)</label>
+          <input id="idA" type="text" placeholder="e.g. pair" />
         </div>
       </div>
-      <label for="input">Choices per row (one row per menu item, comma-separated)</label>
-      <textarea id="input" placeholder="Example:\nChicken, Pork, Beef\nChicken, Duck, Char siu"></textarea>
+      <label for="inputA">Choices per row (one row per menu item, comma-separated)</label>
+      <textarea id="inputA" placeholder="Example:\nChicken, Pork, Beef\nChicken, Duck, Char siu"></textarea>
+
+      <h2 style="margin: 14px 0 8px; font-size: 14px;">Group B (Optional)</h2>
+      <div class="row">
+        <label class="flex-1" style="display:flex; align-items:center; gap:8px; font-size:12px;">
+          <input id="enableB" type="checkbox" />
+          Enable Group B
+        </label>
+        <label class="flex-1" style="display:flex; align-items:center; gap:8px; font-size:12px;">
+          <input id="sameB" type="checkbox" checked />
+          Same choices for all rows
+        </label>
+      </div>
+      <div class="row">
+        <div class="flex-1">
+          <label for="labelB">Label</label>
+          <input id="labelB" type="text" placeholder="e.g. Base (pick 1)" />
+        </div>
+        <div class="flex-1">
+          <label for="minB">Min</label>
+          <input id="minB" type="number" min="0" step="1" placeholder="e.g. 1" />
+        </div>
+        <div class="flex-1">
+          <label for="maxB">Max</label>
+          <input id="maxB" type="number" min="0" step="1" placeholder="e.g. 1" />
+        </div>
+        <div class="flex-1">
+          <label for="idB">Id (optional)</label>
+          <input id="idB" type="text" placeholder="e.g. base" />
+        </div>
+      </div>
+      <label for="inputB">Choices for Group B (comma-separated)</label>
+      <textarea id="inputB" placeholder="Example:\nRice, Noodle"></textarea>
       <div class="row" style="margin-top: 12px;">
         <button id="build">Build JSON</button>
         <button id="copy" class="secondary">Copy Output</button>
@@ -57,9 +90,12 @@
       const buildBtn = $('build');
       const copyBtn = $('copy');
 
-      function buildJsonLine(line, index, meta) {
-        const choices = line.split(',').map(v => v.trim()).filter(Boolean);
-        if (!choices.length) return '';
+      function parseChoices(line) {
+        return line.split(',').map(v => v.trim()).filter(Boolean);
+      }
+
+      function buildGroup(choices, index, meta) {
+        if (!choices.length) return null;
         const group = {
           id: meta.id || String(index + 1),
           label: meta.label || '',
@@ -67,18 +103,43 @@
         };
         if (Number.isFinite(meta.min)) group.min = meta.min;
         if (Number.isFinite(meta.max)) group.max = meta.max;
-        return JSON.stringify([group]);
+        return group;
       }
 
       buildBtn.onclick = () => {
-        const label = $('label').value.trim();
-        const id = $('id').value.trim();
-        const minVal = $('min').value;
-        const maxVal = $('max').value;
-        const min = minVal === '' ? undefined : Number(minVal);
-        const max = maxVal === '' ? undefined : Number(maxVal);
-        const lines = $('input').value.split(/\r?\n/);
-        const out = lines.map((line, i) => buildJsonLine(line, i, { label, id, min, max }));
+        const labelA = $('labelA').value.trim();
+        const idA = $('idA').value.trim();
+        const minAVal = $('minA').value;
+        const maxAVal = $('maxA').value;
+        const minA = minAVal === '' ? undefined : Number(minAVal);
+        const maxA = maxAVal === '' ? undefined : Number(maxAVal);
+        const linesA = $('inputA').value.split(/\r?\n/);
+
+        const enableB = $('enableB').checked;
+        const sameB = $('sameB').checked;
+        const labelB = $('labelB').value.trim();
+        const idB = $('idB').value.trim();
+        const minBVal = $('minB').value;
+        const maxBVal = $('maxB').value;
+        const minB = minBVal === '' ? undefined : Number(minBVal);
+        const maxB = maxBVal === '' ? undefined : Number(maxBVal);
+        const linesB = $('inputB').value.split(/\r?\n/);
+        const sharedBChoices = sameB ? parseChoices(linesB[0] || '') : [];
+
+        const out = linesA.map((lineA, i) => {
+          const groups = [];
+          const choicesA = parseChoices(lineA);
+          const groupA = buildGroup(choicesA, i, { label: labelA, id: idA, min: minA, max: maxA });
+          if (groupA) groups.push(groupA);
+
+          if (enableB) {
+            const choicesB = sameB ? sharedBChoices : parseChoices(linesB[i] || '');
+            const groupB = buildGroup(choicesB, i, { label: labelB, id: idB, min: minB, max: maxB });
+            if (groupB) groups.push(groupB);
+          }
+
+          return groups.length ? JSON.stringify(groups) : '';
+        });
         $('output').value = out.join('\n');
       };
 
