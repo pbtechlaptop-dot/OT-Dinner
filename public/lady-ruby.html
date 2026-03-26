@@ -1,9 +1,9 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>åŠ ç­ Order é£¯ç³»çµ±</title>
+  <title>加班 Order 飯系統 - Lady Ruby</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260321-1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -28,96 +28,96 @@
   <main class="mx-auto max-w-6xl px-4 pb-10 pt-4 md:pt-5">
     <header class="mb-4 rounded-xl border border-white/20 bg-gradient-to-r from-pbnavy to-pbnavystrong p-3 text-white shadow-card md:flex md:items-end md:justify-between">
       <div>
-        <h1 id="appTitle" class="m-0 text-2xl font-bold tracking-tight md:text-3xl select-none" data-i18n="appTitle">åŠ ç­ Order é£¯ç³»çµ±</h1>
-        <p id="dateText" class="mt-1 text-sm text-white/85">æ—¥æœŸï¼š--</p>
+        <h1 id="appTitle" class="m-0 text-2xl font-bold tracking-tight md:text-3xl select-none" data-i18n="appTitle">加班 Order 飯系統 - Lady Ruby</h1>
+        <p id="dateText" class="mt-1 text-sm text-white/85">日期：--</p>
         <p id="diagInfo" class="mt-1 text-xs text-white/75" data-i18n="diagLoading">Loading...</p>
       </div>
       <div class="mt-3 flex flex-wrap items-center gap-2 md:mt-0">
-        <button class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" id="langTc" type="button">ç¹ä¸­</button>
-        <button class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" id="langSc" type="button">ç®€ä¸­</button>
+        <button class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" id="langTc" type="button">繁中</button>
+        <button class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" id="langSc" type="button">简中</button>
         <button class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" id="langEn" type="button">EN</button>
-        <a class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" href="/" data-i18n="backToMain">è¿”å›žä¸»ç‰ˆ</a>
-        <a id="exportCsvLink" class="rounded-md bg-pborange px-3 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" href="/api/export/csv" data-i18n="exportCsv">åŒ¯å‡º CSV</a>
-        <button class="rounded-md bg-pborange px-3 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="exportXlsxBtn" type="button" data-i18n="exportExcel">åŒ¯å‡º XLSX</button>
+        <a class="rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20" href="/" data-i18n="backToMain">返回主版</a>
+        <a id="exportCsvLink" class="rounded-md bg-pborange px-3 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" href="/api/export/csv" data-i18n="exportCsv">匯出 CSV</a>
+        <button class="rounded-md bg-pborange px-3 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="exportXlsxBtn" type="button" data-i18n="exportExcel">匯出 XLSX</button>
       </div>
     </header>
 
     <section class="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-      <h2 id="restaurantSectionTitle" class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy select-none" data-i18n="secRestaurant">1) ä»Šæ—¥é¤å»³</h2>
+      <h2 id="restaurantSectionTitle" class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy select-none" data-i18n="secRestaurant">1) 今日餐廳</h2>
       <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p id="restaurantActionHint" class="text-xs text-slate-500" data-i18n="restaurantActionHint">æŒ‰è¨­å®šé¤å»³å¾Œï¼Œå†æ–¼å½ˆå‡ºçš„ç•«é¢é¸æ“‡é¤å»³åŠæˆªå–®æ™‚é–“ã€‚</p>
+            <p id="restaurantActionHint" class="text-xs text-slate-500" data-i18n="restaurantActionHint">按設定餐廳後，再於彈出的畫面選擇餐廳及截單時間。</p>
           </div>
-          <button class="rounded-md bg-pborange px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="openRestaurantModalBtn" data-i18n="setRestaurant">è¨­å®šé¤å»³</button>
+          <button class="rounded-md bg-pborange px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="openRestaurantModalBtn" data-i18n="setRestaurant">設定餐廳</button>
         </div>
       </div>
       <div class="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-3">
-        <p class="text-sm text-slate-500" id="currentRestaurantText">ç›®å‰ï¼šæœªè¨­å®š</p>
+        <p class="text-sm text-slate-500" id="currentRestaurantText">目前：未設定</p>
         <p class="mt-1 text-sm text-slate-500" id="cutoffTimeText"></p>
       </div>
     </section>
 
     <section class="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-      <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secOrder">2) å¡«å¯«è¨‚å–®</h2>
+      <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secOrder">2) 填寫訂單</h2>
       <div id="orderErrorNotice" class="mb-3 hidden rounded-xl border-2 border-red-300 bg-red-50 px-4 py-4 text-base font-semibold text-red-800 shadow-sm"></div>
       <div id="cutoffNotice" class="mb-3 hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"></div>
       <form id="orderForm" class="grid grid-cols-1 gap-2 md:grid-cols-2">
         <label class="grid gap-1 text-sm text-slate-600">
-          <span data-i18n="dept">éƒ¨é–€</span>
+          <span data-i18n="dept">部門</span>
           <select id="deptSelect" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
         <label class="grid gap-1 text-sm text-slate-600">
-          <span data-i18n="name">åŒäº‹</span>
+          <span data-i18n="name">同事</span>
           <select id="nameSelect" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
         <label class="grid gap-1 text-sm text-slate-600">
-          <span data-i18n="category">åˆ†é¡ž</span>
+          <span data-i18n="category">分類</span>
           <select id="categorySelect" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
         <label class="grid gap-1 text-sm text-slate-600">
-          <span data-i18n="food">é¤é»ž</span>
+          <span data-i18n="food">餐點</span>
           <select id="foodSelect" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
         <label class="grid gap-1 text-sm text-slate-600">
-          <span data-i18n="price">åƒ¹éŒ¢</span>
+          <span data-i18n="price">價錢</span>
           <input id="priceInput" type="number" step="0.01" min="0" required readonly class="w-full cursor-not-allowed rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none transition" />
         </label>
         <label class="grid gap-1 text-sm text-slate-600">
-          <span data-i18n="drink">é£²å“</span>
+          <span data-i18n="drink">飲品</span>
           <select id="drinkSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
         <div id="optionGroupsWrap" class="col-span-1 hidden gap-2 text-sm text-slate-600 md:col-span-2">
-          <span class="font-semibold text-slate-600" data-i18n="optionsTitle">é¸é …</span>
+          <span class="font-semibold text-slate-600" data-i18n="optionsTitle">選項</span>
           <div id="optionGroupsList" class="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3"></div>
         </div>
         <label class="col-span-1 grid gap-1 text-sm text-slate-600 md:col-span-2">
-          <span data-i18n="addon">åŠ é…</span>
-          <input id="addonInput" type="text" data-i18n-placeholder="addonHint" placeholder="ä¾‹å¦‚ï¼šèµ°è”¥ã€åŠ é£¯" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
+          <span data-i18n="addon">加配</span>
+          <input id="addonInput" type="text" data-i18n-placeholder="addonHint" placeholder="例如：走蔥、加飯" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
         </label>
-        <button class="col-span-1 rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong md:col-span-2" type="submit" data-i18n="submitOrder">æäº¤è¨‚å–®</button>
+        <button class="col-span-1 rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong md:col-span-2" type="submit" data-i18n="submitOrder">提交訂單</button>
       </form>
     </section>
 
     <section class="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-      <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secOrders">3) ä»Šæ—¥è¨‚å–®</h2>
+      <h2 class="mb-3 border-l-4 border-pborange pl-2 text-lg font-bold text-pbnavy" data-i18n="secOrders">3) 今日訂單</h2>
       <div class="overflow-x-auto rounded-lg border border-slate-200">
         <table class="min-w-full border-collapse text-sm">
           <thead>
             <tr class="bg-slate-50 text-left text-pbnavy">
               <th class="border-b border-slate-200 px-3 py-2">#</th>
-              <th class="border-b border-slate-200 px-3 py-2" data-i18n="dept">éƒ¨é–€</th>
-              <th class="border-b border-slate-200 px-3 py-2" data-i18n="name">åŒäº‹</th>
-              <th class="border-b border-slate-200 px-3 py-2" data-i18n="food">é¤é»ž</th>
-              <th class="border-b border-slate-200 px-3 py-2" data-i18n="addon">åŠ é…</th>
-              <th class="border-b border-slate-200 px-3 py-2" data-i18n="drink">é£²å“</th>
-              <th class="border-b border-slate-200 px-3 py-2" data-i18n="price">åƒ¹éŒ¢</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="dept">部門</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="name">同事</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="food">餐點</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="addon">加配</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="drink">飲品</th>
+              <th class="border-b border-slate-200 px-3 py-2" data-i18n="price">價錢</th>
             </tr>
           </thead>
           <tbody id="ordersBody"></tbody>
           <tfoot>
             <tr class="bg-slate-50 font-bold">
-              <td class="border-t-2 border-slate-200 px-3 py-2" colspan="6" data-i18n="total">ç¸½è¨ˆ</td>
+              <td class="border-t-2 border-slate-200 px-3 py-2" colspan="6" data-i18n="total">總計</td>
               <td class="border-t-2 border-slate-200 px-3 py-2" id="totalPrice">0</td>
             </tr>
           </tfoot>
@@ -140,28 +140,28 @@
     <div class="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
       <div class="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 class="text-lg font-bold text-pbnavy" data-i18n="restaurantModalTitle">è¨­å®šä»Šæ—¥é¤å»³</h3>
-          <p class="mt-1 text-sm text-slate-500" data-i18n="restaurantModalHint">è¼¸å…¥å¯†ç¢¼å¾Œï¼Œé¸æ“‡é¤å»³åŠæˆªå–®æ™‚é–“ã€‚</p>
+          <h3 class="text-lg font-bold text-pbnavy" data-i18n="restaurantModalTitle">設定今日餐廳</h3>
+          <p class="mt-1 text-sm text-slate-500" data-i18n="restaurantModalHint">輸入密碼後，選擇餐廳及截單時間。</p>
         </div>
-        <button id="closeRestaurantModalBtn" type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50" data-i18n="cancel">å–æ¶ˆ</button>
+        <button id="closeRestaurantModalBtn" type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50" data-i18n="cancel">取消</button>
       </div>
       <div class="grid grid-cols-1 gap-3">
         <label class="grid gap-2 text-sm text-slate-600">
-          <span class="font-semibold text-pbnavy" data-i18n="restaurantPicker">é¸æ“‡é¤å»³</span>
+          <span class="font-semibold text-pbnavy" data-i18n="restaurantPicker">選擇餐廳</span>
           <select id="restaurantSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
         </label>
         <label class="grid gap-2 text-sm text-slate-600">
-          <span class="font-semibold text-pbnavy" data-i18n="cutoffTime">æˆªå–®æ™‚é–“</span>
+          <span class="font-semibold text-pbnavy" data-i18n="cutoffTime">截單時間</span>
           <input id="cutoffTimeInput" type="time" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
         </label>
         <label class="grid gap-2 text-sm text-slate-600">
-          <span class="font-semibold text-pbnavy" data-i18n="passwordLabel">ç®¡ç†å¯†ç¢¼</span>
-          <input id="restaurantPasswordInput" type="password" data-i18n-placeholder="enterAdminPassword" placeholder="è«‹è¼¸å…¥ç®¡ç†å¯†ç¢¼" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
+          <span class="font-semibold text-pbnavy" data-i18n="passwordLabel">管理密碼</span>
+          <input id="restaurantPasswordInput" type="password" data-i18n-placeholder="enterAdminPassword" placeholder="請輸入管理密碼" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
         </label>
       </div>
       <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button id="cancelRestaurantModalBtn" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-i18n="cancel">å–æ¶ˆ</button>
-        <button class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="setRestaurantBtn" type="button" data-i18n="saveRestaurantSettings">ç¢ºèªè¨­å®š</button>
+        <button id="cancelRestaurantModalBtn" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-i18n="cancel">取消</button>
+        <button class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" id="setRestaurantBtn" type="button" data-i18n="saveRestaurantSettings">確認設定</button>
       </div>
     </div>
   </div>
@@ -170,4 +170,3 @@
   <script src="/app.js?v=20260326-4"></script>
 </body>
 </html>
-
