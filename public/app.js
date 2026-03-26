@@ -393,7 +393,9 @@ function normalizeMenuItem(item) {
   const sc = String(item.nameSc || item.sc || tc).trim();
   const en = String(item.nameEn || item.en || tc).trim();
   const price = Number(item.price);
-  return { nameTc: tc || sc || en, nameSc: sc || tc || en, nameEn: en || tc || sc, price: Number.isFinite(price) ? price : 0 };
+  const base = { nameTc: tc || sc || en, nameSc: sc || tc || en, nameEn: en || tc || sc, price: Number.isFinite(price) ? price : 0 };
+  if (Array.isArray(item.optionGroups) && item.optionGroups.length) base.optionGroups = item.optionGroups;
+  return base;
 }
 
 function getLocalizedDrink(drink) {

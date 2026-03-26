@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Option Groups Builder</title>
+    <style>
+      :root { color-scheme: light; }
+      body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+      h1 { font-size: 20px; margin: 0 0 12px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+      label { display: block; font-size: 12px; color: #475569; margin-bottom: 4px; }
+      input, textarea, button { font: inherit; }
+      input, textarea { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; }
+      textarea { width: 100%; min-height: 180px; }
+      button { background: #0f172a; color: #fff; border: 0; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+      button.secondary { background: #e2e8f0; color: #0f172a; }
+      .panel { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+      .hint { font-size: 12px; color: #64748b; margin-top: 6px; }
+      .flex-1 { flex: 1 1 220px; }
+    </style>
+  </head>
+  <body>
+    <h1>Option Groups Builder</h1>
+    <div class="panel">
+      <div class="row">
+        <div class="flex-1">
+          <label for="label">Label</label>
+          <input id="label" type="text" placeholder="e.g. Double combo (pick 2)" />
+        </div>
+        <div class="flex-1">
+          <label for="min">Min</label>
+          <input id="min" type="number" min="0" step="1" placeholder="e.g. 2" />
+        </div>
+        <div class="flex-1">
+          <label for="max">Max</label>
+          <input id="max" type="number" min="0" step="1" placeholder="e.g. 2" />
+        </div>
+        <div class="flex-1">
+          <label for="id">Id (optional)</label>
+          <input id="id" type="text" placeholder="e.g. pair" />
+        </div>
+      </div>
+      <label for="input">Choices per row (one row per menu item, comma-separated)</label>
+      <textarea id="input" placeholder="Example:\nChicken, Pork, Beef\nChicken, Duck, Char siu"></textarea>
+      <div class="row" style="margin-top: 12px;">
+        <button id="build">Build JSON</button>
+        <button id="copy" class="secondary">Copy Output</button>
+      </div>
+      <label for="output">Output (paste into Excel column Option Groups)</label>
+      <textarea id="output" readonly></textarea>
+      <div class="hint">Each output line matches the same input line order.</div>
+    </div>
+
+    <script>
+      const $ = id => document.getElementById(id);
+      const buildBtn = $('build');
+      const copyBtn = $('copy');
+
+      function buildJsonLine(line, index, meta) {
+        const choices = line.split(',').map(v => v.trim()).filter(Boolean);
+        if (!choices.length) return '';
+        const group = {
+          id: meta.id || String(index + 1),
+          label: meta.label || '',
+          choices
+        };
+        if (Number.isFinite(meta.min)) group.min = meta.min;
+        if (Number.isFinite(meta.max)) group.max = meta.max;
+        return JSON.stringify([group]);
+      }
+
+      buildBtn.onclick = () => {
+        const label = $('label').value.trim();
+        const id = $('id').value.trim();
+        const minVal = $('min').value;
+        const maxVal = $('max').value;
+        const min = minVal === '' ? undefined : Number(minVal);
+        const max = maxVal === '' ? undefined : Number(maxVal);
+        const lines = $('input').value.split(/\r?\n/);
+        const out = lines.map((line, i) => buildJsonLine(line, i, { label, id, min, max }));
+        $('output').value = out.join('\n');
+      };
+
+      copyBtn.onclick = async () => {
+        const text = $('output').value;
+        if (!text) return;
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          $('output').select();
+          document.execCommand('copy');
+        }
+      };
+    </script>
+  </body>
+</html>

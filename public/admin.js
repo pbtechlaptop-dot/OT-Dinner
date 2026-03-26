@@ -480,6 +480,37 @@ function tag(text, onRemove) {
   return wrap;
 }
 
+function parseOptionGroups(input) {
+  if (input === null || input === undefined || input === '') return [];
+  let raw = input;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    try {
+      raw = JSON.parse(trimmed);
+    } catch {
+      return [];
+    }
+  }
+  const list = Array.isArray(raw) ? raw : [];
+  const cleaned = [];
+  list.forEach((group, i) => {
+    if (!group || typeof group !== 'object') return;
+    const id = String(group.id || group.key || i + 1).trim();
+    const label = String(group.label || group.name || '').trim();
+    const choicesRaw = Array.isArray(group.choices || group.items) ? (group.choices || group.items) : [];
+    const choices = choicesRaw.map(v => String(v || '').trim()).filter(Boolean);
+    if (!choices.length) return;
+    const min = Number(group.min);
+    const max = Number(group.max);
+    const out = { id, label, choices };
+    if (Number.isFinite(min) && min >= 0) out.min = min;
+    if (Number.isFinite(max) && max >= 0) out.max = max;
+    cleaned.push(out);
+  });
+  return cleaned;
+}
+
 function normalizeSeed() {
   const restaurants = [...new Set((state.seed.restaurants || []).map(v => String(v || '').trim()).filter(Boolean))];
   state.seed.restaurants = restaurants;
@@ -523,7 +554,12 @@ function normalizeSeed() {
         const nameEn = String((it && it.nameEn) || nameTc).trim();
         const price = Number(it && it.price);
         if (!nameTc || !Number.isFinite(price) || price < 0) return;
-        if (!map.has(nameTc)) map.set(nameTc, { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price });
+        const optionGroups = parseOptionGroups(it && (it.optionGroups ?? it.option_groups ?? it.options));
+        if (!map.has(nameTc)) {
+          const base = { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price };
+          if (optionGroups.length) base.optionGroups = optionGroups;
+          map.set(nameTc, base);
+        }
       });
       const cleanItems = Array.from(map.values());
       if (cleanItems.length) outCats[cleanCat] = cleanItems;
@@ -1069,6 +1105,17 @@ function rowsToSeed(rows) {
     const drinkSc = String(row.drink_sc || row.DRINK_SC || drinkTc).trim();
     const drinkEn = String(row.drink_en || row.DRINK_EN || drinkTc).trim();
     const price = parseImportedPrice(row.price ?? row.PRICE);
+    const optionRaw = row.option_groups
+      ?? row.OPTION_GROUPS
+      ?? row.optionGroups
+      ?? row.OPTIONGROUPS
+      ?? row.options
+      ?? row.OPTIONS
+      ?? row.option
+      ?? row.OPTION
+      ?? row['\u63a8\u85a6']
+      ?? row['\u63a8\u8350'];
+    const optionGroups = parseOptionGroups(optionRaw);
 
     if (type === 'RESTAURANT' && restaurant) seed.restaurants.push(restaurant);
     if (type === 'STAFF' && dept && name) {
@@ -1081,7 +1128,9 @@ function rowsToSeed(rows) {
     if (type === 'MENU' && restaurant && category && itemTc && Number.isFinite(price)) {
       if (!seed.menus[restaurant]) seed.menus[restaurant] = {};
       if (!seed.menus[restaurant][category]) seed.menus[restaurant][category] = [];
-      seed.menus[restaurant][category].push({ nameTc: itemTc, nameSc: itemSc || itemTc, nameEn: itemEn || itemTc, price });
+      const entry = { nameTc: itemTc, nameSc: itemSc || itemTc, nameEn: itemEn || itemTc, price };
+      if (optionGroups.length) entry.optionGroups = optionGroups;
+      seed.menus[restaurant][category].push(entry);
       seed.restaurants.push(restaurant);
     }
   });
@@ -1112,6 +1161,16 @@ function parseWorkbookSeed(wb) {
     }
     const values = Object.values(row).map(v => String(v || '').trim());
     return (values[index] || '').trim();
+  };
+
+  const pickNamed = (row, names) => {
+    for (const k of names) {
+      if (Object.prototype.hasOwnProperty.call(row, k)) {
+        const v = String(row[k] || '').trim();
+        if (v) return v;
+      }
+    }
+    return '';
   };
 
   const staffSheet = getSheet(staffNames);
@@ -1155,11 +1214,15 @@ function parseWorkbookSeed(wb) {
       const en = pick(r, ['Name EN', 'Item EN', 'English', '英文名稱', '英文名称'], 1) || tc;
       const cat = pick(r, ['Category', 'Cat', '食物種類', '食物种类'], 2) || 'Others';
       const rawPrice = pick(r, ['Price', 'price', '價錢', '价格'], 3);
+      const optionRaw = pickNamed(r, ['Option Groups', 'Options', 'Option', '\u9078\u9805', '\u9078\u64c7', '\u53ef\u9078', '\u63a8\u85a6', '\u63a8\u8350', '__EMPTY']);
+      const optionGroups = parseOptionGroups(optionRaw);
       const price = parseImportedPrice(rawPrice);
       if (!tc || !Number.isFinite(price)) return;
 
       if (!seed.menus[restaurant][cat]) seed.menus[restaurant][cat] = [];
-      seed.menus[restaurant][cat].push({ nameTc: tc, nameSc: toSc(tc), nameEn: en || tc, price });
+      const entry = { nameTc: tc, nameSc: toSc(tc), nameEn: en || tc, price };
+      if (optionGroups.length) entry.optionGroups = optionGroups;
+      seed.menus[restaurant][cat].push(entry);
     });
   });
 
@@ -1456,7 +1519,12 @@ el.addMenuBtn.onclick = () => {
   if (state.menuEdit && state.menuEdit.rest === rest && state.menuEdit.cat === cat) {
     const idx = state.menuEdit.index;
     if (idx >= 0 && idx < state.seed.menus[rest][cat].length) {
-      state.seed.menus[rest][cat][idx] = { nameTc, nameSc, nameEn, price };
+      const existing = state.seed.menus[rest][cat][idx] || {};
+      const entry = { nameTc, nameSc, nameEn, price };
+      if (Array.isArray(existing.optionGroups) && existing.optionGroups.length) {
+        entry.optionGroups = existing.optionGroups;
+      }
+      state.seed.menus[rest][cat][idx] = entry;
       markDirty('已更新餐點');
     }
   } else {
@@ -1476,3 +1544,7 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
+
+
+
+

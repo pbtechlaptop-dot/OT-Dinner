@@ -644,6 +644,37 @@ function normalizeDrinkItem(d) {
   return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc, paused: Boolean(d.paused) };
 }
 
+function normalizeOptionGroups(input) {
+  if (input === null || input === undefined || input === '') return [];
+  let raw = input;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    try {
+      raw = JSON.parse(trimmed);
+    } catch {
+      return [];
+    }
+  }
+  const list = Array.isArray(raw) ? raw : [];
+  const cleaned = [];
+  list.forEach((group, i) => {
+    if (!group || typeof group !== 'object') return;
+    const id = normText(group.id || group.key || String(i + 1));
+    const label = normText(group.label || group.name || '');
+    const choicesRaw = Array.isArray(group.choices || group.items) ? (group.choices || group.items) : [];
+    const choices = choicesRaw.map(v => normText(v)).filter(Boolean);
+    if (!choices.length) return;
+    const min = Number(group.min);
+    const max = Number(group.max);
+    const out = { id, label, choices };
+    if (Number.isFinite(min) && min >= 0) out.min = min;
+    if (Number.isFinite(max) && max >= 0) out.max = max;
+    cleaned.push(out);
+  });
+  return cleaned;
+}
+
 function normalizeMenuItem(item) {
   if (!item || typeof item !== 'object') return null;
   const nameTc = normText(item.nameTc || item.tc || item.name || item.nameChi);
@@ -651,7 +682,10 @@ function normalizeMenuItem(item) {
   const nameEn = normText(item.nameEn || item.en || item.nameEng || nameTc);
   const price = Number(item.price);
   if (!nameTc || !Number.isFinite(price) || price < 0) return null;
-  return { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price };
+  const optionGroups = normalizeOptionGroups(item.optionGroups ?? item.option_groups ?? item.options);
+  return optionGroups.length
+    ? { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price, optionGroups }
+    : { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price };
 }
 
 function normalizeSeed(input) {
@@ -946,9 +980,19 @@ async function getSeedSupabase() {
     drinksRows = await supaSelect(TABLES.drinks, 'tc,sc,en', { order: [{ column: 'tc' }] });
   }
   const staffRows = await supaSelect(TABLES.staff, 'dept,name', { order: [{ column: 'dept' }, { column: 'name' }] });
-  const menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price', {
-    order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
-  });
+  let menuRows = [];
+  let hasOptionGroupsColumn = true;
+  try {
+    menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price,option_groups', {
+      order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
+    });
+  } catch (err) {
+    if (!isMissingSupabaseColumn(err, 'option_groups')) throw err;
+    hasOptionGroupsColumn = false;
+    menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price', {
+      order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
+    });
+  }
 
   const seed = defaultSeed();
   seed.restaurants = (restaurantsRows || []).map(r => normText(r.name)).filter(Boolean);
@@ -969,7 +1013,13 @@ async function getSeedSupabase() {
   (menuRows || []).forEach(m => {
     const rest = normText(m.restaurant);
     const cat = normText(m.category);
-    const item = normalizeMenuItem({ nameTc: m.name_tc, nameSc: m.name_sc, nameEn: m.name_en, price: m.price });
+    const item = normalizeMenuItem({
+      nameTc: m.name_tc,
+      nameSc: m.name_sc,
+      nameEn: m.name_en,
+      price: m.price,
+      option_groups: hasOptionGroupsColumn ? m.option_groups : undefined
+    });
     if (!rest || !cat || !item) return;
     if (!seed.menus[rest]) seed.menus[rest] = {};
     if (!seed.menus[rest][cat]) seed.menus[rest][cat] = [];
@@ -1027,14 +1077,22 @@ async function saveSeedSupabase(input) {
           name_tc: it.nameTc,
           name_sc: it.nameSc,
           name_en: it.nameEn,
-          price: Number(it.price)
+          price: Number(it.price),
+          option_groups: Array.isArray(it.optionGroups) ? it.optionGroups : undefined
         });
       });
     });
   });
   const menuRows = Array.from(menuMap.values());
   if (menuRows.length) {
-    const { error } = await supabase.from(TABLES.menus).insert(menuRows);
+    let { error } = await supabase.from(TABLES.menus).insert(menuRows);
+    if (error && isMissingSupabaseColumn(error, 'option_groups')) {
+      const fallbackRows = menuRows.map(row => {
+        const { option_groups, ...rest } = row;
+        return rest;
+      });
+      ({ error } = await supabase.from(TABLES.menus).insert(fallbackRows));
+    }
     if (error) throw new Error(`Supabase insert menus failed: ${error.message}`);
   }
 }
