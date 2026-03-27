@@ -1,13 +1,13 @@
-const ADMIN_PERMISSION_ALL = '*';
+﻿const ADMIN_PERMISSION_ALL = '*';
 const ADMIN_PERMISSION_OPTIONS = [
-  { key: 'import', label: '匯入資料' },
-  { key: 'restaurants', label: '餐廳' },
-  { key: 'drinks', label: '飲品' },
-  { key: 'staff', label: '部門與人員' },
-  { key: 'menus', label: '菜單' },
-  { key: 'reset_main', label: '重置主站訂單' },
-  { key: 'reset_lady_ruby', label: '重置 Lady Ruby 訂單' },
-  { key: 'users', label: '用戶與權限' }
+  { key: 'import', label: 'åŒ¯å…¥è³‡æ–™' },
+  { key: 'restaurants', label: 'é¤å»³' },
+  { key: 'drinks', label: 'é£²å“' },
+  { key: 'staff', label: 'éƒ¨é–€èˆ‡äººå“¡' },
+  { key: 'menus', label: 'èœå–®' },
+  { key: 'reset_main', label: 'é‡ç½®ä¸»ç«™è¨‚å–®' },
+  { key: 'reset_lady_ruby', label: 'é‡ç½® Lady Ruby è¨‚å–®' },
+  { key: 'users', label: 'ç”¨æˆ¶èˆ‡æ¬Šé™' }
 ];
 
 const state = {
@@ -109,7 +109,7 @@ function showToast(text, isError = false) {
   toastTimer = setTimeout(() => el.toast.classList.add('hidden'), 2200);
 }
 
-function setBusy(isBusy, text = '系統處理中，請稍候...') {
+function setBusy(isBusy, text = 'ç³»çµ±è™•ç†ä¸­ï¼Œè«‹ç¨å€™...') {
   if (el.busyText && text) el.busyText.textContent = text;
   if (!el.busyOverlay) return;
   el.busyOverlay.classList.toggle('hidden', !isBusy);
@@ -119,13 +119,13 @@ function setBusy(isBusy, text = '系統處理中，請稍候...') {
 function formatImportAdded(added) {
   if (!added || typeof added !== 'object') return '';
   const parts = [];
-  if (Number(added.restaurants || 0) > 0) parts.push(`餐廳 +${added.restaurants}`);
-  if (Number(added.drinks || 0) > 0) parts.push(`飲品 +${added.drinks}`);
-  if (Number(added.departments || 0) > 0) parts.push(`部門 +${added.departments}`);
-  if (Number(added.staff || 0) > 0) parts.push(`人員 +${added.staff}`);
-  if (Number(added.menuCategories || 0) > 0) parts.push(`分類 +${added.menuCategories}`);
-  if (Number(added.menuItems || 0) > 0) parts.push(`餐點 +${added.menuItems}`);
-  return parts.join('、');
+  if (Number(added.restaurants || 0) > 0) parts.push(`é¤å»³ +${added.restaurants}`);
+  if (Number(added.drinks || 0) > 0) parts.push(`é£²å“ +${added.drinks}`);
+  if (Number(added.departments || 0) > 0) parts.push(`éƒ¨é–€ +${added.departments}`);
+  if (Number(added.staff || 0) > 0) parts.push(`äººå“¡ +${added.staff}`);
+  if (Number(added.menuCategories || 0) > 0) parts.push(`åˆ†é¡ž +${added.menuCategories}`);
+  if (Number(added.menuItems || 0) > 0) parts.push(`é¤é»ž +${added.menuItems}`);
+  return parts.join('ã€');
 }
 
 function setLoginHint(text, isError = false) {
@@ -150,9 +150,9 @@ function hasPermission(permission) {
 
 function permissionSummary(user = {}) {
   const permissions = Array.isArray(user.permissions) ? user.permissions : [];
-  if (user.isRoot || permissions.includes(ADMIN_PERMISSION_ALL)) return '全部權限';
+  if (user.isRoot || permissions.includes(ADMIN_PERMISSION_ALL)) return 'å…¨éƒ¨æ¬Šé™';
   const labels = ADMIN_PERMISSION_OPTIONS.filter(option => permissions.includes(option.key)).map(option => option.label);
-  return labels.length ? labels.join('、') : '沒有權限';
+  return labels.length ? labels.join('ã€') : 'æ²’æœ‰æ¬Šé™';
 }
 
 function setVisible(node, visible) {
@@ -166,7 +166,7 @@ function updateCurrentUserText() {
     el.currentUserText.textContent = '';
     return;
   }
-  el.currentUserText.textContent = `目前登入：${state.username || 'admin'} ｜ ${permissionSummary({ permissions: state.permissions, isRoot: state.isRoot })}`;
+  el.currentUserText.textContent = `ç›®å‰ç™»å…¥ï¼š${state.username || 'admin'} ï½œ ${permissionSummary({ permissions: state.permissions, isRoot: state.isRoot })}`;
 }
 
 function setSectionVisibility() {
@@ -192,12 +192,12 @@ function setAuthUi(authenticated) {
 
 function markDirty(msg) {
   state.dirty = true;
-  setStatus(msg ? `${msg}（未儲存）` : '已有未儲存修改，請按「儲存全部」。');
+  setStatus(msg ? `${msg}ï¼ˆæœªå„²å­˜ï¼‰` : 'å·²æœ‰æœªå„²å­˜ä¿®æ”¹ï¼Œè«‹æŒ‰ã€Œå„²å­˜å…¨éƒ¨ã€ã€‚');
 }
 
 function requireAuth() {
   if (!state.authenticated || !state.username || !state.password) {
-    setStatus('未登入或登入已失效，請重新登入。', true);
+    setStatus('æœªç™»å…¥æˆ–ç™»å…¥å·²å¤±æ•ˆï¼Œè«‹é‡æ–°ç™»å…¥ã€‚', true);
     setAuthUi(false);
     return false;
   }
@@ -207,8 +207,8 @@ function requireAuth() {
 function handleAdminPasswordError(err) {
   if (!/Invalid admin username or password/i.test(String((err && err.message) || ''))) return false;
   logout();
-  setLoginHint('帳號或密碼已失效，請重新登入。', true);
-  setStatus('帳號或密碼錯誤，請重新登入。', true);
+  setLoginHint('å¸³è™Ÿæˆ–å¯†ç¢¼å·²å¤±æ•ˆï¼Œè«‹é‡æ–°ç™»å…¥ã€‚', true);
+  setStatus('å¸³è™Ÿæˆ–å¯†ç¢¼éŒ¯èª¤ï¼Œè«‹é‡æ–°ç™»å…¥ã€‚', true);
   return true;
 }
 
@@ -248,7 +248,7 @@ function getVisibleStaffDepartments() {
 function buildDepartmentCheckboxes(name, selected = []) {
   const departments = getAllDepartments();
   if (!departments.length) {
-    return '<p class="text-xs text-slate-500">目前未有部門資料。</p>';
+    return '<p class="text-xs text-slate-500">ç›®å‰æœªæœ‰éƒ¨é–€è³‡æ–™ã€‚</p>';
   }
   return departments.map(dept => {
     const checked = selected.includes(dept) ? 'checked' : '';
@@ -307,7 +307,7 @@ function renderAdminUsers() {
     return;
   }
   if (!state.adminUsers.length) {
-    el.adminUsersList.innerHTML = '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">暫時未有額外用戶。</p>';
+    el.adminUsersList.innerHTML = '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">æš«æ™‚æœªæœ‰é¡å¤–ç”¨æˆ¶ã€‚</p>';
     return;
   }
 
@@ -316,18 +316,18 @@ function renderAdminUsers() {
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p class="font-semibold text-pbnavy">${user.username}</p>
-          <p class="text-xs text-slate-500">留空新密碼即保持原本密碼不變。</p>
+          <p class="text-xs text-slate-500">ç•™ç©ºæ–°å¯†ç¢¼å³ä¿æŒåŽŸæœ¬å¯†ç¢¼ä¸è®Šã€‚</p>
         </div>
-        <button type="button" data-index="${index}" class="remove-admin-user rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">刪除</button>
+        <button type="button" data-index="${index}" class="remove-admin-user rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">åˆªé™¤</button>
       </div>
       <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[240px_1fr]">
-        <input type="password" data-index="${index}" class="admin-user-password rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="輸入新密碼（可留空）" />
+        <input type="password" data-index="${index}" class="admin-user-password rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="è¼¸å…¥æ–°å¯†ç¢¼ï¼ˆå¯ç•™ç©ºï¼‰" />
         <div class="grid grid-cols-1 gap-2 md:grid-cols-2 admin-user-permissions" data-index="${index}">
           ${buildPermissionCheckboxes(`admin-permission-${index}`, Array.isArray(user.permissions) ? user.permissions : [])}
         </div>
       </div>
       <div class="admin-user-departments-wrap mt-3 ${Array.isArray(user.permissions) && user.permissions.includes('staff') ? '' : 'hidden'}" data-index="${index}">
-        <p class="mb-2 text-xs font-semibold text-slate-600">可管理部門</p>
+        <p class="mb-2 text-xs font-semibold text-slate-600">å¯ç®¡ç†éƒ¨é–€</p>
         <div class="grid grid-cols-1 gap-2 md:grid-cols-2 admin-user-departments" data-index="${index}">
           ${buildDepartmentCheckboxes(`admin-department-${index}`, Array.isArray(user.staffDepartments) ? user.staffDepartments : [])}
         </div>
@@ -361,7 +361,7 @@ function renderAdminUsers() {
       const removed = state.adminUsers[index];
       state.adminUsers.splice(index, 1);
       renderAdminUsers();
-      setStatus(`已移除用戶 ${removed.username}，請按「儲存此區」確認。`);
+      setStatus(`å·²ç§»é™¤ç”¨æˆ¶ ${removed.username}ï¼Œè«‹æŒ‰ã€Œå„²å­˜æ­¤å€ã€ç¢ºèªã€‚`);
     };
   });
 }
@@ -517,7 +517,7 @@ function parseOptionGroupsInput(rawInput) {
   if (!trimmed) return { groups: [], error: '' };
   if (trimmed === '[]') return { groups: [], error: '' };
   const groups = parseOptionGroups(trimmed);
-  if (!groups.length) return { groups: [], error: '選項格式錯誤（需為JSON）' };
+  if (!groups.length) return { groups: [], error: 'é¸é …æ ¼å¼éŒ¯èª¤ï¼ˆéœ€ç‚ºJSONï¼‰' };
   return { groups, error: '' };
 }
 
@@ -587,11 +587,11 @@ function renderRestaurants() {
       state.seed.restaurants.splice(i, 1);
       delete state.seed.menus[r];
       renderAll();
-      markDirty('已刪除餐廳');
+      markDirty('å·²åˆªé™¤é¤å»³');
     }));
   });
 
-  const options = ['<option value="">-- 餐廳 --</option>']
+  const options = ['<option value="">-- é¤å»³ --</option>']
     .concat(state.seed.restaurants.map(r => `<option value="${r}">${r}</option>`));
   el.menuRestaurantSelect.innerHTML = options.join('');
   if (selectedRestaurant && state.seed.restaurants.includes(selectedRestaurant)) {
@@ -611,14 +611,14 @@ function renderDrinks() {
       <td class="border-b px-2 py-1">${tc}</td>
       <td class="border-b px-2 py-1">${sc}</td>
       <td class="border-b px-2 py-1">${en}</td>
-      <td class="border-b px-2 py-1">${paused ? '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">已暫停</span>' : '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">供應中</span>'}</td>
+      <td class="border-b px-2 py-1">${paused ? '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">å·²æš«åœ</span>' : '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">ä¾›æ‡‰ä¸­</span>'}</td>
       <td class="border-b px-2 py-1">
-        <button data-i="${i}" class="toggle-drink rounded bg-slate-700 px-2 py-1 text-xs text-white">${paused ? '恢復' : '暫停'}</button>
-        <button data-i="${i}" class="remove-drink ml-1 rounded bg-red-600 px-2 py-1 text-xs text-white">刪除</button>
+        <button data-i="${i}" class="toggle-drink rounded bg-slate-700 px-2 py-1 text-xs text-white">${paused ? 'æ¢å¾©' : 'æš«åœ'}</button>
+        <button data-i="${i}" class="remove-drink ml-1 rounded bg-red-600 px-2 py-1 text-xs text-white">åˆªé™¤</button>
       </td>
     </tr>`;
   }).join('');
-  el.drinkTable.innerHTML = `<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">狀態</th><th></th></tr></thead><tbody>${rows}</tbody>`;
+  el.drinkTable.innerHTML = `<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">ç¹</th><th class="px-2 py-1 text-left">ç°¡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">ç‹€æ…‹</th><th></th></tr></thead><tbody>${rows}</tbody>`;
   el.drinkTable.querySelectorAll('.toggle-drink').forEach(btn => {
     btn.onclick = () => {
       const i = Number(btn.dataset.i);
@@ -626,7 +626,7 @@ function renderDrinks() {
       if (!current) return;
       current.paused = !current.paused;
       renderDrinks();
-      markDirty(current.paused ? '已暫停飲品' : '已恢復飲品');
+      markDirty(current.paused ? 'å·²æš«åœé£²å“' : 'å·²æ¢å¾©é£²å“');
     };
   });
   el.drinkTable.querySelectorAll('.remove-drink').forEach(btn => {
@@ -634,7 +634,7 @@ function renderDrinks() {
       const i = Number(btn.dataset.i);
       state.seed.drinks.splice(i, 1);
       renderDrinks();
-      markDirty('已刪除飲品');
+      markDirty('å·²åˆªé™¤é£²å“');
     };
   });
 }
@@ -643,7 +643,7 @@ function renderDepartments() {
   const depts = getVisibleStaffDepartments();
   el.deptSelect.innerHTML = depts.length
     ? depts.map(d => `<option value="${d}">${d}</option>`).join('')
-    : '<option value="">-- 無部門 --</option>';
+    : '<option value="">-- ç„¡éƒ¨é–€ --</option>';
   updateStaffStructureControls();
   renderStaff();
 }
@@ -656,7 +656,7 @@ function renderStaff() {
     el.staffList.appendChild(tag(n, () => {
       names.splice(i, 1);
       renderStaff();
-      markDirty('已刪除人員');
+      markDirty('å·²åˆªé™¤äººå“¡');
     }));
   });
 }
@@ -672,7 +672,7 @@ function currentMenuCategory() {
 function renderMenuCategories() {
   const rest = currentMenuRestaurant();
   if (!rest) {
-    el.menuCategorySelect.innerHTML = '<option value="">-- 請先選擇餐廳 --</option>';
+    el.menuCategorySelect.innerHTML = '<option value="">-- è«‹å…ˆé¸æ“‡é¤å»³ --</option>';
     el.menuCategorySelect.value = '';
     el.menuCategorySelect.disabled = true;
     el.addCategoryBtn.disabled = true;
@@ -686,7 +686,7 @@ function renderMenuCategories() {
   const cats = Object.keys(state.seed.menus[rest]);
   el.menuCategorySelect.innerHTML = cats.length
     ? cats.map(c => `<option value="${c}">${c}</option>`).join('')
-    : '<option value="">-- 無分類 --</option>';
+    : '<option value="">-- ç„¡åˆ†é¡ž --</option>';
 }
 
 function resetMenuEdit() {
@@ -702,13 +702,13 @@ function renderMenuItems() {
 
   if (!rest) {
     menuInputs.forEach(node => { if (node) node.disabled = true; });
-    el.menuTable.innerHTML = '<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">價錢</th><th></th></tr></thead><tbody><tr><td colspan="5" class="px-2 py-3 text-slate-400">請先選擇餐廳</td></tr></tbody>';
+    el.menuTable.innerHTML = '<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">ç¹</th><th class="px-2 py-1 text-left">ç°¡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">åƒ¹éŒ¢</th><th></th></tr></thead><tbody><tr><td colspan="5" class="px-2 py-3 text-slate-400">è«‹å…ˆé¸æ“‡é¤å»³</td></tr></tbody>';
     return;
   }
 
   if (!cat) {
     menuInputs.forEach(node => { if (node) node.disabled = true; });
-    el.menuTable.innerHTML = '<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">價錢</th><th></th></tr></thead><tbody><tr><td colspan="5" class="px-2 py-3 text-slate-400">請先選擇分類</td></tr></tbody>';
+    el.menuTable.innerHTML = '<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">ç¹</th><th class="px-2 py-1 text-left">ç°¡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">åƒ¹éŒ¢</th><th></th></tr></thead><tbody><tr><td colspan="5" class="px-2 py-3 text-slate-400">è«‹å…ˆé¸æ“‡åˆ†é¡ž</td></tr></tbody>';
     return;
   }
 
@@ -720,12 +720,12 @@ function renderMenuItems() {
     <td class="border-b px-2 py-1">${it.nameEn || ''}</td>
     <td class="border-b px-2 py-1">${Number(it.price || 0).toFixed(2)}</td>
     <td class="border-b px-2 py-1">
-      <button data-i="${i}" class="edit-item rounded bg-amber-500 px-2 py-1 text-xs text-white">更改</button>
-      <button data-i="${i}" class="remove-item ml-1 rounded bg-red-600 px-2 py-1 text-xs text-white">刪除</button>
+      <button data-i="${i}" class="edit-item rounded bg-amber-500 px-2 py-1 text-xs text-white">æ›´æ”¹</button>
+      <button data-i="${i}" class="remove-item ml-1 rounded bg-red-600 px-2 py-1 text-xs text-white">åˆªé™¤</button>
     </td>
   </tr>`).join('');
 
-  el.menuTable.innerHTML = `<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">價錢</th><th></th></tr></thead><tbody>${rows}</tbody>`;
+  el.menuTable.innerHTML = `<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">ç¹</th><th class="px-2 py-1 text-left">ç°¡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">åƒ¹éŒ¢</th><th></th></tr></thead><tbody>${rows}</tbody>`;
 
   el.menuTable.querySelectorAll('.remove-item').forEach(btn => {
     btn.onclick = () => {
@@ -735,7 +735,7 @@ function renderMenuItems() {
         resetMenuEdit();
       }
       renderMenuItems();
-      markDirty('已刪除餐點');
+      markDirty('å·²åˆªé™¤é¤é»ž');
     };
   });
 
@@ -793,17 +793,17 @@ function renderLogChange(change) {
   const extra = items.length - preview.length;
   return `<div class="rounded-md bg-slate-50 px-3 py-2">
     <p class="text-xs font-semibold text-slate-600">${change.label}</p>
-    <p class="mt-1 text-sm text-slate-700">${preview.join('、')}${extra > 0 ? ` 等 ${items.length} 項` : ''}</p>
+    <p class="mt-1 text-sm text-slate-700">${preview.join('ã€')}${extra > 0 ? ` ç­‰ ${items.length} é …` : ''}</p>
   </div>`;
 }
 
 function renderLogs() {
   if (!el.adminLogsList || !el.logsHint) return;
   const logs = Array.isArray(state.logs) ? state.logs : [];
-  const scopeLabel = state.isRoot ? '全部操作紀錄' : '你自己的操作紀錄';
-  el.logsHint.textContent = logs.length ? `顯示最近 ${logs.length} 筆${scopeLabel}` : `暫時未有${scopeLabel}。`;
+  const scopeLabel = state.isRoot ? 'å…¨éƒ¨æ“ä½œç´€éŒ„' : 'ä½ è‡ªå·±çš„æ“ä½œç´€éŒ„';
+  el.logsHint.textContent = logs.length ? `é¡¯ç¤ºæœ€è¿‘ ${logs.length} ç­†${scopeLabel}` : `æš«æ™‚æœªæœ‰${scopeLabel}ã€‚`;
   if (!logs.length) {
-    el.adminLogsList.innerHTML = '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">未有可顯示的紀錄。</p>';
+    el.adminLogsList.innerHTML = '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">æœªæœ‰å¯é¡¯ç¤ºçš„ç´€éŒ„ã€‚</p>';
     return;
   }
 
@@ -813,12 +813,12 @@ function renderLogs() {
     return `<article class="rounded-lg border border-slate-200 p-3">
       <div class="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p class="font-semibold text-pbnavy">${log.summary || '已更新資料'}</p>
-          <p class="mt-1 text-xs text-slate-500">帳號：${log.username || 'admin'} ｜ 區域：${log.section || 'all'} ｜ ${formatLogTime(log.createdAt)}</p>
+          <p class="font-semibold text-pbnavy">${log.summary || 'å·²æ›´æ–°è³‡æ–™'}</p>
+          <p class="mt-1 text-xs text-slate-500">å¸³è™Ÿï¼š${log.username || 'admin'} ï½œ å€åŸŸï¼š${log.section || 'all'} ï½œ ${formatLogTime(log.createdAt)}</p>
         </div>
         <div class="flex items-center gap-2">
           <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">${log.action || 'save'}</span>
-          ${state.isRoot ? `<button type="button" data-id="${log.id || ''}" class="delete-log rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700">刪除紀錄</button>` : ''}
+          ${state.isRoot ? `<button type="button" data-id="${log.id || ''}" class="delete-log rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700">åˆªé™¤ç´€éŒ„</button>` : ''}
         </div>
       </div>
       ${changesHtml ? `<div class="mt-3 grid grid-cols-1 gap-2">${changesHtml}</div>` : ''}
@@ -830,17 +830,17 @@ function renderLogs() {
       button.onclick = async () => {
         const id = String(button.dataset.id || '').trim();
         if (!id) return;
-        if (!window.confirm('確定要刪除這筆操作紀錄？此操作不能還原。')) return;
+        if (!window.confirm('ç¢ºå®šè¦åˆªé™¤é€™ç­†æ“ä½œç´€éŒ„ï¼Ÿæ­¤æ“ä½œä¸èƒ½é‚„åŽŸã€‚')) return;
         try {
           button.disabled = true;
           await deleteAdminLog(id);
           state.logs = state.logs.filter(log => String(log.id || '') !== id);
           renderLogs();
-          setStatus('已刪除操作紀錄。');
-          showToast('已刪除操作紀錄');
+          setStatus('å·²åˆªé™¤æ“ä½œç´€éŒ„ã€‚');
+          showToast('å·²åˆªé™¤æ“ä½œç´€éŒ„');
         } catch (err) {
-          setStatus(`刪除操作紀錄失敗: ${err.message}`, true);
-          showToast('刪除操作紀錄失敗', true);
+          setStatus(`åˆªé™¤æ“ä½œç´€éŒ„å¤±æ•—: ${err.message}`, true);
+          showToast('åˆªé™¤æ“ä½œç´€éŒ„å¤±æ•—', true);
           handleAdminPasswordError(err);
           button.disabled = false;
         }
@@ -859,7 +859,7 @@ async function loadAdminLogs(options = {}) {
   } catch (err) {
     state.logs = [];
     renderLogs();
-    if (!silent) setStatus(`載入操作紀錄失敗: ${err.message}`, true);
+    if (!silent) setStatus(`è¼‰å…¥æ“ä½œç´€éŒ„å¤±æ•—: ${err.message}`, true);
     handleAdminPasswordError(err);
   }
 }
@@ -867,7 +867,7 @@ async function loadAdminLogs(options = {}) {
 async function persistIfDirty(reasonLabel) {
   if (!state.dirty) return true;
   if (!state.isRoot) {
-    setStatus(`你未儲存的修改仍在畫面上，請先儲存目前區域後再進入「${reasonLabel}」。`, true);
+    setStatus(`ä½ æœªå„²å­˜çš„ä¿®æ”¹ä»åœ¨ç•«é¢ä¸Šï¼Œè«‹å…ˆå„²å­˜ç›®å‰å€åŸŸå¾Œå†é€²å…¥ã€Œ${reasonLabel}ã€ã€‚`, true);
     return false;
   }
   try {
@@ -878,10 +878,10 @@ async function persistIfDirty(reasonLabel) {
     });
     state.dirty = false;
     await loadAdminLogs({ silent: true });
-    setStatus(`已先儲存，再載入「${reasonLabel}」。`);
+    setStatus(`å·²å…ˆå„²å­˜ï¼Œå†è¼‰å…¥ã€Œ${reasonLabel}ã€ã€‚`);
     return true;
   } catch (err) {
-    setStatus(`自動儲存失敗: ${err.message}`, true);
+    setStatus(`è‡ªå‹•å„²å­˜å¤±æ•—: ${err.message}`, true);
     handleAdminPasswordError(err);
     return false;
   }
@@ -890,12 +890,12 @@ async function persistIfDirty(reasonLabel) {
 async function saveSection(section) {
   if (!requireAuth()) return;
   const labels = {
-    restaurants: '餐廳',
-    drinks: '飲品',
-    staff: '部門與人員',
-    menus: '菜單'
+    restaurants: 'é¤å»³',
+    drinks: 'é£²å“',
+    staff: 'éƒ¨é–€èˆ‡äººå“¡',
+    menus: 'èœå–®'
   };
-  const label = labels[section] || '資料';
+  const label = labels[section] || 'è³‡æ–™';
 
   try {
     if (section === 'restaurants') {
@@ -978,11 +978,11 @@ async function saveSection(section) {
     state.dirty = false;
     await loadAdminLogs({ silent: true });
     renderAll();
-    setStatus(`已儲存「${label}」。`);
-    showToast(`已儲存${label}`);
+    setStatus(`å·²å„²å­˜ã€Œ${label}ã€ã€‚`);
+    showToast(`å·²å„²å­˜${label}`);
   } catch (err) {
-    setStatus(`儲存${label}失敗: ${err.message}`, true);
-    showToast(`儲存${label}失敗`, true);
+    setStatus(`å„²å­˜${label}å¤±æ•—: ${err.message}`, true);
+    showToast(`å„²å­˜${label}å¤±æ•—`, true);
     handleAdminPasswordError(err);
   } finally {
     setBusy(false);
@@ -991,7 +991,7 @@ async function saveSection(section) {
 
 async function loadSeed() {
   if (!requireAuth()) return;
-  const okPersist = await persistIfDirty('全部資料');
+  const okPersist = await persistIfDirty('å…¨éƒ¨è³‡æ–™');
   if (!okPersist) return;
   try {
     setBusy(true);
@@ -1003,8 +1003,8 @@ async function loadSeed() {
     state.adminUsers = hasPermission('users') ? await fetchAdminUsers() : [];
     state.dirty = false;
     renderAll();
-    setStatus('已載入資料。');
-    showToast('載入成功');
+    setStatus('å·²è¼‰å…¥è³‡æ–™ã€‚');
+    showToast('è¼‰å…¥æˆåŠŸ');
   } catch (err) {
     setStatus(err.message, true);
     handleAdminPasswordError(err);
@@ -1016,7 +1016,7 @@ async function loadSeed() {
 async function saveSeed() {
   if (!requireAuth()) return;
   if (!state.isRoot) {
-    setStatus('只有 admin 可以使用「儲存全部」。', true);
+    setStatus('åªæœ‰ admin å¯ä»¥ä½¿ç”¨ã€Œå„²å­˜å…¨éƒ¨ã€ã€‚', true);
     return;
   }
   try {
@@ -1028,8 +1028,8 @@ async function saveSeed() {
     });
     state.dirty = false;
     await loadAdminLogs({ silent: true });
-    setStatus('儲存成功。');
-    showToast('儲存成功');
+    setStatus('å„²å­˜æˆåŠŸã€‚');
+    showToast('å„²å­˜æˆåŠŸ');
   } catch (err) {
     setStatus(err.message, true);
     handleAdminPasswordError(err);
@@ -1041,14 +1041,14 @@ async function saveSeed() {
 async function saveAdminUsers() {
   if (!requireAuth()) return;
   if (!hasPermission('users')) {
-    setStatus('你沒有管理用戶的權限。', true);
+    setStatus('ä½ æ²’æœ‰ç®¡ç†ç”¨æˆ¶çš„æ¬Šé™ã€‚', true);
     return;
   }
   try {
     const usersPayload = collectAdminUsersPayload();
     const invalidScopedUser = usersPayload.find(user => user.permissions.includes('staff') && !user.staffDepartments.length);
     if (invalidScopedUser) {
-      setStatus(`請為 ${invalidScopedUser.username} 選擇至少一個可管理部門。`, true);
+      setStatus(`è«‹ç‚º ${invalidScopedUser.username} é¸æ“‡è‡³å°‘ä¸€å€‹å¯ç®¡ç†éƒ¨é–€ã€‚`, true);
       return;
     }
     setBusy(true);
@@ -1059,11 +1059,11 @@ async function saveAdminUsers() {
     state.adminUsers = Array.isArray(payload.users) ? payload.users : [];
     await loadAdminLogs({ silent: true });
     renderAdminUsers();
-    setStatus('已儲存用戶與權限。');
-    showToast('已儲存用戶與權限');
+    setStatus('å·²å„²å­˜ç”¨æˆ¶èˆ‡æ¬Šé™ã€‚');
+    showToast('å·²å„²å­˜ç”¨æˆ¶èˆ‡æ¬Šé™');
   } catch (err) {
-    setStatus(`儲存用戶失敗: ${err.message}`, true);
-    showToast('儲存用戶失敗', true);
+    setStatus(`å„²å­˜ç”¨æˆ¶å¤±æ•—: ${err.message}`, true);
+    showToast('å„²å­˜ç”¨æˆ¶å¤±æ•—', true);
     handleAdminPasswordError(err);
   } finally {
     setBusy(false);
@@ -1079,7 +1079,7 @@ async function resetDay(app = 'main') {
       body: JSON.stringify(adminAuthBody({ app }))
     });
     await loadAdminLogs({ silent: true });
-    setStatus(app === 'lady-ruby' ? '已重置 Lady Ruby 今日訂單與餐廳。' : '已重置主站今日訂單與餐廳。');
+    setStatus(app === 'lady-ruby' ? 'å·²é‡ç½® Lady Ruby ä»Šæ—¥è¨‚å–®èˆ‡é¤å»³ã€‚' : 'å·²é‡ç½®ä¸»ç«™ä»Šæ—¥è¨‚å–®èˆ‡é¤å»³ã€‚');
   } catch (err) {
     setStatus(err.message, true);
     handleAdminPasswordError(err);
@@ -1193,8 +1193,8 @@ function parseWorkbookSeed(wb) {
   if (staffSheet) {
     const rows = XLSX.utils.sheet_to_json(staffSheet, { defval: '' });
     rows.forEach(r => {
-      const dept = pick(r, ['Dept', 'DEPT', 'Department', '部門', '部门'], 0);
-      const name = pick(r, ['Name', 'NAME', 'Staff', '姓名'], 1);
+      const dept = pick(r, ['Dept', 'DEPT', 'Department', 'éƒ¨é–€', 'éƒ¨é—¨'], 0);
+      const name = pick(r, ['Name', 'NAME', 'Staff', 'å§“å'], 1);
       if (!dept || !name) return;
       if (!seed.staff[dept]) seed.staff[dept] = [];
       seed.staff[dept].push(name);
@@ -1205,11 +1205,11 @@ function parseWorkbookSeed(wb) {
   if (drinkSheet) {
     const rows = XLSX.utils.sheet_to_json(drinkSheet, { defval: '' });
     rows.forEach(r => {
-      const tc = pick(r, ['TC', 'tc', 'Traditional', '繁體', '繁体'], 0);
-      const sc = pick(r, ['SC', 'sc', 'Simplified', '簡體', '简体'], 1) || tc;
-      const en = pick(r, ['EN', 'en', 'English', '英文'], 2) || tc;
+      const tc = pick(r, ['TC', 'tc', 'Traditional', 'ç¹é«”', 'ç¹ä½“'], 0);
+      const sc = pick(r, ['SC', 'sc', 'Simplified', 'ç°¡é«”', 'ç®€ä½“'], 1) || tc;
+      const en = pick(r, ['EN', 'en', 'English', 'è‹±æ–‡'], 2) || tc;
       if (!tc) return;
-      const pausedRaw = pick(r, ['Paused', 'paused', '暫停', '暂停'], 3);
+      const pausedRaw = pick(r, ['Paused', 'paused', 'æš«åœ', 'æš‚åœ'], 3);
       const paused = ['1', 'true', 'yes', 'y'].includes(String(pausedRaw || '').trim().toLowerCase());
       seed.drinks.push({ tc, sc, en, paused });
     });
@@ -1226,10 +1226,10 @@ function parseWorkbookSeed(wb) {
     seed.restaurants.push(restaurant);
 
     rows.forEach(r => {
-      const tc = pick(r, ['Name TC', 'Item TC', 'Name', 'Item', '中文名稱', '中文名称'], 0);
-      const en = pick(r, ['Name EN', 'Item EN', 'English', '英文名稱', '英文名称'], 1) || tc;
-      const cat = pick(r, ['Category', 'Cat', '食物種類', '食物种类'], 2) || 'Others';
-      const rawPrice = pick(r, ['Price', 'price', '價錢', '价格'], 3);
+      const tc = pick(r, ['Name TC', 'Item TC', 'Name', 'Item', 'ä¸­æ–‡åç¨±', 'ä¸­æ–‡åç§°'], 0);
+      const en = pick(r, ['Name EN', 'Item EN', 'English', 'è‹±æ–‡åç¨±', 'è‹±æ–‡åç§°'], 1) || tc;
+      const cat = pick(r, ['Category', 'Cat', 'é£Ÿç‰©ç¨®é¡ž', 'é£Ÿç‰©ç§ç±»'], 2) || 'Others';
+      const rawPrice = pick(r, ['Price', 'price', 'åƒ¹éŒ¢', 'ä»·æ ¼'], 3);
       const optionRaw = pickNamed(r, ['Option Groups', 'Options', 'Option', '\u9078\u9805', '\u9078\u64c7', '\u53ef\u9078', '\u63a8\u85a6', '\u63a8\u8350', '__EMPTY']);
       const optionGroups = parseOptionGroups(optionRaw);
       const price = parseImportedPrice(rawPrice);
@@ -1270,7 +1270,7 @@ async function readImportSeed(file) {
 async function importSeed() {
   if (!requireAuth()) return;
   const file = el.importFile.files && el.importFile.files[0];
-  if (!file) return setStatus('請先選擇匯入檔案。', true);
+  if (!file) return setStatus('è«‹å…ˆé¸æ“‡åŒ¯å…¥æª”æ¡ˆã€‚', true);
 
   try {
     setBusy(true);
@@ -1285,11 +1285,11 @@ async function importSeed() {
     renderAll();
     el.importFile.value = '';
     const summary = formatImportAdded(payload.added);
-    const baseMsg = '匯入成功，已合併新資料（舊資料保留，重複略過）。';
-    setStatus(summary ? `${baseMsg} 新增：${summary}` : `${baseMsg}（沒有新增資料）`);
-    showToast(summary ? `匯入成功：${summary}` : '匯入成功（沒有新增資料）');
+    const baseMsg = 'åŒ¯å…¥æˆåŠŸï¼Œå·²åˆä½µæ–°è³‡æ–™ï¼ˆèˆŠè³‡æ–™ä¿ç•™ï¼Œé‡è¤‡ç•¥éŽï¼‰ã€‚';
+    setStatus(summary ? `${baseMsg} æ–°å¢žï¼š${summary}` : `${baseMsg}ï¼ˆæ²’æœ‰æ–°å¢žè³‡æ–™ï¼‰`);
+    showToast(summary ? `åŒ¯å…¥æˆåŠŸï¼š${summary}` : 'åŒ¯å…¥æˆåŠŸï¼ˆæ²’æœ‰æ–°å¢žè³‡æ–™ï¼‰');
   } catch (err) {
-    setStatus(`匯入失敗: ${err.message}`, true);
+    setStatus(`åŒ¯å…¥å¤±æ•—: ${err.message}`, true);
     handleAdminPasswordError(err);
   } finally {
     setBusy(false);
@@ -1299,10 +1299,10 @@ async function importSeed() {
 async function login() {
   const username = String(el.loginUsername.value || '').trim().toLowerCase() || 'admin';
   const password = String(el.loginPassword.value || '').trim();
-  if (!password) return setLoginHint('請輸入帳號及密碼。', true);
+  if (!password) return setLoginHint('è«‹è¼¸å…¥å¸³è™ŸåŠå¯†ç¢¼ã€‚', true);
   try {
-    setBusy(true, '正在登入後台，請稍候...');
-    setLoginHint('正在登入，請稍候...');
+    setBusy(true, 'æ­£åœ¨ç™»å…¥å¾Œå°ï¼Œè«‹ç¨å€™...');
+    setLoginHint('æ­£åœ¨ç™»å…¥ï¼Œè«‹ç¨å€™...');
     const user = await loginRequest(username, password);
     const payload = await fetchSeedByCredentials(username, password);
     state.username = user.username || username;
@@ -1331,10 +1331,10 @@ async function login() {
     }
     renderAll();
     const tableMissingNote = hasPermission('users') && !state.adminUsers.length
-      ? '已登入。若要新增限權用戶，請先在 Supabase 建立 admin_users table。'
-      : '已載入資料。';
+      ? 'å·²ç™»å…¥ã€‚è‹¥è¦æ–°å¢žé™æ¬Šç”¨æˆ¶ï¼Œè«‹å…ˆåœ¨ Supabase å»ºç«‹ admin_users tableã€‚'
+      : 'å·²è¼‰å…¥è³‡æ–™ã€‚';
     setStatus(tableMissingNote);
-    showToast('已登入後台');
+    showToast('å·²ç™»å…¥å¾Œå°');
     setLoginHint('');
     el.loginPassword.value = '';
   } catch (err) {
@@ -1346,7 +1346,7 @@ async function login() {
     state.adminUsers = [];
     state.logs = [];
     setAuthUi(false);
-    setLoginHint('帳號或密碼錯誤，請再試一次。', true);
+    setLoginHint('å¸³è™Ÿæˆ–å¯†ç¢¼éŒ¯èª¤ï¼Œè«‹å†è©¦ä¸€æ¬¡ã€‚', true);
     setStatus(err.message, true);
   } finally {
     setBusy(false);
@@ -1365,8 +1365,8 @@ function logout() {
   state.adminUsers = [];
   state.logs = [];
   setAuthUi(false);
-  setStatus('登入後可操作。');
-  setLoginHint('已登出。');
+  setStatus('ç™»å…¥å¾Œå¯æ“ä½œã€‚');
+  setLoginHint('å·²ç™»å‡ºã€‚');
   if (el.loginPassword) el.loginPassword.value = '';
   renderLogs();
 }
@@ -1403,12 +1403,12 @@ if (el.addAdminUserBtn) {
     const staffDepartments = permissions.includes('staff')
       ? getCheckedPermissions(el.newAdminDepartmentOptions, 'new-admin-department')
       : [];
-    if (!username) return setStatus('請輸入新帳號。', true);
-    if (username === 'admin') return setStatus('admin 為系統固定帳號，不能在此新增。', true);
-    if (!password) return setStatus('請輸入新用戶密碼。', true);
-    if (!permissions.length) return setStatus('請至少選擇一項權限。', true);
-    if (permissions.includes('staff') && !staffDepartments.length) return setStatus('如有部門權限，請至少選擇一個部門。', true);
-    if (state.adminUsers.some(user => user.username === username)) return setStatus('此帳號已存在。', true);
+    if (!username) return setStatus('è«‹è¼¸å…¥æ–°å¸³è™Ÿã€‚', true);
+    if (username === 'admin') return setStatus('admin ç‚ºç³»çµ±å›ºå®šå¸³è™Ÿï¼Œä¸èƒ½åœ¨æ­¤æ–°å¢žã€‚', true);
+    if (!password) return setStatus('è«‹è¼¸å…¥æ–°ç”¨æˆ¶å¯†ç¢¼ã€‚', true);
+    if (!permissions.length) return setStatus('è«‹è‡³å°‘é¸æ“‡ä¸€é …æ¬Šé™ã€‚', true);
+    if (permissions.includes('staff') && !staffDepartments.length) return setStatus('å¦‚æœ‰éƒ¨é–€æ¬Šé™ï¼Œè«‹è‡³å°‘é¸æ“‡ä¸€å€‹éƒ¨é–€ã€‚', true);
+    if (state.adminUsers.some(user => user.username === username)) return setStatus('æ­¤å¸³è™Ÿå·²å­˜åœ¨ã€‚', true);
     state.adminUsers.push({ username, permissions, staffDepartments });
     el.newAdminUsername.value = '';
     el.newAdminPassword.value = '';
@@ -1416,20 +1416,20 @@ if (el.addAdminUserBtn) {
     renderAdminUsers();
     const passwordField = el.adminUsersList.querySelector(`.admin-user-password[data-index="${state.adminUsers.length - 1}"]`);
     if (passwordField) passwordField.value = password;
-    setStatus(`已新增用戶 ${username}，請按「儲存此區」確認。`);
+    setStatus(`å·²æ–°å¢žç”¨æˆ¶ ${username}ï¼Œè«‹æŒ‰ã€Œå„²å­˜æ­¤å€ã€ç¢ºèªã€‚`);
   };
 }
 
 el.addRestaurantBtn.onclick = () => {
   if (!requireAuth()) return;
   const v = String(el.newRestaurant.value || '').trim();
-  if (!v) return setStatus('請輸入餐廳名稱。', true);
-  if (state.seed.restaurants.includes(v)) return setStatus('餐廳已存在。', true);
+  if (!v) return setStatus('è«‹è¼¸å…¥é¤å»³åç¨±ã€‚', true);
+  if (state.seed.restaurants.includes(v)) return setStatus('é¤å»³å·²å­˜åœ¨ã€‚', true);
   state.seed.restaurants.push(v);
   if (!state.seed.menus[v]) state.seed.menus[v] = {};
   el.newRestaurant.value = '';
   renderAll();
-  markDirty('已新增餐廳');
+  markDirty('å·²æ–°å¢žé¤å»³');
 };
 
 el.addDrinkBtn.onclick = () => {
@@ -1438,38 +1438,38 @@ el.addDrinkBtn.onclick = () => {
   const scInput = String(el.drinkSc.value || '').trim();
   const tc = tcInput || toTc(scInput);
   const sc = scInput || toSc(tcInput || tc);
-  if (!tc) return setStatus('請輸入飲品名稱（繁體或簡體其一）。', true);
+  if (!tc) return setStatus('è«‹è¼¸å…¥é£²å“åç¨±ï¼ˆç¹é«”æˆ–ç°¡é«”å…¶ä¸€ï¼‰ã€‚', true);
   const en = String(el.drinkEn.value || '').trim() || tc;
   state.seed.drinks.push({ tc, sc, en, paused: false });
   el.drinkTc.value = '';
   el.drinkSc.value = '';
   el.drinkEn.value = '';
   renderDrinks();
-  markDirty('已新增飲品');
+  markDirty('å·²æ–°å¢žé£²å“');
 };
 
 el.addDeptBtn.onclick = () => {
   if (!requireAuth()) return;
-  if (!canManageDepartmentStructure()) return setStatus('此帳號只可管理指定部門人員，不能新增部門。', true);
+  if (!canManageDepartmentStructure()) return setStatus('æ­¤å¸³è™Ÿåªå¯ç®¡ç†æŒ‡å®šéƒ¨é–€äººå“¡ï¼Œä¸èƒ½æ–°å¢žéƒ¨é–€ã€‚', true);
   const dept = String(el.newDept.value || '').trim();
-  if (!dept) return setStatus('請輸入部門名稱。', true);
-  if (state.seed.staff[dept]) return setStatus('部門已存在。', true);
+  if (!dept) return setStatus('è«‹è¼¸å…¥éƒ¨é–€åç¨±ã€‚', true);
+  if (state.seed.staff[dept]) return setStatus('éƒ¨é–€å·²å­˜åœ¨ã€‚', true);
   state.seed.staff[dept] = [];
   el.newDept.value = '';
   renderDepartments();
   el.deptSelect.value = dept;
   renderStaff();
-  markDirty('已新增部門');
+  markDirty('å·²æ–°å¢žéƒ¨é–€');
 };
 
 el.removeDeptBtn.onclick = () => {
   if (!requireAuth()) return;
-  if (!canManageDepartmentStructure()) return setStatus('此帳號只可管理指定部門人員，不能刪除部門。', true);
+  if (!canManageDepartmentStructure()) return setStatus('æ­¤å¸³è™Ÿåªå¯ç®¡ç†æŒ‡å®šéƒ¨é–€äººå“¡ï¼Œä¸èƒ½åˆªé™¤éƒ¨é–€ã€‚', true);
   const dept = el.deptSelect.value;
-  if (!dept) return setStatus('請先選擇部門。', true);
+  if (!dept) return setStatus('è«‹å…ˆé¸æ“‡éƒ¨é–€ã€‚', true);
   delete state.seed.staff[dept];
   renderDepartments();
-  markDirty('已刪除部門');
+  markDirty('å·²åˆªé™¤éƒ¨é–€');
 };
 
 el.deptSelect.onchange = renderStaff;
@@ -1478,14 +1478,14 @@ el.addStaffBtn.onclick = () => {
   if (!requireAuth()) return;
   const dept = el.deptSelect.value;
   const name = String(el.newStaff.value || '').trim();
-  if (!dept) return setStatus('請先選擇部門。', true);
-  if (!name) return setStatus('請輸入人員名稱。', true);
+  if (!dept) return setStatus('è«‹å…ˆé¸æ“‡éƒ¨é–€ã€‚', true);
+  if (!name) return setStatus('è«‹è¼¸å…¥äººå“¡åç¨±ã€‚', true);
   if (!state.seed.staff[dept]) state.seed.staff[dept] = [];
-  if (state.seed.staff[dept].includes(name)) return setStatus('人員已存在於此部門。', true);
+  if (state.seed.staff[dept].includes(name)) return setStatus('äººå“¡å·²å­˜åœ¨æ–¼æ­¤éƒ¨é–€ã€‚', true);
   state.seed.staff[dept].push(name);
   el.newStaff.value = '';
   renderStaff();
-  markDirty('已新增人員');
+  markDirty('å·²æ–°å¢žäººå“¡');
 };
 
 el.menuRestaurantSelect.onchange = () => {
@@ -1502,16 +1502,16 @@ el.addCategoryBtn.onclick = () => {
   if (!requireAuth()) return;
   const rest = currentMenuRestaurant();
   const cat = String(el.newCategory.value || '').trim();
-  if (!rest) return setStatus('請先選擇餐廳。', true);
-  if (!cat) return setStatus('請輸入分類名稱。', true);
+  if (!rest) return setStatus('è«‹å…ˆé¸æ“‡é¤å»³ã€‚', true);
+  if (!cat) return setStatus('è«‹è¼¸å…¥åˆ†é¡žåç¨±ã€‚', true);
   if (!state.seed.menus[rest]) state.seed.menus[rest] = {};
-  if (state.seed.menus[rest][cat]) return setStatus('分類已存在。', true);
+  if (state.seed.menus[rest][cat]) return setStatus('åˆ†é¡žå·²å­˜åœ¨ã€‚', true);
   state.seed.menus[rest][cat] = [];
   el.newCategory.value = '';
   renderMenuCategories();
   el.menuCategorySelect.value = cat;
   renderMenuItems();
-  markDirty('已新增分類');
+  markDirty('å·²æ–°å¢žåˆ†é¡ž');
 };
 
 el.addMenuBtn.onclick = () => {
@@ -1564,6 +1564,7 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
+
 
 
 

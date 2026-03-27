@@ -626,8 +626,8 @@ function renderOptionGroups(foodKey, optionGroupsRaw) {
   el.optionGroupsWrap.classList.remove('hidden');
   groups.forEach((group, gIndex) => {
     const label = group.label || t('optionsTitle');
-    const min = Number.isFinite(group.min) ? group.min : 0;
     const max = Number.isFinite(group.max) ? group.max : group.choices.length;
+    const min = Number.isFinite(group.min) ? group.min : (max === 1 ? 1 : 0);
     const isSingle = max === 1 && min <= 1;
     const wrap = document.createElement('div');
     wrap.className = 'rounded-md border border-slate-200 bg-white p-2';
@@ -740,24 +740,7 @@ function startAutoRefresh() {
 }
 
 async function requestPrivateAccess() {
-  const password = window.prompt(t('secretAccessPrompt'));
-  if (password === null) return;
-
-  try {
-    setBusy(true);
-    const res = await fetch('/api/private-access', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: 'lady-ruby', password: String(password).trim() })
-    });
-    const payload = await res.json().catch(() => ({ error: t('secretAccessError') }));
-    if (!res.ok) throw new Error(payload.error || t('secretAccessError'));
-    window.location.href = payload.redirect || '/lady-ruby/';
-  } catch (err) {
-    window.alert(err.message || t('secretAccessError'));
-  } finally {
-    setBusy(false);
-  }
+  window.location.href = '/lady-ruby/';
 }
 
 function requestAdminAccess() {

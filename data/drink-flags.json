@@ -1,3 +1,25 @@
 {
-  "paused": {}
+  "paused": {
+    "伯朗咖啡 -Black Coffee": false,
+    "伯朗咖啡 -Vanilla Coffee": false,
+    "可樂": false,
+    "可樂 零糖": false,
+    "天然椰奶": true,
+    "柚子綠茶": false,
+    "水": false,
+    "汽泡水": false,
+    "王老吉": false,
+    "維他奶朱古力奶": true,
+    "維他檸檬茶": false,
+    "芬達": false,
+    "蜜桃烏龍茶": false,
+    "阿薩姆 奶茶": false,
+    "阿薩姆 綠茶": true,
+    "阿薩姆 芋香奶茶": false,
+    "阿薩姆 草莓": true,
+    "阿薩姆 鐵觀音": true,
+    "雪碧": false,
+    "雪碧 零糖": false,
+    "青提烏龍茶": false
+  }
 }

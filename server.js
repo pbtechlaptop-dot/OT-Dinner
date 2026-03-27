@@ -1572,8 +1572,22 @@ function validateOrder(order) {
 function toCsv(orders) {
   const header = ['No', 'Dept', 'Name', 'Food', 'Addon', 'Drink', 'Price'];
   const lines = [header.join(',')];
+  const normalizeAddon = value => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    if (!/[\u3400-\u9fff]/.test(raw)) return raw;
+    let out = '';
+    for (const ch of raw) {
+      if (/[\u3400-\u9fff]/.test(ch)) out += ch;
+      else if (/[0-9]/.test(ch)) out += ch;
+      else if (/[+,;\\/、]/.test(ch)) out += ch;
+      else if (/\s/.test(ch)) out += ' ';
+    }
+    out = out.replace(/\s+/g, ' ').replace(/\s*([+,;\\/、])\s*/g, '$1').trim();
+    return out || raw;
+  };
   orders.forEach((o, i) => {
-    const row = [i + 1, o.dept, o.name, o.food, o.addon || '', o.drink || '', o.price].map(value => {
+    const row = [i + 1, o.dept, o.name, o.food, normalizeAddon(o.addon || ''), o.drink || '', o.price].map(value => {
       const s = String(value ?? '');
       return '"' + s.replace(/"/g, '""') + '"';
     });
@@ -1616,7 +1630,7 @@ function serveStatic(req, reqPath, res) {
   safePath = path.normalize(safePath).replace(/^\.\.(\\|\/|$)/, '');
   const filePath = path.join(PUBLIC_DIR, safePath);
   if (!filePath.startsWith(PUBLIC_DIR)) return text(res, 403, 'Forbidden');
-  if (isLadyRubyPage && !hasLadyRubyAccess(req)) return text(res, 404, 'Not found');
+  // Lady Ruby page is now public; no access cookie required.
 
   fs.readFile(filePath, (err, data) => {
     if (err) return text(res, 404, 'Not found');
