@@ -500,7 +500,26 @@ function parseOptionGroups(input) {
     const id = String(group.id || group.key || i + 1).trim();
     const label = String(group.label || group.name || '').trim();
     const choicesRaw = Array.isArray(group.choices || group.items) ? (group.choices || group.items) : [];
-    const choices = choicesRaw.map(v => String(v || '').trim()).filter(Boolean);
+    const choices = choicesRaw.map(choice => {
+      if (typeof choice === 'string' || typeof choice === 'number') {
+        const text = String(choice).trim();
+        if (!text) return null;
+        const match = text.match(/^(.*?)(?:\s*\(\s*(?:\+|加)?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)\s*\)\s*|\s*(?:\+|加)\s*\$?\s*([0-9]+(?:\.[0-9]+)?)\s*)$/);
+        if (match) {
+          const labelText = String(match[1] || '').trim();
+          const price = Number(match[2] || match[3]);
+          if (labelText && Number.isFinite(price) && price > 0) return { label: labelText, price };
+        }
+        return text;
+      }
+      if (!choice || typeof choice !== 'object') return null;
+      const text = String(choice.label || choice.name || choice.value || choice.text || '').trim();
+      if (!text) return null;
+      const priceRaw = choice.price ?? choice.add ?? choice.extra;
+      const price = Number(priceRaw);
+      if (Number.isFinite(price) && price > 0) return { label: text, price };
+      return text;
+    }).filter(Boolean);
     if (!choices.length) return;
     const min = Number(group.min);
     const max = Number(group.max);
@@ -1564,8 +1583,6 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
-
-
 
 
 

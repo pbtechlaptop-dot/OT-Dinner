@@ -620,13 +620,15 @@ function renderOptionGroups(foodKey, optionGroupsRaw) {
   }
   if (!groups.length) {
     el.optionGroupsWrap.classList.add('hidden');
+    updatePriceWithOptions();
     return;
   }
 
   el.optionGroupsWrap.classList.remove('hidden');
   groups.forEach((group, gIndex) => {
     const label = group.label || t('optionsTitle');
-    const max = Number.isFinite(group.max) ? group.max : group.choices.length;
+    const normalizedChoices = (group.choices || []).map(normalizeOptionChoice).filter(Boolean);
+    const max = Number.isFinite(group.max) ? group.max : normalizedChoices.length;
     const min = Number.isFinite(group.min) ? group.min : (max === 1 ? 1 : 0);
     const isSingle = max === 1 && min <= 1;
     const wrap = document.createElement('div');
@@ -639,27 +641,32 @@ function renderOptionGroups(foodKey, optionGroupsRaw) {
 
     const optionsWrap = document.createElement('div');
     optionsWrap.className = 'grid gap-1 sm:grid-cols-2';
-    (group.choices || []).forEach((choice, cIndex) => {
-      const choiceLabel = String(choice);
+    normalizedChoices.forEach((choice, cIndex) => {
+      const choiceLabel = choice.label;
+      const choicePrice = Number.isFinite(choice.price) ? choice.price : 0;
       const optLabel = document.createElement('label');
       optLabel.className = 'flex items-center gap-2 text-sm text-slate-700';
       const input = document.createElement('input');
       input.type = isSingle ? 'radio' : 'checkbox';
       input.name = `opt-${gIndex}`;
       input.value = String(choiceLabel);
+      input.dataset.choiceLabel = String(choiceLabel);
+      input.dataset.choicePrice = String(choicePrice);
       input.dataset.groupIndex = String(gIndex);
       input.dataset.groupMin = String(min);
       input.dataset.groupMax = String(max);
       input.className = 'h-4 w-4 accent-pbnavy';
       optLabel.appendChild(input);
       const span = document.createElement('span');
-      span.textContent = choiceLabel;
+      span.textContent = formatOptionLabel(choiceLabel, choicePrice);
       optLabel.appendChild(span);
       optionsWrap.appendChild(optLabel);
     });
     wrap.appendChild(optionsWrap);
     el.optionGroupsList.appendChild(wrap);
   });
+  el.optionGroupsList.onchange = updatePriceWithOptions;
+  updatePriceWithOptions();
 }
 
 function renderOptionGroupsFromSelection() {
@@ -670,10 +677,11 @@ function renderOptionGroupsFromSelection() {
 
 function collectOptionSelections() {
   if (!el.optionGroupsWrap || el.optionGroupsWrap.classList.contains('hidden')) {
-    return { ok: true, text: '' };
+    return { ok: true, text: '', extraPrice: 0 };
   }
   const groups = Array.from(el.optionGroupsList.children || []);
   const selections = [];
+  let extraPrice = 0;
   let anyError = false;
   const normalizeChoiceLabel = value => {
     const raw = String(value || '').trim();
@@ -687,13 +695,21 @@ function collectOptionSelections() {
     if (!inputs.length) continue;
     const min = Number(inputs[0].dataset.groupMin || 0);
     const max = Number(inputs[0].dataset.groupMax || inputs.length);
-    const chosen = inputs.filter(i => i.checked).map(i => normalizeChoiceLabel(i.value)).filter(Boolean);
+    const chosen = inputs.filter(i => i.checked).map(i => {
+      const label = normalizeChoiceLabel(i.dataset.choiceLabel || i.value);
+      const price = Number(i.dataset.choicePrice || 0);
+      if (Number.isFinite(price) && price > 0) {
+        extraPrice += price;
+        return formatOptionLabel(label, price);
+      }
+      return label;
+    }).filter(Boolean);
     if (chosen.length < min) anyError = true;
     if (chosen.length > max) return { ok: false, text: '', error: t('optionTooMany') };
     if (chosen.length) selections.push(chosen.join('+'));
   }
   if (anyError) return { ok: false, text: '', error: t('optionRequired') };
-  return { ok: true, text: selections.join(', ') };
+  return { ok: true, text: selections.join(', '), extraPrice };
 }
 
 function orderSignature(orders) {
@@ -1071,6 +1087,66 @@ function parsePriceInput(v) {
   return Number.isFinite(n) ? n : NaN;
 }
 
+function formatMoney(value) {
+  if (!Number.isFinite(value)) return '';
+  const fixed = value.toFixed(2);
+  return fixed.replace(/\.00$/, '');
+}
+
+function normalizeOptionChoice(choice) {
+  if (typeof choice === 'string' || typeof choice === 'number') {
+    const labelRaw = String(choice).trim();
+    if (!labelRaw) return null;
+    const parsed = parseChoiceLabel(labelRaw);
+    return parsed ? parsed : { label: labelRaw, price: 0 };
+  }
+  if (!choice || typeof choice !== 'object') return null;
+  const label = String(choice.label || choice.name || choice.value || choice.text || '').trim();
+  if (!label) return null;
+  const priceRaw = choice.price ?? choice.add ?? choice.extra;
+  const price = Number(priceRaw);
+  return { label, price: Number.isFinite(price) ? price : 0 };
+}
+
+function parseChoiceLabel(labelRaw) {
+  const raw = String(labelRaw || '').trim();
+  if (!raw) return null;
+  const match = raw.match(/^(.*?)(?:\s*\(\s*(?:\+|加)?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)\s*\)\s*|\s*(?:\+|加)\s*\$?\s*([0-9]+(?:\.[0-9]+)?)\s*)$/);
+  if (!match) return null;
+  const label = String(match[1] || '').trim();
+  const price = Number(match[2] || match[3]);
+  if (!label || !Number.isFinite(price) || price <= 0) return null;
+  return { label, price };
+}
+
+function formatOptionLabel(label, price) {
+  if (Number.isFinite(price) && price > 0) return `${label} (+$${formatMoney(price)})`;
+  return label;
+}
+
+function computeOptionExtraPrice() {
+  if (!el.optionGroupsWrap || el.optionGroupsWrap.classList.contains('hidden')) return 0;
+  const inputs = Array.from(el.optionGroupsList.querySelectorAll('input'));
+  return inputs.reduce((sum, input) => {
+    if (!input.checked) return sum;
+    const extra = Number(input.dataset.choicePrice || 0);
+    return sum + (Number.isFinite(extra) ? extra : 0);
+  }, 0);
+}
+
+function updatePriceWithOptions() {
+  if (!el.priceInput) return;
+  const baseRaw = el.priceInput.dataset.basePrice;
+  const base = parsePriceInput(baseRaw || el.priceInput.value);
+  if (!Number.isFinite(base)) {
+    el.priceInput.value = '';
+    return;
+  }
+  const extra = computeOptionExtraPrice();
+  const total = base + extra;
+  el.priceInput.value = total.toFixed(2);
+}
+
 function resetOrderForm() {
   const departments = Object.keys(state.staff || {});
   const singleDepartment = departments.length === 1 ? departments[0] : '';
@@ -1084,6 +1160,7 @@ function resetOrderForm() {
   el.categorySelect.value = '';
   fillSelect(el.foodSelect, [], t('chooseCatFirst'));
   el.priceInput.value = '';
+  el.priceInput.dataset.basePrice = '';
   el.drinkSelect.value = '';
   el.addonInput.value = '';
   renderOptionGroups('');
@@ -1126,7 +1203,9 @@ el.deptSelect.addEventListener('change', () => {
 el.categorySelect.addEventListener('change', renderFood);
 el.foodSelect.addEventListener('change', () => {
   const opt = el.foodSelect.options[el.foodSelect.selectedIndex];
-  el.priceInput.value = opt && opt.dataset ? (opt.dataset.price || '') : '';
+  const base = opt && opt.dataset ? (opt.dataset.price || '') : '';
+  el.priceInput.dataset.basePrice = base;
+  el.priceInput.value = base;
   renderOptionGroupsFromSelection();
 });
 el.restaurantSelect?.addEventListener('change', syncRestaurantLock);
@@ -1196,11 +1275,13 @@ el.orderForm.addEventListener('submit', async event => {
   hideOrderError();
   const selectedFoodOpt = el.foodSelect.options[el.foodSelect.selectedIndex];
   const selectedPrice = selectedFoodOpt && selectedFoodOpt.dataset ? selectedFoodOpt.dataset.price : '';
-  const price = parsePriceInput(selectedPrice || el.priceInput.value);
-  if (!Number.isFinite(price)) return showToast(t('badPrice'));
+  const basePrice = parsePriceInput(selectedPrice || el.priceInput.dataset.basePrice || el.priceInput.value);
+  if (!Number.isFinite(basePrice)) return showToast(t('badPrice'));
 
   const optionSummary = collectOptionSelections();
   if (!optionSummary.ok) return showOrderError(optionSummary.error || t('optionRequired'));
+  const price = basePrice + (optionSummary.extraPrice || 0);
+  el.priceInput.value = price.toFixed(2);
   const addonText = String(el.addonInput.value || '').trim();
   const mergedAddon = optionSummary.text
     ? (addonText ? `${addonText}, ${optionSummary.text}` : optionSummary.text)
