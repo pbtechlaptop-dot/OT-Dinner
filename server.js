@@ -495,6 +495,23 @@ function mergeScopedStaffSeed(currentSeedInput, nextSeedInput, admin) {
   return { ...nextSeed, staff: mergedStaff };
 }
 
+function mergeScopedMenuRestaurantSeed(currentSeedInput, nextSeedInput, menuRestaurant) {
+  const currentSeed = normalizeSeed(currentSeedInput);
+  const nextSeed = normalizeSeed(nextSeedInput);
+  const restaurant = normText(menuRestaurant);
+  if (!restaurant) return nextSeed;
+  const mergedMenus = { ...(currentSeed.menus || {}) };
+  if (Object.prototype.hasOwnProperty.call(nextSeed.menus || {}, restaurant)) {
+    mergedMenus[restaurant] = nextSeed.menus[restaurant];
+  } else {
+    delete mergedMenus[restaurant];
+  }
+  return {
+    ...currentSeed,
+    menus: mergedMenus
+  };
+}
+
 function todayISO() {
   try {
     // Use business timezone for day rollover instead of UTC midnight.
@@ -1949,6 +1966,7 @@ async function handleApi(req, res, urlObj) {
     const nextSeed = body && body.seed ? body.seed : null;
     const merge = Boolean(body && body.merge);
     const section = normalizeAdminSection(body && body.section);
+    const menuRestaurant = section === 'menus' ? normText(body && body.menuRestaurant) : '';
     if (!admin) {
       recordAuthFailure(req, 'admin');
       return json(res, 403, { error: 'Invalid admin username or password' });
@@ -1984,7 +2002,11 @@ async function handleApi(req, res, urlObj) {
       return json(res, 200, { ok: true, merged: true, seed: mergedSeed, added });
     }
 
-    const finalSeed = section === 'staff' ? mergeScopedStaffSeed(currentSeed, nextSeed, admin) : nextSeed;
+    const finalSeed = section === 'staff'
+      ? mergeScopedStaffSeed(currentSeed, nextSeed, admin)
+      : (section === 'menus'
+        ? mergeScopedMenuRestaurantSeed(currentSeed, nextSeed, menuRestaurant)
+        : nextSeed);
     await storage.saveSeed(finalSeed);
     await appendAdminLogSafe(buildSeedLogEntry({
       admin,

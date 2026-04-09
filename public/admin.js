@@ -915,6 +915,7 @@ async function saveSection(section) {
     menus: '菜單'
   };
   const label = labels[section] || '資料';
+  let menuRestaurant = '';
 
   try {
     if (section === 'restaurants') {
@@ -966,6 +967,7 @@ async function saveSection(section) {
 
     if (section === 'menus') {
       const rest = String((el.menuRestaurantSelect && el.menuRestaurantSelect.value) || '').trim();
+      menuRestaurant = rest;
       const cat = String((el.menuCategorySelect && el.menuCategorySelect.value) || '').trim();
       const tcInput = String((el.menuTc && el.menuTc.value) || '').trim();
       const scInput = String((el.menuSc && el.menuSc.value) || '').trim();
@@ -990,9 +992,11 @@ async function saveSection(section) {
 
     normalizeSeed();
     setBusy(true);
+    const savePayload = { seed: state.seed, section };
+    if (section === 'menus' && menuRestaurant) savePayload.menuRestaurant = menuRestaurant;
     await api('/api/admin/seed', {
       method: 'POST',
-      body: JSON.stringify(adminAuthBody({ seed: state.seed, section }))
+      body: JSON.stringify(adminAuthBody(savePayload))
     });
     state.dirty = false;
     await loadAdminLogs({ silent: true });
@@ -1583,7 +1587,6 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
-
 
 
 
