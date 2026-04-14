@@ -164,9 +164,23 @@
       </div>
     </div>
   </div>
+  <div id="orderChangeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/45 px-4">
+    <div class="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
+      <div class="mb-4">
+        <div>
+          <h3 class="text-lg font-bold text-pbnavy" data-i18n="confirmOrderChangeTitle">確認變更訂單</h3>
+          <p id="orderChangeMessage" class="mt-1 text-sm text-slate-600"></p>
+        </div>
+      </div>
+      <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button id="cancelOrderChangeBtn" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" data-i18n="cancel">取消</button>
+        <button id="confirmOrderChangeBtn" type="button" class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong" data-i18n="confirmOrderChange">確定變更</button>
+      </div>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.min.js"></script>
-  <script src="/app.js?v=20260326-4"></script>
+  <script src="/app.js?v=20260414-1"></script>
 </body>
 </html>
 

@@ -258,6 +258,14 @@ const i18n = {
     secretAccessError: 'Incorrect password. Private page access denied.'
   }
 };
+
+i18n.tc.confirmOrderChangeTitle = '確認變更訂單';
+i18n.tc.confirmOrderChange = '確定變更';
+i18n.sc.confirmOrderChangeTitle = '确认变更订单';
+i18n.sc.confirmOrderChange = '确认变更';
+i18n.en.confirmOrderChangeTitle = 'Confirm order change';
+i18n.en.confirmOrderChange = 'Confirm change';
+
 const el = {
   appTitle: document.getElementById('appTitle'),
   restaurantSectionTitle: document.getElementById('restaurantSectionTitle'),
@@ -269,6 +277,10 @@ const el = {
   restaurantModal: document.getElementById('restaurantModal'),
   closeRestaurantModalBtn: document.getElementById('closeRestaurantModalBtn'),
   cancelRestaurantModalBtn: document.getElementById('cancelRestaurantModalBtn'),
+  orderChangeModal: document.getElementById('orderChangeModal'),
+  orderChangeMessage: document.getElementById('orderChangeMessage'),
+  cancelOrderChangeBtn: document.getElementById('cancelOrderChangeBtn'),
+  confirmOrderChangeBtn: document.getElementById('confirmOrderChangeBtn'),
   restaurantPasswordInput: document.getElementById('restaurantPasswordInput'),
   restaurantActionHint: document.getElementById('restaurantActionHint'),
   currentRestaurantText: document.getElementById('currentRestaurantText'),
@@ -356,6 +368,15 @@ function showToast(message, ms = 2000) {
   el.toast.classList.remove('hidden');
   clearTimeout(showToast.tid);
   showToast.tid = setTimeout(() => el.toast.classList.add('hidden'), ms);
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function getCutoffInputValue() {
@@ -526,6 +547,20 @@ function closeRestaurantModal() {
   if (el.restaurantPasswordInput) el.restaurantPasswordInput.value = '';
 }
 
+function openOrderChangeModal(messageHtml) {
+  if (!el.orderChangeModal || !el.orderChangeMessage) return;
+  el.orderChangeMessage.innerHTML = messageHtml;
+  el.orderChangeModal.classList.remove('hidden');
+  el.orderChangeModal.classList.add('flex');
+}
+
+function closeOrderChangeModal() {
+  if (!el.orderChangeModal || !el.orderChangeMessage) return;
+  el.orderChangeModal.classList.add('hidden');
+  el.orderChangeModal.classList.remove('flex');
+  el.orderChangeMessage.textContent = '';
+}
+
 function renderRestaurants() {
   fillSelect(el.restaurantSelect, (state.restaurants || []).map(r => ({ value: r, label: r })), t('selectRestaurant'));
   if (state.currentRestaurant) el.restaurantSelect.value = state.currentRestaurant;
@@ -601,6 +636,57 @@ function displayAddon(addonText) {
   }
   out = out.replace(/\s+/g, ' ').replace(/\s*([+,;\\/、])\s*/g, '$1').trim();
   return out || raw;
+}
+
+function describeOrderForChange(order) {
+  if (!order) return '';
+  const parts = [displayFood(order.food)];
+  const addon = displayAddon(order.addon || '');
+  if (addon) parts.push(addon);
+  if (order.drink) parts.push(displayDrink(order.drink));
+  return parts.join(' / ');
+}
+
+function sameOrderContent(a, b) {
+  if (!a || !b) return false;
+  return String(a.food || '') === String(b.food || '')
+    && String(a.addon || '') === String(b.addon || '')
+    && String(a.drink || '') === String(b.drink || '')
+    && Number(a.price || 0) === Number(b.price || 0);
+}
+
+function buildOrderChangeMessage(existingOrder, nextOrder) {
+  const name = escapeHtml(nextOrder.name || existingOrder.name || '');
+  const fromText = escapeHtml(describeOrderForChange(existingOrder));
+  const toText = escapeHtml(describeOrderForChange(nextOrder));
+  if (state.lang === 'en') return `${name} will change from <strong>${fromText}</strong> to <strong>${toText}</strong>.`;
+  if (state.lang === 'sc') return `${name} 将由现在 <strong>${fromText}</strong> 改为 <strong>${toText}</strong>。`;
+  return `${name} 由現在 <strong>${fromText}</strong> 轉到 <strong>${toText}</strong>。`;
+}
+
+function confirmOrderChange(existingOrder, nextOrder) {
+  return new Promise(resolve => {
+    if (!el.orderChangeModal || !el.confirmOrderChangeBtn || !el.cancelOrderChangeBtn) {
+      resolve(window.confirm(buildOrderChangeMessage(existingOrder, nextOrder).replace(/<[^>]+>/g, '')));
+      return;
+    }
+
+    const cleanup = () => {
+      el.confirmOrderChangeBtn.removeEventListener('click', handleConfirm);
+      el.cancelOrderChangeBtn.removeEventListener('click', handleCancel);
+    };
+    const finish = decision => {
+      cleanup();
+      closeOrderChangeModal();
+      resolve(decision);
+    };
+    const handleConfirm = () => finish(true);
+    const handleCancel = () => finish(false);
+
+    openOrderChangeModal(buildOrderChangeMessage(existingOrder, nextOrder));
+    el.confirmOrderChangeBtn.addEventListener('click', handleConfirm);
+    el.cancelOrderChangeBtn.addEventListener('click', handleCancel);
+  });
 }
 
 function renderOptionGroups(foodKey, optionGroupsRaw) {
@@ -1288,6 +1374,11 @@ el.orderForm.addEventListener('submit', async event => {
     : addonText;
 
   const order = { dept: el.deptSelect.value, name: el.nameSelect.value, food: el.foodSelect.value, price, addon: mergedAddon, drink: el.drinkSelect.value };
+  const existingOrder = (state.orders || []).find(o => o.dept === order.dept && o.name === order.name);
+  if (existingOrder && !sameOrderContent(existingOrder, order)) {
+    const confirmed = await confirmOrderChange(existingOrder, order);
+    if (!confirmed) return;
+  }
   try {
     setBusy(true);
     const payload = await api('/api/orders', { method: 'POST', body: JSON.stringify(order) });
