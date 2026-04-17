@@ -301,6 +301,7 @@ const el = {
   ordersBody: document.getElementById('ordersBody'),
   totalPrice: document.getElementById('totalPrice'),
   drinkSummary: document.getElementById('drinkSummary'),
+  foodSummary: document.getElementById('foodSummary'),
   exportCsvLink: document.getElementById('exportCsvLink'),
   exportXlsxBtn: document.getElementById('exportXlsxBtn'),
   langTc: document.getElementById('langTc'),
@@ -910,6 +911,7 @@ function renderOrders() {
     el.ordersBody.innerHTML = `<tr><td colspan="7">${t('noOrders')}</td></tr>`;
     el.totalPrice.textContent = '0.00';
     el.drinkSummary.textContent = '';
+    if (el.foodSummary) el.foodSummary.textContent = '';
     updateDiagSummary();
     return;
   }
@@ -922,12 +924,19 @@ function renderOrders() {
   el.totalPrice.textContent = total.toFixed(2);
 
   const byDeptDrink = {};
+  const foodCounts = {};
   orders.forEach(o => {
     const drinkKey = String(o.drink || '').trim();
     if (!drinkKey) return;
     const dept = String(o.dept || '').trim() || '-';
     if (!byDeptDrink[dept]) byDeptDrink[dept] = {};
     byDeptDrink[dept][drinkKey] = (byDeptDrink[dept][drinkKey] || 0) + 1;
+  });
+
+  orders.forEach(o => {
+    const foodKey = String(displayFood(o.food) || '').trim();
+    if (!foodKey) return;
+    foodCounts[foodKey] = (foodCounts[foodKey] || 0) + 1;
   });
 
   const summaryHtml = Object.entries(byDeptDrink)
@@ -939,7 +948,17 @@ function renderOrders() {
   })
   .join('<br>');
 
-el.drinkSummary.innerHTML = summaryHtml;
+  el.drinkSummary.innerHTML = summaryHtml;
+  if (el.foodSummary) {
+    const foodHtml = Object.entries(foodCounts)
+      .sort((a, b) => {
+        if (b[1] !== a[1]) return b[1] - a[1];
+        return a[0].localeCompare(b[0], 'zh-Hant');
+      })
+      .map(([food, count]) => `- ${food} ${t('xLabel')} ${count}`)
+      .join('<br>');
+    el.foodSummary.innerHTML = foodHtml;
+  }
   updateDiagSummary();
 }
 
