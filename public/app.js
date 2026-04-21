@@ -473,9 +473,6 @@ function applyI18n() {
   document.documentElement.lang = state.lang === 'en' ? 'en' : (state.lang === 'sc' ? 'zh-Hans' : 'zh-Hant');
   document.querySelectorAll('[data-i18n]').forEach(node => { node.textContent = t(node.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(node => { node.placeholder = t(node.getAttribute('data-i18n-placeholder')); });
-  if (el.langTc) el.langTc.textContent = '\u7e41\u4e2d';
-  if (el.langSc) el.langSc.textContent = '\u7b80\u4e2d';
-  if (el.langEn) el.langEn.textContent = 'EN';
   const pageTitle = state.appId === 'lady-ruby' ? t('appTitleLadyRuby') : t('appTitle');
   if (el.appTitle) el.appTitle.textContent = pageTitle;
   document.title = pageTitle;
@@ -644,6 +641,18 @@ function displayAddon(addonText) {
   }
   out = out.replace(/\s+/g, ' ').replace(/\s*([+,;\\/、])\s*/g, '$1').trim();
   return out || raw;
+}
+
+function stripAddonPriceText(addonText) {
+  const text = String(addonText || '').trim();
+  if (!text) return '';
+  return text
+    .replace(/\(\s*\+\s*\$?\s*\d+(?:\.\d+)?\s*\)/g, '')
+    .replace(/\+\s*\$?\s*\d+(?:\.\d+)?/g, '')
+    .replace(/\s*([,;\/、])\s*/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[,;\/、\s]+|[,;\/、\s]+$/g, '')
+    .trim();
 }
 
 function describeOrderForChange(order) {
@@ -832,30 +841,18 @@ async function refreshOrdersSilently() {
   refreshOrdersSilently.inFlight = true;
   try {
     const payload = await api(`/api/orders?_=${Date.now()}`);
-    let nextRestaurant = payload.currentRestaurant || null;
-    let nextCutoffTime = payload.cutoffTime || state.defaultCutoffTime;
-    let nextCutoffPassed = Boolean(payload.cutoffPassed);
-    const missingRuntimeState = payload.currentRestaurant === undefined
-      || payload.cutoffTime === undefined
-      || payload.cutoffPassed === undefined;
-    if (missingRuntimeState) {
-      const bootstrap = await api(`/api/bootstrap?_=${Date.now()}`);
-      nextRestaurant = bootstrap.currentRestaurant || null;
-      nextCutoffTime = bootstrap.cutoffTime || state.defaultCutoffTime;
-      nextCutoffPassed = Boolean(bootstrap.cutoffPassed);
-    }
+    const nextRestaurant = payload.currentRestaurant || null;
+    const nextCutoffTime = payload.cutoffTime || state.defaultCutoffTime;
+    const nextCutoffPassed = Boolean(payload.cutoffPassed);
     const restaurantChanged = nextRestaurant !== state.currentRestaurant;
     const cutoffChanged = nextCutoffTime !== state.cutoffTime || nextCutoffPassed !== state.cutoffPassed;
-
     if (restaurantChanged || cutoffChanged) {
       state.currentRestaurant = nextRestaurant;
       state.cutoffTime = nextCutoffTime;
       state.cutoffPassed = nextCutoffPassed;
       renderRestaurants();
       if (restaurantChanged) await loadMenu(state.currentRestaurant);
-      updateDiagSummary();
     }
-
     const incoming = payload.orders || [];
     const sig = orderSignature(incoming);
     if (sig !== state.lastOrdersSignature) {
@@ -875,12 +872,6 @@ function startAutoRefresh() {
     if (document.hidden) return;
     refreshOrdersSilently();
   }, 5000);
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) refreshOrdersSilently();
-  });
-  window.addEventListener('focus', () => {
-    refreshOrdersSilently();
-  });
 }
 
 async function requestPrivateAccess() {
@@ -947,16 +938,9 @@ function setupAdminEntry() {
 
 function buildFoodSummaryLabel(order) {
   const food = String(displayFood(order.food) || '').trim();
-  const addon = String(displayAddon(order.addon || '') || '').trim();
-  const addonWithoutPrice = addon
-    .replace(/\(\s*\+\s*\$?\s*\d+(?:\.\d+)?\s*\)/g, '')
-    .replace(/\+\s*\$?\s*\d+(?:\.\d+)?/g, '')
-    .replace(/\s*([,;\/、])\s*/g, '$1')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/^[,;\/、\s]+|[,;\/、\s]+$/g, '')
-    .trim();
+  const addon = stripAddonPriceText(displayAddon(order.addon || ''));
   if (!food) return '';
-  return addonWithoutPrice ? `${food} ${addonWithoutPrice}` : food;
+  return addon ? `${food} ${addon}` : food;
 }
 
 function renderOrders() {
@@ -975,13 +959,7 @@ function renderOrders() {
   el.ordersBody.innerHTML = orders.map((o, i) => {
     const p = Number(o.price || 0);
     total += p;
-    const addon = String(displayAddon(o.addon || '') || '')
-      .replace(/\(\s*\+\s*\$?\s*\d+(?:\.\d+)?\s*\)/g, '')
-      .replace(/\+\s*\$?\s*\d+(?:\.\d+)?/g, '')
-      .replace(/\s*([,;\/、])\s*/g, '$1')
-      .replace(/\s{2,}/g, ' ')
-      .replace(/^[,;\/、\s]+|[,;\/、\s]+$/g, '')
-      .trim();
+    const addon = stripAddonPriceText(displayAddon(o.addon || ''));
     return `<tr><td>${i + 1}</td><td>${o.dept}</td><td>${o.name}</td><td>${displayFood(o.food)}</td><td>${addon}</td><td>${displayDrink(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
   }).join('');
   el.totalPrice.textContent = total.toFixed(2);
@@ -1425,7 +1403,6 @@ el.setRestaurantBtn.addEventListener('click', async () => {
     el.currentRestaurantText.textContent = `${t('currentRestaurant')}${restaurant}`;
     if (payload.cleared) state.orders = [];
     renderRestaurants();
-    updateDiagSummary();
     closeRestaurantModal();
     if (payload.restaurantChanged || payload.cleared) {
       renderOrders();
@@ -1444,7 +1421,6 @@ el.setRestaurantBtn.addEventListener('click', async () => {
     buildLookupMaps();
     renderCategories();
     renderRestaurants();
-    updateDiagSummary();
     if (/invalid password/i.test(String(err.message || ''))) {
       if (el.restaurantPasswordInput) {
         el.restaurantPasswordInput.value = '';
