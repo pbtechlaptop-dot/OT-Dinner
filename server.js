@@ -1526,6 +1526,9 @@ function json(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'SAMEORIGIN',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -1881,7 +1884,10 @@ async function handleApi(req, res, urlObj) {
     const state = await storage.getState(appId);
     return json(res, 200, {
       orders: state.orders,
-      total: state.orders.reduce((sum, o) => sum + Number(o.price || 0), 0)
+      total: state.orders.reduce((sum, o) => sum + Number(o.price || 0), 0),
+      currentRestaurant: state.restaurant || null,
+      cutoffTime: state.cutoffTime || DEFAULT_CUTOFF_TIME,
+      cutoffPassed: isCutoffPassed(state.cutoffTime)
     });
   }
 
