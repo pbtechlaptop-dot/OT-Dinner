@@ -7,6 +7,7 @@ const ADMIN_PERMISSION_OPTIONS = [
   { key: 'menus', label: '菜單' },
   { key: 'reset_main', label: '重置主站訂單' },
   { key: 'reset_lady_ruby', label: '重置 Lady Ruby 訂單' },
+  { key: 'late_order', label: '補單' },
   { key: 'users', label: '用戶與權限' }
 ];
 
@@ -1587,7 +1588,6 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
-
 
 
 

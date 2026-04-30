@@ -78,6 +78,7 @@ const ADMIN_PERMISSIONS = [
   'menus',
   'reset_main',
   'reset_lady_ruby',
+  'late_order',
   'users'
 ];
 
@@ -552,6 +553,27 @@ function isCutoffPassed(cutoffTime) {
   return currentTimeHM() > cutoff;
 }
 
+function timeHMInAppTimezone(value) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return '';
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: APP_TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(new Date(timestamp));
+  } catch {
+    return new Date(timestamp).toISOString().slice(11, 16);
+  }
+}
+
+function isLateOrderTimestamp(orderedAt, cutoffTime) {
+  const cutoff = normalizeCutoffTime(cutoffTime);
+  const orderedTime = timeHMInAppTimezone(orderedAt);
+  return Boolean(cutoff && orderedTime && orderedTime > cutoff);
+}
+
 function defaultSeed() {
   return { restaurants: [], staff: {}, drinks: [], menus: {} };
 }
@@ -936,7 +958,8 @@ function normalizeState(input) {
     cutoffTime: normalizeCutoffTime(state.cutoffTime) || DEFAULT_CUTOFF_TIME,
     orders: (Array.isArray(state.orders) ? state.orders : []).map(order => ({
       ...order,
-      orderedAt: normalizeOrderTimestamp(order && order.orderedAt)
+      orderedAt: normalizeOrderTimestamp(order && order.orderedAt),
+      lateOrder: Boolean(order && order.lateOrder)
     }))
   };
 }
@@ -1362,7 +1385,8 @@ async function getStateSupabase(appId = APP_MAIN) {
     addon: normText(o.addon),
     drink: normText(o.drink),
     price: Number(o.price || 0),
-    orderedAt: normalizeOrderTimestamp(o.ordered_at)
+    orderedAt: normalizeOrderTimestamp(o.ordered_at),
+    lateOrder: isLateOrderTimestamp(o.ordered_at, appState.cutoff_time || DEFAULT_CUTOFF_TIME)
   }));
 
   return {
@@ -1710,6 +1734,24 @@ function requireAdminPermission(admin, permission) {
   return hasAdminPermission(admin, permission);
 }
 
+async function getLateOrderUsers() {
+  const users = await storage.getAdminUsers().catch(() => []);
+  const eligible = users
+    .filter(user => hasAdminPermission(user, 'late_order'))
+    .map(user => ({ username: user.username }));
+  return [{ username: 'admin' }].concat(eligible)
+    .filter((user, index, list) => user.username && list.findIndex(item => item.username === user.username) === index);
+}
+
+async function authenticateLateOrder(body = {}) {
+  const admin = await authenticateAdmin({
+    username: body.lateOrderUsername || body.username,
+    password: body.lateOrderPassword || body.password
+  });
+  if (!admin || !requireAdminPermission(admin, 'late_order')) return null;
+  return admin;
+}
+
 function normalizeAdminSection(section) {
   const raw = normText(section).toLowerCase();
   const map = {
@@ -1790,6 +1832,25 @@ async function handleApi(req, res, urlObj) {
     return json(res, 200, { restaurant, menu });
   }
 
+  if (req.method === 'GET' && pathname === '/api/late-order/users') {
+    const users = await getLateOrderUsers();
+    return json(res, 200, { users });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/late-order/authorize') {
+    if (isAuthRateLimited(req, 'late-order')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const body = await parseBody(req);
+    const admin = await authenticateLateOrder(body);
+    if (!admin) {
+      recordAuthFailure(req, 'late-order');
+      return json(res, 403, { error: 'Invalid late order username or password' });
+    }
+    clearAuthFailures(req, 'late-order');
+    return json(res, 200, { ok: true, user: { username: admin.username } });
+  }
+
   if (req.method === 'POST' && pathname === '/api/restaurant') {
     if (isAuthRateLimited(req, 'restaurant-settings')) {
       return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
@@ -1838,8 +1899,17 @@ async function handleApi(req, res, urlObj) {
     const appId = getAppIdFromRequest(urlObj, body);
     const state = await storage.getState(appId);
     if (!state.restaurant) return json(res, 400, { error: 'Please set today restaurant first' });
-    if (isCutoffPassed(state.cutoffTime)) {
-      return json(res, 403, { error: 'Ordering cutoff has passed. Please contact your team leader or Simon to place an order.' });
+    const lateOrder = isCutoffPassed(state.cutoffTime);
+    if (lateOrder) {
+      if (isAuthRateLimited(req, 'late-order')) {
+        return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+      }
+      const admin = await authenticateLateOrder(body);
+      if (!admin) {
+        recordAuthFailure(req, 'late-order');
+        return json(res, 403, { error: 'Ordering cutoff has passed. Please use supervisor late order access.' });
+      }
+      clearAuthFailures(req, 'late-order');
     }
 
     const error = validateOrder(body);
@@ -1852,7 +1922,8 @@ async function handleApi(req, res, urlObj) {
       addon: normText(body.addon),
       drink: normText(body.drink),
       price: Number(body.price),
-      orderedAt: nowIso()
+      orderedAt: nowIso(),
+      lateOrder
     };
 
     const existed = state.orders.some(o => o.dept === clean.dept && o.name === clean.name);
@@ -2172,15 +2243,6 @@ if (require.main === module) {
 }
 
 module.exports = { createHandler };
-
-
-
-
-
-
-
-
-
 
 
 

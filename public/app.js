@@ -13,6 +13,12 @@ const state = {
   lang: 'tc',
   foodLookup: {},
   drinkLookup: {},
+  lateOrder: {
+    active: false,
+    username: '',
+    password: '',
+    users: []
+  },
   lastOrdersSignature: ''
 };
 
@@ -261,14 +267,57 @@ const i18n = {
 
 i18n.tc.confirmOrderChangeTitle = '確認變更訂單';
 i18n.tc.confirmOrderChange = '確定變更';
+i18n.tc.lateOrderTitle = '主管補單';
+i18n.tc.lateOrderHint = '截單時間已過，只有有補單權限的後台用戶可以繼續下單。';
+i18n.tc.lateOrderStart = '主管補單';
+i18n.tc.lateOrderStop = '結束補單';
+i18n.tc.lateOrderActive = '主管補單中：';
+i18n.tc.lateOrderUser = '補單用戶';
+i18n.tc.lateOrderPassword = '密碼';
+i18n.tc.lateOrderLogin = '開始補單';
+i18n.tc.lateOrderCancel = '取消';
+i18n.tc.lateOrderNoUsers = '未有可補單用戶，請先在後台加入補單權限。';
+i18n.tc.lateOrderAuthorized = '已開啟主管補單';
+i18n.tc.lateOrderEnded = '已結束主管補單';
+i18n.tc.lateOrderPasswordRequired = '請輸入補單用戶密碼';
+i18n.tc.lateOrderOnlyAfterCutoff = '截單後才需要使用主管補單。';
 i18n.sc.confirmOrderChangeTitle = '确认变更订单';
 i18n.sc.confirmOrderChange = '确认变更';
+i18n.sc.lateOrderTitle = '主管补单';
+i18n.sc.lateOrderHint = '截单时间已过，只有有补单权限的后台用户可以继续下单。';
+i18n.sc.lateOrderStart = '主管补单';
+i18n.sc.lateOrderStop = '结束补单';
+i18n.sc.lateOrderActive = '主管补单中：';
+i18n.sc.lateOrderUser = '补单用户';
+i18n.sc.lateOrderPassword = '密码';
+i18n.sc.lateOrderLogin = '开始补单';
+i18n.sc.lateOrderCancel = '取消';
+i18n.sc.lateOrderNoUsers = '未有可补单用户，请先在后台加入补单权限。';
+i18n.sc.lateOrderAuthorized = '已开启主管补单';
+i18n.sc.lateOrderEnded = '已结束主管补单';
+i18n.sc.lateOrderPasswordRequired = '请输入补单用户密码';
+i18n.sc.lateOrderOnlyAfterCutoff = '截单后才需要使用主管补单。';
 i18n.en.confirmOrderChangeTitle = 'Confirm order change';
 i18n.en.confirmOrderChange = 'Confirm change';
+i18n.en.lateOrderTitle = 'Supervisor Late Order';
+i18n.en.lateOrderHint = 'The cutoff has passed. Only admin users with late-order permission can keep ordering.';
+i18n.en.lateOrderStart = 'Supervisor Late Order';
+i18n.en.lateOrderStop = 'End Late Order';
+i18n.en.lateOrderActive = 'Late ordering as:';
+i18n.en.lateOrderUser = 'Late-order user';
+i18n.en.lateOrderPassword = 'Password';
+i18n.en.lateOrderLogin = 'Start Late Order';
+i18n.en.lateOrderCancel = 'Cancel';
+i18n.en.lateOrderNoUsers = 'No late-order users yet. Add late-order permission in admin first.';
+i18n.en.lateOrderAuthorized = 'Supervisor late order enabled';
+i18n.en.lateOrderEnded = 'Supervisor late order ended';
+i18n.en.lateOrderPasswordRequired = 'Please enter the late-order user password';
+i18n.en.lateOrderOnlyAfterCutoff = 'Supervisor late order is only needed after cutoff.';
 
 const el = {
   appTitle: document.getElementById('appTitle'),
   restaurantSectionTitle: document.getElementById('restaurantSectionTitle'),
+  orderSectionTitle: document.querySelector('[data-i18n="secOrder"]'),
   dateText: document.getElementById('dateText'),
   diagInfo: document.getElementById('diagInfo'),
   restaurantSelect: document.getElementById('restaurantSelect'),
@@ -476,6 +525,7 @@ function applyI18n() {
   const pageTitle = state.appId === 'lady-ruby' ? t('appTitleLadyRuby') : t('appTitle');
   if (el.appTitle) el.appTitle.textContent = pageTitle;
   document.title = pageTitle;
+  if (el.lateOrderPanel) updateLateOrderText();
   if (!el.orderErrorNotice || el.orderErrorNotice.classList.contains('hidden')) return;
   if (state.cutoffPassed) showOrderError(t('orderBlockedNotice'));
 }
@@ -563,6 +613,165 @@ function closeOrderChangeModal() {
   el.orderChangeModal.classList.add('hidden');
   el.orderChangeModal.classList.remove('flex');
   el.orderChangeMessage.textContent = '';
+}
+
+function ensureLateOrderUi() {
+  if (el.lateOrderPanel) return;
+  const panel = document.createElement('div');
+  panel.id = 'lateOrderPanel';
+  panel.className = 'hidden';
+  panel.innerHTML = `
+    <p id="lateOrderTitle"></p>
+    <p id="lateOrderHint"></p>
+    <button id="lateOrderStartBtn" type="button"></button>
+    <button id="lateOrderStopBtn" type="button"></button>`;
+  if (el.cutoffNotice && el.cutoffNotice.parentNode) {
+    el.cutoffNotice.parentNode.insertBefore(panel, el.cutoffNotice.nextSibling);
+  } else if (el.orderForm && el.orderForm.parentNode) {
+    el.orderForm.parentNode.insertBefore(panel, el.orderForm);
+  }
+
+  const modal = document.createElement('div');
+  modal.id = 'lateOrderModal';
+  modal.className = 'fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/45 px-4';
+  modal.innerHTML = `
+    <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+      <h3 id="lateOrderModalTitle" class="text-lg font-bold text-pbnavy"></h3>
+      <p id="lateOrderModalHint" class="mt-1 text-sm text-slate-500"></p>
+      <div class="mt-4 grid gap-3">
+        <label class="grid gap-2 text-sm text-slate-600">
+          <span id="lateOrderUserLabel" class="font-semibold text-pbnavy"></span>
+          <select id="lateOrderUserSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-600">
+          <span id="lateOrderPasswordLabel" class="font-semibold text-pbnavy"></span>
+          <input id="lateOrderPasswordInput" type="password" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
+        </label>
+      </div>
+      <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button id="lateOrderCancelBtn" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"></button>
+        <button id="lateOrderLoginBtn" type="button" class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong"></button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  el.lateOrderPanel = panel;
+  el.lateOrderTitle = document.getElementById('lateOrderTitle');
+  el.lateOrderHint = document.getElementById('lateOrderHint');
+  el.lateOrderStartBtn = document.getElementById('lateOrderStartBtn');
+  el.lateOrderStopBtn = document.getElementById('lateOrderStopBtn');
+  el.lateOrderModal = modal;
+  el.lateOrderModalTitle = document.getElementById('lateOrderModalTitle');
+  el.lateOrderModalHint = document.getElementById('lateOrderModalHint');
+  el.lateOrderUserLabel = document.getElementById('lateOrderUserLabel');
+  el.lateOrderPasswordLabel = document.getElementById('lateOrderPasswordLabel');
+  el.lateOrderUserSelect = document.getElementById('lateOrderUserSelect');
+  el.lateOrderPasswordInput = document.getElementById('lateOrderPasswordInput');
+  el.lateOrderCancelBtn = document.getElementById('lateOrderCancelBtn');
+  el.lateOrderLoginBtn = document.getElementById('lateOrderLoginBtn');
+
+  el.lateOrderStartBtn.addEventListener('click', openLateOrderModal);
+  el.lateOrderStopBtn.addEventListener('click', endLateOrderMode);
+  el.lateOrderCancelBtn.addEventListener('click', closeLateOrderModal);
+  el.lateOrderModal.addEventListener('click', event => {
+    if (event.target === el.lateOrderModal) closeLateOrderModal();
+  });
+  el.lateOrderLoginBtn.addEventListener('click', authorizeLateOrder);
+  el.lateOrderPasswordInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') authorizeLateOrder();
+  });
+}
+
+function updateLateOrderText() {
+  ensureLateOrderUi();
+  el.lateOrderTitle.textContent = t('lateOrderTitle');
+  el.lateOrderHint.textContent = state.lateOrder.active
+    ? `${t('lateOrderActive')} ${state.lateOrder.username}`
+    : t('lateOrderHint');
+  el.lateOrderStartBtn.textContent = t('lateOrderStart');
+  el.lateOrderStopBtn.textContent = t('lateOrderStop');
+  el.lateOrderModalTitle.textContent = t('lateOrderTitle');
+  el.lateOrderModalHint.textContent = t('lateOrderHint');
+  el.lateOrderUserLabel.textContent = t('lateOrderUser');
+  el.lateOrderPasswordLabel.textContent = t('lateOrderPassword');
+  el.lateOrderCancelBtn.textContent = t('lateOrderCancel');
+  el.lateOrderLoginBtn.textContent = t('lateOrderLogin');
+}
+
+function fillLateOrderUsers() {
+  ensureLateOrderUi();
+  const users = Array.isArray(state.lateOrder.users) ? state.lateOrder.users : [];
+  fillSelect(el.lateOrderUserSelect, users.map(user => ({ value: user.username, label: user.username })), t('lateOrderUser'));
+  if (state.lateOrder.username) el.lateOrderUserSelect.value = state.lateOrder.username;
+}
+
+async function openLateOrderModal() {
+  ensureLateOrderUi();
+  if (!state.cutoffPassed) {
+    showToast(t('lateOrderOnlyAfterCutoff'), 2500);
+    return;
+  }
+  updateLateOrderText();
+  try {
+    setBusy(true);
+    const payload = await api('/api/late-order/users');
+    state.lateOrder.users = Array.isArray(payload.users) ? payload.users : [];
+    if (!state.lateOrder.users.length) {
+      showToast(t('lateOrderNoUsers'), 3000);
+      return;
+    }
+    fillLateOrderUsers();
+    if (el.lateOrderPasswordInput) el.lateOrderPasswordInput.value = '';
+    el.lateOrderModal.classList.remove('hidden');
+    el.lateOrderModal.classList.add('flex');
+    setTimeout(() => el.lateOrderPasswordInput?.focus(), 0);
+  } catch (err) {
+    showToast(err.message, 3000);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function closeLateOrderModal() {
+  if (!el.lateOrderModal) return;
+  el.lateOrderModal.classList.add('hidden');
+  el.lateOrderModal.classList.remove('flex');
+  if (el.lateOrderPasswordInput) el.lateOrderPasswordInput.value = '';
+}
+
+async function authorizeLateOrder() {
+  const username = String(el.lateOrderUserSelect?.value || '').trim();
+  const password = String(el.lateOrderPasswordInput?.value || '').trim();
+  if (!username) return showToast(t('lateOrderNoUsers'), 3000);
+  if (!password) return showToast(t('lateOrderPasswordRequired'));
+  try {
+    setBusy(true);
+    const payload = await api('/api/late-order/authorize', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    state.lateOrder.active = true;
+    state.lateOrder.username = payload.user && payload.user.username ? payload.user.username : username;
+    state.lateOrder.password = password;
+    closeLateOrderModal();
+    updateCutoffUi();
+    showToast(t('lateOrderAuthorized'));
+  } catch (err) {
+    if (el.lateOrderPasswordInput) {
+      el.lateOrderPasswordInput.value = '';
+      el.lateOrderPasswordInput.focus();
+    }
+    showToast(err.message, 3000);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function endLateOrderMode() {
+  state.lateOrder.active = false;
+  state.lateOrder.password = '';
+  updateCutoffUi();
+  showToast(t('lateOrderEnded'));
 }
 
 function renderRestaurants() {
@@ -882,8 +1091,9 @@ function requestAdminAccess() {
   window.location.href = '/admin/';
 }
 
-function bindHiddenTrigger(node, action) {
+function bindHiddenTrigger(node, action, options = {}) {
   if (!node) return;
+  const allowHold = options.allowHold !== false;
   let tapCount = 0;
   let resetTimer = null;
   let holdTimer = null;
@@ -906,6 +1116,7 @@ function bindHiddenTrigger(node, action) {
   };
 
   const startHold = () => {
+    if (!allowHold) return;
     clearTimeout(holdTimer);
     holdTriggered = false;
     holdTimer = setTimeout(() => {
@@ -934,6 +1145,11 @@ function setupSecretEntry() {
 function setupAdminEntry() {
   if (!el.restaurantSectionTitle) return;
   bindHiddenTrigger(el.restaurantSectionTitle, requestAdminAccess);
+}
+
+function setupLateOrderEntry() {
+  if (!el.orderSectionTitle) return;
+  bindHiddenTrigger(el.orderSectionTitle, openLateOrderModal, { allowHold: false });
 }
 
 function buildFoodSummaryLabel(order) {
@@ -1022,7 +1238,11 @@ function renderOrders() {
 
 function updateCutoffUi() {
   if (!el.cutoffNotice || !el.orderForm) return;
+  ensureLateOrderUi();
   if (!state.cutoffTime) {
+    state.lateOrder.active = false;
+    state.lateOrder.password = '';
+    el.lateOrderPanel.classList.add('hidden');
     el.cutoffNotice.classList.add('hidden');
     el.cutoffNotice.textContent = '';
     if (!state.cutoffPassed) hideOrderError();
@@ -1035,10 +1255,19 @@ function updateCutoffUi() {
     : `${t('cutoffAt')}${state.cutoffTime}. ${t('cutoffActiveNotice')}`;
   el.cutoffNotice.classList.remove('hidden');
 
+  if (!state.cutoffPassed) {
+    state.lateOrder.active = false;
+    state.lateOrder.password = '';
+  }
+  el.lateOrderPanel.classList.add('hidden');
+  el.lateOrderStartBtn.classList.add('hidden');
+  el.lateOrderStopBtn.classList.add('hidden');
+  updateLateOrderText();
+
   Array.from(el.orderForm.elements).forEach(node => {
-    node.disabled = Boolean(state.cutoffPassed);
+    node.disabled = Boolean(state.cutoffPassed && !state.lateOrder.active);
   });
-  if (state.cutoffPassed) {
+  if (state.cutoffPassed && !state.lateOrder.active) {
     showOrderError(t('orderBlockedNotice'));
   } else {
     hideOrderError();
@@ -1451,6 +1680,11 @@ el.orderForm.addEventListener('submit', async event => {
     : addonText;
 
   const order = { dept: el.deptSelect.value, name: el.nameSelect.value, food: el.foodSelect.value, price, addon: mergedAddon, drink: el.drinkSelect.value };
+  if (state.cutoffPassed && state.lateOrder.active) {
+    order.lateOrderUsername = state.lateOrder.username;
+    order.lateOrderPassword = state.lateOrder.password;
+    order.lateOrder = true;
+  }
   const existingOrder = (state.orders || []).find(o => o.dept === order.dept && o.name === order.name);
   if (existingOrder && !sameOrderContent(existingOrder, order)) {
     const confirmed = await confirmOrderChange(existingOrder, order);
@@ -1468,8 +1702,13 @@ el.orderForm.addEventListener('submit', async event => {
       if (typeof payload.updated === 'boolean') updated = payload.updated;
     }
     state.lastOrdersSignature = orderSignature(state.orders);
+    if (state.lateOrder.active) {
+      state.lateOrder.active = false;
+      state.lateOrder.password = '';
+    }
     renderOrders();
     resetOrderForm();
+    updateCutoffUi();
     showToast(updated ? t('orderUpdated') : t('orderAdded'));
   } catch (err) {
     if (/cutoff/i.test(String(err.message || ''))) {
@@ -1500,6 +1739,7 @@ applyI18n();
 updateExportLinks();
 setupSecretEntry();
 setupAdminEntry();
+setupLateOrderEntry();
 if (el.cutoffTimeInput && !el.cutoffTimeInput.value) el.cutoffTimeInput.value = state.defaultCutoffTime;
 el.cutoffTimeInput?.addEventListener('input', syncRestaurantLock);
 startAutoRefresh();
