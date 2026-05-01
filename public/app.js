@@ -1063,6 +1063,13 @@ function displayDrink(drinkKey) {
   return d ? getLocalizedDrink(d) : drinkKey;
 }
 
+function displayDrinkHtml(drinkKey) {
+  if (!drinkKey) return escapeHtml(t('noDrink'));
+  const change = parseDrinkChange(drinkKey);
+  if (!change.changed) return escapeHtml(displayDrink(drinkKey));
+  return `<span class="text-slate-500">${escapeHtml(displayDrink(change.original))}</span> <span class="text-slate-400">→</span> <span class="font-semibold text-pborange">${escapeHtml(displayDrink(change.current))}</span>`;
+}
+
 function displayAddon(addonText) {
   const raw = String(addonText || '').trim();
   if (!raw) return '';
@@ -1408,7 +1415,7 @@ function renderOrders() {
     const p = Number(o.price || 0);
     total += p;
     const addon = stripAddonPriceText(displayAddon(o.addon || ''));
-    return `<tr><td>${i + 1}</td><td>${o.dept}</td><td>${o.name}</td><td>${displayFood(o.food)}</td><td>${addon}</td><td>${displayDrink(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
+    return `<tr><td>${i + 1}</td><td>${o.dept}</td><td>${o.name}</td><td>${displayFood(o.food)}</td><td>${addon}</td><td>${displayDrinkHtml(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
   }).join('');
   el.totalPrice.textContent = total.toFixed(2);
 
