@@ -1345,6 +1345,21 @@ async function upsertOrderSupabase(appId, date, order) {
   if (result.error) throw new Error(`Supabase upsert order failed: ${result.error.message}`);
 }
 
+async function updateOrderDrinkSupabase(appId, date, dept, name, drink) {
+  let query = supabase
+    .from(TABLES.orders)
+    .update({ drink: normText(drink) })
+    .eq('date', date)
+    .eq('app_id', appId)
+    .eq('dept', normText(dept))
+    .eq('name', normText(name));
+  const result = await query;
+  if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
+    throw new Error(ordersSchemaMigrationMessage());
+  }
+  if (result.error) throw new Error(`Supabase update order drink failed: ${result.error.message}`);
+}
+
 async function getStateSupabase(appId = APP_MAIN) {
   const stateRowId = APP_STATE_ROW_IDS[normalizeAppId(appId)] || 1;
   let hasCutoffColumn = true;
@@ -1947,6 +1962,43 @@ async function handleApi(req, res, urlObj) {
     return json(res, 200, { ok: true, updated });
   }
 
+  if (req.method === 'POST' && pathname === '/api/orders/drink-change') {
+    if (isAuthRateLimited(req, 'late-order')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const body = await parseBody(req);
+    const admin = await authenticateLateOrder(body);
+    if (!admin) {
+      recordAuthFailure(req, 'late-order');
+      return json(res, 403, { error: 'Invalid late order username or password' });
+    }
+    clearAuthFailures(req, 'late-order');
+
+    const appId = getAppIdFromRequest(urlObj, body);
+    const dept = normText(body.dept);
+    const name = normText(body.name);
+    const nextDrink = normText(body.drink);
+    if (!dept || !name) return json(res, 400, { error: 'dept and name are required' });
+    const state = await storage.getState(appId);
+    const order = (state.orders || []).find(o => normText(o.dept) === dept && normText(o.name) === name);
+    if (!order) return json(res, 404, { error: 'Order not found' });
+    const currentDrink = normText(order.drink);
+    const originalDrink = currentDrink.includes(' → ') ? normText(currentDrink.split(' → ')[0]) : currentDrink;
+    const changedDrink = originalDrink && nextDrink && originalDrink !== nextDrink
+      ? `${originalDrink} → ${nextDrink}`
+      : nextDrink;
+
+    if (USE_SUPABASE) {
+      await updateOrderDrinkSupabase(appId, state.date, dept, name, changedDrink);
+      const nextState = await storage.getState(appId);
+      return json(res, 200, { ok: true, orders: nextState.orders });
+    }
+
+    order.drink = changedDrink;
+    await storage.saveState(appId, state);
+    return json(res, 200, { ok: true, orders: state.orders });
+  }
+
   if (req.method === 'GET' && pathname === '/api/orders') {
     const appId = getAppIdFromRequest(urlObj);
     const state = await storage.getState(appId);
@@ -2243,6 +2295,4 @@ if (require.main === module) {
 }
 
 module.exports = { createHandler };
-
-
 

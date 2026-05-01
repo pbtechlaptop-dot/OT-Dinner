@@ -19,6 +19,9 @@ const state = {
     password: '',
     users: []
   },
+  drinkChange: {
+    users: []
+  },
   lastOrdersSignature: ''
 };
 
@@ -281,6 +284,14 @@ i18n.tc.lateOrderAuthorized = '已開啟主管補單';
 i18n.tc.lateOrderEnded = '已結束主管補單';
 i18n.tc.lateOrderPasswordRequired = '請輸入補單用戶密碼';
 i18n.tc.lateOrderOnlyAfterCutoff = '截單後才需要使用主管補單。';
+i18n.tc.drinkChangeTitle = '更改飲品';
+i18n.tc.drinkChangeHint = '輸入有補單權限的用戶密碼後，可以更改今日訂單飲品。';
+i18n.tc.drinkChangeLogin = '進入更改飲品';
+i18n.tc.drinkChangeSave = '儲存飲品更改';
+i18n.tc.drinkChangeNoOrders = '今日未有訂單。';
+i18n.tc.drinkChangeNoChanges = '未有需要儲存的飲品更改。';
+i18n.tc.drinkChangeSaved = '已更新飲品';
+i18n.tc.newDrink = '新飲品';
 i18n.sc.confirmOrderChangeTitle = '确认变更订单';
 i18n.sc.confirmOrderChange = '确认变更';
 i18n.sc.lateOrderTitle = '主管补单';
@@ -297,6 +308,14 @@ i18n.sc.lateOrderAuthorized = '已开启主管补单';
 i18n.sc.lateOrderEnded = '已结束主管补单';
 i18n.sc.lateOrderPasswordRequired = '请输入补单用户密码';
 i18n.sc.lateOrderOnlyAfterCutoff = '截单后才需要使用主管补单。';
+i18n.sc.drinkChangeTitle = '更改饮品';
+i18n.sc.drinkChangeHint = '输入有补单权限的用户密码后，可以更改今日订单饮品。';
+i18n.sc.drinkChangeLogin = '进入更改饮品';
+i18n.sc.drinkChangeSave = '保存饮品更改';
+i18n.sc.drinkChangeNoOrders = '今日未有订单。';
+i18n.sc.drinkChangeNoChanges = '未有需要保存的饮品更改。';
+i18n.sc.drinkChangeSaved = '已更新饮品';
+i18n.sc.newDrink = '新饮品';
 i18n.en.confirmOrderChangeTitle = 'Confirm order change';
 i18n.en.confirmOrderChange = 'Confirm change';
 i18n.en.lateOrderTitle = 'Supervisor Late Order';
@@ -313,6 +332,14 @@ i18n.en.lateOrderAuthorized = 'Supervisor late order enabled';
 i18n.en.lateOrderEnded = 'Supervisor late order ended';
 i18n.en.lateOrderPasswordRequired = 'Please enter the late-order user password';
 i18n.en.lateOrderOnlyAfterCutoff = 'Supervisor late order is only needed after cutoff.';
+i18n.en.drinkChangeTitle = 'Change Drinks';
+i18n.en.drinkChangeHint = 'Enter a user with late-order permission to change drinks for today orders.';
+i18n.en.drinkChangeLogin = 'Open Drink Changes';
+i18n.en.drinkChangeSave = 'Save Drink Changes';
+i18n.en.drinkChangeNoOrders = 'No orders today.';
+i18n.en.drinkChangeNoChanges = 'No drink changes to save.';
+i18n.en.drinkChangeSaved = 'Drinks updated';
+i18n.en.newDrink = 'New drink';
 
 const el = {
   appTitle: document.getElementById('appTitle'),
@@ -352,6 +379,7 @@ const el = {
   drinkSummary: document.getElementById('drinkSummary'),
   foodSummary: document.getElementById('foodSummary'),
   foodSummaryByDept: document.getElementById('foodSummaryByDept'),
+  ordersSectionTitle: document.querySelector('[data-i18n="secOrders"]'),
   exportCsvLink: document.getElementById('exportCsvLink'),
   exportXlsxBtn: document.getElementById('exportXlsxBtn'),
   langTc: document.getElementById('langTc'),
@@ -774,6 +802,196 @@ function endLateOrderMode() {
   showToast(t('lateOrderEnded'));
 }
 
+function ensureDrinkChangeUi() {
+  if (el.drinkChangeModal) return;
+  const modal = document.createElement('div');
+  modal.id = 'drinkChangeModal';
+  modal.className = 'fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/45 px-4';
+  modal.innerHTML = `
+    <div class="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
+      <h3 id="drinkChangeModalTitle" class="text-lg font-bold text-pbnavy"></h3>
+      <p id="drinkChangeModalHint" class="mt-1 text-sm text-slate-500"></p>
+      <div class="mt-4 grid gap-3 md:grid-cols-[220px_220px_auto]">
+        <label class="grid gap-2 text-sm text-slate-600">
+          <span id="drinkChangeUserLabel" class="font-semibold text-pbnavy"></span>
+          <select id="drinkChangeUserSelect" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20"></select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-600">
+          <span id="drinkChangePasswordLabel" class="font-semibold text-pbnavy"></span>
+          <input id="drinkChangePasswordInput" type="password" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-pbnavy focus:ring-2 focus:ring-pbnavy/20" />
+        </label>
+        <button id="drinkChangeLoadBtn" type="button" class="self-end rounded-md bg-pborange px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-pborangestrong"></button>
+      </div>
+      <div id="drinkChangeList" class="mt-4 overflow-x-auto rounded-lg border border-slate-200"></div>
+      <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button id="drinkChangeCancelBtn" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"></button>
+        <button id="drinkChangeSaveBtn" type="button" class="hidden rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong"></button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  el.drinkChangeModal = modal;
+  el.drinkChangeModalTitle = document.getElementById('drinkChangeModalTitle');
+  el.drinkChangeModalHint = document.getElementById('drinkChangeModalHint');
+  el.drinkChangeUserLabel = document.getElementById('drinkChangeUserLabel');
+  el.drinkChangePasswordLabel = document.getElementById('drinkChangePasswordLabel');
+  el.drinkChangeUserSelect = document.getElementById('drinkChangeUserSelect');
+  el.drinkChangePasswordInput = document.getElementById('drinkChangePasswordInput');
+  el.drinkChangeLoadBtn = document.getElementById('drinkChangeLoadBtn');
+  el.drinkChangeList = document.getElementById('drinkChangeList');
+  el.drinkChangeCancelBtn = document.getElementById('drinkChangeCancelBtn');
+  el.drinkChangeSaveBtn = document.getElementById('drinkChangeSaveBtn');
+  el.drinkChangeCancelBtn.addEventListener('click', closeDrinkChangeModal);
+  el.drinkChangeModal.addEventListener('click', event => {
+    if (event.target === el.drinkChangeModal) closeDrinkChangeModal();
+  });
+  el.drinkChangeLoadBtn.addEventListener('click', authorizeDrinkChange);
+  el.drinkChangeSaveBtn.addEventListener('click', saveDrinkChanges);
+  el.drinkChangePasswordInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') authorizeDrinkChange();
+  });
+}
+
+function updateDrinkChangeText() {
+  ensureDrinkChangeUi();
+  el.drinkChangeModalTitle.textContent = t('drinkChangeTitle');
+  el.drinkChangeModalHint.textContent = t('drinkChangeHint');
+  el.drinkChangeUserLabel.textContent = t('lateOrderUser');
+  el.drinkChangePasswordLabel.textContent = t('lateOrderPassword');
+  el.drinkChangeLoadBtn.textContent = t('drinkChangeLogin');
+  el.drinkChangeCancelBtn.textContent = t('lateOrderCancel');
+  el.drinkChangeSaveBtn.textContent = t('drinkChangeSave');
+}
+
+function fillDrinkChangeUsers() {
+  const users = Array.isArray(state.drinkChange.users) ? state.drinkChange.users : [];
+  fillSelect(el.drinkChangeUserSelect, users.map(user => ({ value: user.username, label: user.username })), t('lateOrderUser'));
+}
+
+async function openDrinkChangeModal() {
+  ensureDrinkChangeUi();
+  updateDrinkChangeText();
+  el.drinkChangeList.innerHTML = '';
+  el.drinkChangeSaveBtn.classList.add('hidden');
+  try {
+    setBusy(true);
+    const payload = await api('/api/late-order/users');
+    state.drinkChange.users = Array.isArray(payload.users) ? payload.users : [];
+    if (!state.drinkChange.users.length) {
+      showToast(t('lateOrderNoUsers'), 3000);
+      return;
+    }
+    fillDrinkChangeUsers();
+    if (el.drinkChangePasswordInput) el.drinkChangePasswordInput.value = '';
+    el.drinkChangeModal.classList.remove('hidden');
+    el.drinkChangeModal.classList.add('flex');
+    setTimeout(() => el.drinkChangePasswordInput?.focus(), 0);
+  } catch (err) {
+    showToast(err.message, 3000);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function closeDrinkChangeModal() {
+  if (!el.drinkChangeModal) return;
+  el.drinkChangeModal.classList.add('hidden');
+  el.drinkChangeModal.classList.remove('flex');
+  if (el.drinkChangePasswordInput) el.drinkChangePasswordInput.value = '';
+}
+
+function renderDrinkChangeRows() {
+  const orders = Array.isArray(state.orders) ? state.orders : [];
+  if (!orders.length) {
+    el.drinkChangeList.innerHTML = `<p class="px-3 py-4 text-sm text-slate-500">${t('drinkChangeNoOrders')}</p>`;
+    el.drinkChangeSaveBtn.classList.add('hidden');
+    return;
+  }
+  const drinkOptions = (state.drinks || [])
+    .map(normalizeDrink)
+    .filter(drink => drink.tc && !drink.paused)
+    .map(drink => ({ value: drink.tc, label: getLocalizedDrink(drink) }));
+  const rows = orders.map((order, index) => {
+    const currentDrink = parseDrinkChange(order.drink).current;
+    const optionsHtml = [`<option value="">${t('selectDrink')}</option>`].concat(drinkOptions.map(drink => {
+      const selected = drink.value === currentDrink ? ' selected' : '';
+      return `<option value="${escapeHtml(drink.value)}"${selected}>${escapeHtml(drink.label)}</option>`;
+    })).join('');
+    return `<tr>
+      <td class="border-b border-slate-200 px-3 py-2">${index + 1}</td>
+      <td class="border-b border-slate-200 px-3 py-2">${escapeHtml(order.dept)}</td>
+      <td class="border-b border-slate-200 px-3 py-2">${escapeHtml(order.name)}</td>
+      <td class="border-b border-slate-200 px-3 py-2">${escapeHtml(displayDrink(order.drink))}</td>
+      <td class="border-b border-slate-200 px-3 py-2">
+        <select class="drink-change-select w-full min-w-40 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm" data-dept="${escapeHtml(order.dept)}" data-name="${escapeHtml(order.name)}" data-current="${escapeHtml(currentDrink)}">${optionsHtml}</select>
+      </td>
+    </tr>`;
+  }).join('');
+  el.drinkChangeList.innerHTML = `<table class="min-w-full border-collapse text-sm">
+    <thead><tr class="bg-slate-50 text-left text-pbnavy">
+      <th class="border-b border-slate-200 px-3 py-2">#</th>
+      <th class="border-b border-slate-200 px-3 py-2">${t('dept')}</th>
+      <th class="border-b border-slate-200 px-3 py-2">${t('name')}</th>
+      <th class="border-b border-slate-200 px-3 py-2">${t('drink')}</th>
+      <th class="border-b border-slate-200 px-3 py-2">${t('newDrink')}</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+  el.drinkChangeSaveBtn.classList.remove('hidden');
+}
+
+async function authorizeDrinkChange() {
+  const username = String(el.drinkChangeUserSelect?.value || '').trim();
+  const password = String(el.drinkChangePasswordInput?.value || '').trim();
+  if (!username) return showToast(t('lateOrderNoUsers'), 3000);
+  if (!password) return showToast(t('lateOrderPasswordRequired'));
+  try {
+    setBusy(true);
+    await api('/api/late-order/authorize', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    await refreshOrdersSilently();
+    renderDrinkChangeRows();
+  } catch (err) {
+    showToast(err.message, 3000);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function saveDrinkChanges() {
+  const username = String(el.drinkChangeUserSelect?.value || '').trim();
+  const password = String(el.drinkChangePasswordInput?.value || '').trim();
+  const changes = Array.from(el.drinkChangeList.querySelectorAll('.drink-change-select'))
+    .map(select => ({
+      dept: select.dataset.dept,
+      name: select.dataset.name,
+      current: select.dataset.current,
+      drink: select.value
+    }))
+    .filter(change => change.drink && change.drink !== change.current);
+  if (!changes.length) return showToast(t('drinkChangeNoChanges'), 2500);
+  try {
+    setBusy(true);
+    let latestOrders = null;
+    for (const change of changes) {
+      const payload = await api('/api/orders/drink-change', {
+        method: 'POST',
+        body: JSON.stringify({ username, password, dept: change.dept, name: change.name, drink: change.drink })
+      });
+      if (Array.isArray(payload.orders)) latestOrders = payload.orders;
+    }
+    if (latestOrders) state.orders = latestOrders;
+    renderOrders();
+    renderDrinkChangeRows();
+    showToast(t('drinkChangeSaved'));
+  } catch (err) {
+    showToast(err.message, 3000);
+  } finally {
+    setBusy(false);
+  }
+}
+
 function renderRestaurants() {
   fillSelect(el.restaurantSelect, (state.restaurants || []).map(r => ({ value: r, label: r })), t('selectRestaurant'));
   if (state.currentRestaurant) el.restaurantSelect.value = state.currentRestaurant;
@@ -830,8 +1048,17 @@ function displayFood(foodKey) {
   return f ? getLocalizedFood(f) : foodKey;
 }
 
+function parseDrinkChange(drinkKey) {
+  const parts = String(drinkKey || '').split(' → ').map(part => part.trim()).filter(Boolean);
+  if (parts.length >= 2) return { original: parts[0], current: parts[parts.length - 1], changed: true };
+  const current = parts[0] || String(drinkKey || '').trim();
+  return { original: current, current, changed: false };
+}
+
 function displayDrink(drinkKey) {
   if (!drinkKey) return t('noDrink');
+  const change = parseDrinkChange(drinkKey);
+  if (change.changed) return `${displayDrink(change.original)} → ${displayDrink(change.current)}`;
   const d = state.drinkLookup[drinkKey];
   return d ? getLocalizedDrink(d) : drinkKey;
 }
@@ -1152,6 +1379,11 @@ function setupLateOrderEntry() {
   bindHiddenTrigger(el.orderSectionTitle, openLateOrderModal, { allowHold: false });
 }
 
+function setupDrinkChangeEntry() {
+  if (!el.ordersSectionTitle) return;
+  bindHiddenTrigger(el.ordersSectionTitle, openDrinkChangeModal, { allowHold: false });
+}
+
 function buildFoodSummaryLabel(order) {
   const food = String(displayFood(order.food) || '').trim();
   const addon = stripAddonPriceText(displayAddon(order.addon || ''));
@@ -1184,7 +1416,7 @@ function renderOrders() {
   const foodCounts = {};
   const byDeptFood = {};
   orders.forEach(o => {
-    const drinkKey = String(o.drink || '').trim();
+    const drinkKey = parseDrinkChange(o.drink).current;
     const dept = String(o.dept || '').trim() || '-';
     if (drinkKey) {
       if (!byDeptDrink[dept]) byDeptDrink[dept] = {};
@@ -1740,6 +1972,7 @@ updateExportLinks();
 setupSecretEntry();
 setupAdminEntry();
 setupLateOrderEntry();
+setupDrinkChangeEntry();
 if (el.cutoffTimeInput && !el.cutoffTimeInput.value) el.cutoffTimeInput.value = state.defaultCutoffTime;
 el.cutoffTimeInput?.addEventListener('input', syncRestaurantLock);
 startAutoRefresh();
