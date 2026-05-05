@@ -1439,10 +1439,11 @@ function renderOrders() {
 
   const summaryHtml = Object.entries(byDeptDrink)
   .map(([dept, drinkMap]) => {
+    const deptTotal = Object.values(drinkMap).reduce((sum, count) => sum + Number(count || 0), 0);
     const drinksList = Object.entries(drinkMap)
       .map(([k, c]) => `- ${displayDrink(k)} ${t('xLabel')} ${c}`)
       .join('<br>');
-    return `<div><strong>${dept}:</strong><br>${drinksList}</div>`;
+    return `<div><strong>${dept}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${deptTotal}</span></span><br>${drinksList}</div>`;
   })
   .join('<br>');
 
@@ -1460,6 +1461,7 @@ function renderOrders() {
   if (el.foodSummaryByDept) {
     const foodByDeptHtml = Object.entries(byDeptFood)
       .map(([dept, foodMap]) => {
+        const deptTotal = Object.values(foodMap).reduce((sum, count) => sum + Number(count || 0), 0);
         const foodsList = Object.entries(foodMap)
           .sort((a, b) => {
             if (b[1] !== a[1]) return b[1] - a[1];
@@ -1467,7 +1469,7 @@ function renderOrders() {
           })
           .map(([food, count]) => `- ${food} ${t('xLabel')} ${count}`)
           .join('<br>');
-        return `<div><strong>${dept}:</strong><br>${foodsList}</div>`;
+        return `<div><strong>${dept}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${deptTotal}</span></span><br>${foodsList}</div>`;
       })
       .join('<br>');
     el.foodSummaryByDept.innerHTML = foodByDeptHtml;
