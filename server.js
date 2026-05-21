@@ -574,6 +574,22 @@ function isLateOrderTimestamp(orderedAt, cutoffTime) {
   return Boolean(cutoff && orderedTime && orderedTime > cutoff);
 }
 
+function sortOrdersForDisplay(orders) {
+  return [...(Array.isArray(orders) ? orders : [])].sort((a, b) => {
+    const aLate = Boolean(a && a.lateOrder);
+    const bLate = Boolean(b && b.lateOrder);
+    if (aLate !== bLate) return aLate ? 1 : -1;
+    if (aLate && bLate) {
+      const aTime = normalizeOrderTimestamp(a && a.orderedAt);
+      const bTime = normalizeOrderTimestamp(b && b.orderedAt);
+      if (aTime !== bTime) return String(aTime || '').localeCompare(String(bTime || ''));
+    }
+    const deptCompare = normText(a && a.dept).localeCompare(normText(b && b.dept));
+    if (deptCompare) return deptCompare;
+    return normText(a && a.name).localeCompare(normText(b && b.name));
+  }).map((order, index) => ({ ...order, id: index + 1 }));
+}
+
 function defaultSeed() {
   return { restaurants: [], staff: {}, drinks: [], menus: {} };
 }
@@ -1392,8 +1408,7 @@ async function getStateSupabase(appId = APP_MAIN) {
 
   const ordersRows = await selectOrdersSupabase(appState.date, normalizeAppId(appId));
 
-  const orders = (ordersRows || []).map((o, i) => ({
-    id: i + 1,
+  const orders = sortOrdersForDisplay((ordersRows || []).map(o => ({
     dept: normText(o.dept),
     name: normText(o.name),
     food: normText(o.food),
@@ -1402,7 +1417,7 @@ async function getStateSupabase(appId = APP_MAIN) {
     price: Number(o.price || 0),
     orderedAt: normalizeOrderTimestamp(o.ordered_at),
     lateOrder: isLateOrderTimestamp(o.ordered_at, appState.cutoff_time || DEFAULT_CUTOFF_TIME)
-  }));
+  })));
 
   return {
     date: appState.date,
@@ -1490,7 +1505,7 @@ async function getStateLocal(appId = APP_MAIN) {
     writeJson(statePath, reset);
     return reset;
   }
-  return state;
+  return { ...state, orders: sortOrdersForDisplay(state.orders) };
 }
 
 async function saveStateLocal(appId = APP_MAIN, state) {
@@ -1930,6 +1945,7 @@ async function handleApi(req, res, urlObj) {
     const error = validateOrder(body);
     if (error) return json(res, 400, { error });
 
+    const existingOrder = (state.orders || []).find(o => o.dept === normText(body.dept) && o.name === normText(body.name));
     const clean = {
       dept: normText(body.dept),
       name: normText(body.name),
@@ -1937,11 +1953,11 @@ async function handleApi(req, res, urlObj) {
       addon: normText(body.addon),
       drink: normText(body.drink),
       price: Number(body.price),
-      orderedAt: nowIso(),
-      lateOrder
+      orderedAt: existingOrder ? (normalizeOrderTimestamp(existingOrder.orderedAt) || nowIso()) : nowIso(),
+      lateOrder: existingOrder ? Boolean(existingOrder.lateOrder) : lateOrder
     };
 
-    const existed = state.orders.some(o => o.dept === clean.dept && o.name === clean.name);
+    const existed = Boolean(existingOrder);
 
     if (USE_SUPABASE) {
       await upsertOrderSupabase(appId, state.date, clean);
@@ -1957,7 +1973,7 @@ async function handleApi(req, res, urlObj) {
       state.orders.push(clean);
     }
 
-    state.orders = state.orders.map((o, i) => ({ id: i + 1, ...o }));
+    state.orders = sortOrdersForDisplay(state.orders);
     await storage.saveState(appId, state);
     return json(res, 200, { ok: true, updated });
   }
@@ -2295,4 +2311,3 @@ if (require.main === module) {
 }
 
 module.exports = { createHandler };
-
