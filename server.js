@@ -609,8 +609,11 @@ function stateFileForApp(appId) {
 
 function getScopedStaff(allStaff, appId) {
   if (normalizeAppId(appId) !== APP_LADY_RUBY) return allStaff;
-  const ladyRubyNames = Array.isArray(allStaff && allStaff['Lady Ruby']) ? allStaff['Lady Ruby'] : [];
-  return { 'Lady Ruby': ladyRubyNames };
+  return ['Lady Ruby', 'Operation'].reduce((scoped, dept) => {
+    const names = Array.isArray(allStaff && allStaff[dept]) ? allStaff[dept] : [];
+    if (names.length) scoped[dept] = names;
+    return scoped;
+  }, {});
 }
 
 function defaultDrinkFlags() {
