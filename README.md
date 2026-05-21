@@ -159,6 +159,17 @@ add column if not exists staff_departments jsonb not null default '[]'::jsonb;
 alter table if exists public.admin_users enable row level security;
 alter table if exists public.admin_logs enable row level security;
 
+grant select, insert, update, delete on table public.restaurants to service_role;
+grant select, insert, update, delete on table public.drinks to service_role;
+grant select, insert, update, delete on table public.staff to service_role;
+grant select, insert, update, delete on table public.menus to service_role;
+grant select, insert, update, delete on table public.app_state to service_role;
+grant select, insert, update, delete on table public.orders to service_role;
+grant select, insert, update, delete on table public.app_kv to service_role;
+grant select, insert, update, delete on table public.admin_users to service_role;
+grant select, insert, update, delete on table public.admin_logs to service_role;
+grant usage, select on all sequences in schema public to service_role;
+
 revoke all on table public.restaurants from anon, authenticated;
 revoke all on table public.drinks from anon, authenticated;
 revoke all on table public.staff from anon, authenticated;
@@ -168,6 +179,17 @@ revoke all on table public.orders from anon, authenticated;
 revoke all on table public.app_kv from anon, authenticated;
 revoke all on table public.admin_users from anon, authenticated;
 revoke all on table public.admin_logs from anon, authenticated;
+```
+
+Supabase Data API grant note:
+- Supabase is changing default table grants for the Data API in 2026.
+- This app uses Supabase through the server-side `SUPABASE_SERVICE_ROLE_KEY`, so tables must explicitly grant access to `service_role`.
+- Do not grant table access to `anon` or `authenticated` unless the browser is intentionally allowed to access that table directly and matching RLS policies are added.
+- When adding a new table for this app, also add:
+
+```sql
+grant select, insert, update, delete on table public.new_table to service_role;
+revoke all on table public.new_table from anon, authenticated;
 ```
 
 If you later decide to use Supabase directly from the browser, add explicit policies for only the tables and actions you need before exposing them.
