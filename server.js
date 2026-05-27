@@ -194,7 +194,8 @@ function mapMenuItemsByKey(seedInput) {
           nameTc,
           nameSc: normText(item.nameSc) || nameTc,
           nameEn: normText(item.nameEn) || nameTc,
-          price: Number(item.price || 0)
+          price: Number(item.price || 0),
+          paused: Boolean(item.paused)
         });
       });
     });
@@ -294,6 +295,7 @@ function buildSeedLogDetails(beforeSeedInput, afterSeedInput, section = 'all') {
       const diffParts = [];
       if (prev.nameSc !== item.nameSc || prev.nameEn !== item.nameEn) diffParts.push('名稱');
       if (prev.price !== item.price) diffParts.push(`價錢 ${prev.price} -> ${item.price}`);
+      if (prev.paused !== item.paused) diffParts.push(item.paused ? '已暫停' : '已恢復');
       if (diffParts.length) updatedMenus.push(`${item.restaurant} / ${item.category} / ${item.nameTc} (${diffParts.join(' / ')})`);
     });
     beforeMenus.forEach((item, key) => {
@@ -760,9 +762,9 @@ function normalizeMenuItem(item) {
   const price = Number(item.price);
   if (!nameTc || !Number.isFinite(price) || price < 0) return null;
   const optionGroups = normalizeOptionGroups(item.optionGroups ?? item.option_groups ?? item.options);
-  return optionGroups.length
-    ? { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price, optionGroups }
-    : { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price };
+  const normalized = { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price, paused: Boolean(item.paused) };
+  if (optionGroups.length) normalized.optionGroups = optionGroups;
+  return normalized;
 }
 
 function normalizeSeed(input) {
@@ -902,7 +904,7 @@ function buildSeedIndex(seedInput) {
       menuCategories.add(`${r}|${c}`);
       (seed.menus[rest][cat] || []).forEach(item => {
         const it = normalizeMenuItem(item);
-        if (it && it.nameTc) menuItems.add(`${r}|${c}|${it.nameTc}`);
+        if (it && it.nameTc) menuItems.add(`${r}|${c}|${it.nameTc}|${Boolean(it.paused)}`);
       });
     });
   });
@@ -1060,16 +1062,41 @@ async function getSeedSupabase() {
   const staffRows = await supaSelect(TABLES.staff, 'dept,name', { order: [{ column: 'dept' }, { column: 'name' }] });
   let menuRows = [];
   let hasOptionGroupsColumn = true;
+  let hasMenuPausedColumn = true;
   try {
-    menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price,option_groups', {
+    menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price,option_groups,paused', {
       order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
     });
   } catch (err) {
-    if (!isMissingSupabaseColumn(err, 'option_groups')) throw err;
-    hasOptionGroupsColumn = false;
-    menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price', {
-      order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
-    });
+    if (isMissingSupabaseColumn(err, 'paused')) {
+      hasMenuPausedColumn = false;
+      try {
+        menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price,option_groups', {
+          order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
+        });
+      } catch (fallbackErr) {
+        if (!isMissingSupabaseColumn(fallbackErr, 'option_groups')) throw fallbackErr;
+        hasOptionGroupsColumn = false;
+        menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price', {
+          order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
+        });
+      }
+    } else if (isMissingSupabaseColumn(err, 'option_groups')) {
+      hasOptionGroupsColumn = false;
+      try {
+        menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price,paused', {
+          order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
+        });
+      } catch (fallbackErr) {
+        if (!isMissingSupabaseColumn(fallbackErr, 'paused')) throw fallbackErr;
+        hasMenuPausedColumn = false;
+        menuRows = await supaSelect(TABLES.menus, 'restaurant,category,name_tc,name_sc,name_en,price', {
+          order: [{ column: 'restaurant' }, { column: 'category' }, { column: 'name_tc' }]
+        });
+      }
+    } else {
+      throw err;
+    }
   }
 
   const seed = defaultSeed();
@@ -1096,7 +1123,8 @@ async function getSeedSupabase() {
       nameSc: m.name_sc,
       nameEn: m.name_en,
       price: m.price,
-      option_groups: hasOptionGroupsColumn ? m.option_groups : undefined
+      option_groups: hasOptionGroupsColumn ? m.option_groups : undefined,
+      paused: hasMenuPausedColumn ? m.paused : false
     });
     if (!rest || !cat || !item) return;
     if (!seed.menus[rest]) seed.menus[rest] = {};
@@ -1156,20 +1184,32 @@ async function saveSeedSupabase(input) {
           name_sc: it.nameSc,
           name_en: it.nameEn,
           price: Number(it.price),
-          option_groups: Array.isArray(it.optionGroups) ? it.optionGroups : undefined
+          option_groups: Array.isArray(it.optionGroups) ? it.optionGroups : undefined,
+          paused: Boolean(it.paused)
         });
       });
     });
   });
   const menuRows = Array.from(menuMap.values());
   if (menuRows.length) {
-    let { error } = await supabase.from(TABLES.menus).insert(menuRows);
-    if (error && isMissingSupabaseColumn(error, 'option_groups')) {
-      const fallbackRows = menuRows.map(row => {
-        const { option_groups, ...rest } = row;
-        return rest;
-      });
+    let error = null;
+    let fallbackRows = menuRows;
+    let dropOptionGroups = false;
+    let dropPaused = false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       ({ error } = await supabase.from(TABLES.menus).insert(fallbackRows));
+      if (!error) break;
+      const missingOptionGroups = isMissingSupabaseColumn(error, 'option_groups');
+      const missingPaused = isMissingSupabaseColumn(error, 'paused');
+      if (!missingOptionGroups && !missingPaused) break;
+      dropOptionGroups = dropOptionGroups || missingOptionGroups;
+      dropPaused = dropPaused || missingPaused;
+      fallbackRows = menuRows.map(row => {
+        const copy = { ...row };
+        if (dropOptionGroups) delete copy.option_groups;
+        if (dropPaused) delete copy.paused;
+        return copy;
+      });
     }
     if (error) throw new Error(`Supabase insert menus failed: ${error.message}`);
   }

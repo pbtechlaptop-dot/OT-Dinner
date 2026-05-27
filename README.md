@@ -57,6 +57,7 @@ create table if not exists public.menus (
   name_sc text not null,
   name_en text not null,
   price numeric(10,2) not null,
+  paused boolean not null default false,
   unique (restaurant, category, name_tc)
 );
 
@@ -97,6 +98,13 @@ If `drinks` already exists, also run:
 
 ```sql
 alter table public.drinks
+add column if not exists paused boolean not null default false;
+```
+
+If `menus` already exists, also run:
+
+```sql
+alter table public.menus
 add column if not exists paused boolean not null default false;
 ```
 

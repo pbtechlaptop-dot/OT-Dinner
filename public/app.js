@@ -521,7 +521,7 @@ function normalizeMenuItem(item) {
   const sc = String(item.nameSc || item.sc || tc).trim();
   const en = String(item.nameEn || item.en || tc).trim();
   const price = Number(item.price);
-  const base = { nameTc: tc || sc || en, nameSc: sc || tc || en, nameEn: en || tc || sc, price: Number.isFinite(price) ? price : 0 };
+  const base = { nameTc: tc || sc || en, nameSc: sc || tc || en, nameEn: en || tc || sc, price: Number.isFinite(price) ? price : 0, paused: Boolean(item.paused) };
   if (Array.isArray(item.optionGroups) && item.optionGroups.length) base.optionGroups = item.optionGroups;
   return base;
 }
@@ -1037,8 +1037,9 @@ function renderFood() {
   const items = (state.menu && state.menu[cat]) ? state.menu[cat] : [];
   fillSelect(el.foodSelect, items.map(raw => {
     const f = normalizeMenuItem(raw);
+    if (f.paused) return null;
     return { value: f.nameTc, label: `${getLocalizedFood(f)} ($${f.price})`, price: f.price, optionGroups: f.optionGroups };
-  }), t('selectFood'));
+  }).filter(Boolean), t('selectFood'));
   el.priceInput.value = '';
   renderOptionGroupsFromSelection();
 }

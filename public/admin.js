@@ -583,10 +583,11 @@ function normalizeSeed() {
         const nameSc = String((it && it.nameSc) || nameTc).trim();
         const nameEn = String((it && it.nameEn) || nameTc).trim();
         const price = Number(it && it.price);
+        const paused = Boolean(it && it.paused);
         if (!nameTc || !Number.isFinite(price) || price < 0) return;
         const optionGroups = parseOptionGroups(it && (it.optionGroups ?? it.option_groups ?? it.options));
         if (!map.has(nameTc)) {
-          const base = { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price };
+          const base = { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price, paused };
           if (optionGroups.length) base.optionGroups = optionGroups;
           map.set(nameTc, base);
         }
@@ -722,30 +723,46 @@ function renderMenuItems() {
 
   if (!rest) {
     menuInputs.forEach(node => { if (node) node.disabled = true; });
-    el.menuTable.innerHTML = '<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">價錢</th><th></th></tr></thead><tbody><tr><td colspan="5" class="px-2 py-3 text-slate-400">請先選擇餐廳</td></tr></tbody>';
+    el.menuTable.innerHTML = '<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">價錢</th><th class="px-2 py-1 text-left">狀態</th><th></th></tr></thead><tbody><tr><td colspan="6" class="px-2 py-3 text-slate-400">請先選擇餐廳</td></tr></tbody>';
     return;
   }
 
   if (!cat) {
     menuInputs.forEach(node => { if (node) node.disabled = true; });
-    el.menuTable.innerHTML = '<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">價錢</th><th></th></tr></thead><tbody><tr><td colspan="5" class="px-2 py-3 text-slate-400">請先選擇分類</td></tr></tbody>';
+    el.menuTable.innerHTML = '<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">價錢</th><th class="px-2 py-1 text-left">狀態</th><th></th></tr></thead><tbody><tr><td colspan="6" class="px-2 py-3 text-slate-400">請先選擇分類</td></tr></tbody>';
     return;
   }
 
   menuInputs.forEach(node => { if (node) node.disabled = false; });
   const items = rest && cat && state.seed.menus[rest] && state.seed.menus[rest][cat] ? state.seed.menus[rest][cat] : [];
-  const rows = items.map((it, i) => `<tr>
+  const rows = items.map((it, i) => {
+    const paused = Boolean(it.paused);
+    return `<tr>
     <td class="border-b px-2 py-1">${it.nameTc || ''}</td>
     <td class="border-b px-2 py-1">${it.nameSc || ''}</td>
     <td class="border-b px-2 py-1">${it.nameEn || ''}</td>
     <td class="border-b px-2 py-1">${Number(it.price || 0).toFixed(2)}</td>
+    <td class="border-b px-2 py-1">${paused ? '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">已暫停</span>' : '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">供應中</span>'}</td>
     <td class="border-b px-2 py-1">
+      <button data-i="${i}" class="toggle-item rounded bg-slate-700 px-2 py-1 text-xs text-white">${paused ? '恢復' : '暫停'}</button>
       <button data-i="${i}" class="edit-item rounded bg-amber-500 px-2 py-1 text-xs text-white">更改</button>
       <button data-i="${i}" class="remove-item ml-1 rounded bg-red-600 px-2 py-1 text-xs text-white">刪除</button>
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 
-  el.menuTable.innerHTML = `<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">價錢</th><th></th></tr></thead><tbody>${rows}</tbody>`;
+  el.menuTable.innerHTML = `<thead><tr class="bg-slate-50"><th class="px-2 py-1 text-left">繁</th><th class="px-2 py-1 text-left">簡</th><th class="px-2 py-1 text-left">EN</th><th class="px-2 py-1 text-left">價錢</th><th class="px-2 py-1 text-left">狀態</th><th></th></tr></thead><tbody>${rows}</tbody>`;
+
+  el.menuTable.querySelectorAll('.toggle-item').forEach(btn => {
+    btn.onclick = () => {
+      const i = Number(btn.dataset.i);
+      const current = items[i];
+      if (!current) return;
+      current.paused = !current.paused;
+      renderMenuItems();
+      markDirty(current.paused ? '已暫停餐點' : '已恢復餐點');
+    };
+  });
 
   el.menuTable.querySelectorAll('.remove-item').forEach(btn => {
     btn.onclick = () => {
@@ -1168,7 +1185,7 @@ function rowsToSeed(rows) {
     if (type === 'MENU' && restaurant && category && itemTc && Number.isFinite(price)) {
       if (!seed.menus[restaurant]) seed.menus[restaurant] = {};
       if (!seed.menus[restaurant][category]) seed.menus[restaurant][category] = [];
-      const entry = { nameTc: itemTc, nameSc: itemSc || itemTc, nameEn: itemEn || itemTc, price };
+      const entry = { nameTc: itemTc, nameSc: itemSc || itemTc, nameEn: itemEn || itemTc, price, paused };
       if (optionGroups.length) entry.optionGroups = optionGroups;
       seed.menus[restaurant][category].push(entry);
       seed.restaurants.push(restaurant);
@@ -1257,10 +1274,12 @@ function parseWorkbookSeed(wb) {
       const optionRaw = pickNamed(r, ['Option Groups', 'Options', 'Option', '\u9078\u9805', '\u9078\u64c7', '\u53ef\u9078', '\u63a8\u85a6', '\u63a8\u8350', '__EMPTY']);
       const optionGroups = parseOptionGroups(optionRaw);
       const price = parseImportedPrice(rawPrice);
+      const pausedRaw = pick(r, ['Paused', 'paused', '暫停', '暂停'], 4);
+      const paused = ['1', 'true', 'yes', 'y'].includes(String(pausedRaw || '').trim().toLowerCase());
       if (!tc || !Number.isFinite(price)) return;
 
       if (!seed.menus[restaurant][cat]) seed.menus[restaurant][cat] = [];
-      const entry = { nameTc: tc, nameSc: toSc(tc), nameEn: en || tc, price };
+      const entry = { nameTc: tc, nameSc: toSc(tc), nameEn: en || tc, price, paused };
       if (optionGroups.length) entry.optionGroups = optionGroups;
       seed.menus[restaurant][cat].push(entry);
     });
@@ -1563,13 +1582,14 @@ el.addMenuBtn.onclick = () => {
   if (state.menuEdit && state.menuEdit.rest === rest && state.menuEdit.cat === cat) {
     const idx = state.menuEdit.index;
     if (idx >= 0 && idx < state.seed.menus[rest][cat].length) {
-      const entry = { nameTc, nameSc, nameEn, price };
+      const existing = state.seed.menus[rest][cat][idx] || {};
+      const entry = { nameTc, nameSc, nameEn, price, paused: Boolean(existing.paused) };
       if (optionParsed.groups.length) entry.optionGroups = optionParsed.groups;
       state.seed.menus[rest][cat][idx] = entry;
       markDirty('\u5df2\u66f4\u65b0\u9910\u9ede');
     }
   } else {
-    const entry = { nameTc, nameSc, nameEn, price };
+    const entry = { nameTc, nameSc, nameEn, price, paused: false };
     if (optionParsed.groups.length) entry.optionGroups = optionParsed.groups;
     state.seed.menus[rest][cat].push(entry);
     markDirty('\u5df2\u65b0\u589e\u9910\u9ede');
@@ -1588,8 +1608,6 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
-
-
 
 
 
