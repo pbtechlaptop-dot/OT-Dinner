@@ -1399,6 +1399,13 @@ function buildFoodSummaryLabel(order) {
   return addon ? `${food} ${addon}` : food;
 }
 
+function formatFoodSummaryLine(food, entry) {
+  const numbers = Array.isArray(entry && entry.numbers) ? entry.numbers.filter(Boolean) : [];
+  const count = Number(entry && entry.count) || 0;
+  const numberPrefix = numbers.length ? `(${numbers.join(',')}) - ` : '';
+  return `- ${numberPrefix}${food} ${t('xLabel')} ${count}`;
+}
+
 function renderOrders() {
   const orders = [...(state.orders || [])];
   let total = 0;
@@ -1423,7 +1430,8 @@ function renderOrders() {
   const byDeptDrink = {};
   const foodCounts = {};
   const byDeptFood = {};
-  orders.forEach(o => {
+  orders.forEach((o, index) => {
+    const orderNumber = index + 1;
     const drinkKey = parseDrinkChange(o.drink).current;
     const dept = String(o.dept || '').trim() || '-';
     if (drinkKey) {
@@ -1433,9 +1441,13 @@ function renderOrders() {
 
     const foodKey = buildFoodSummaryLabel(o);
     if (!foodKey) return;
-    foodCounts[foodKey] = (foodCounts[foodKey] || 0) + 1;
+    if (!foodCounts[foodKey]) foodCounts[foodKey] = { count: 0, numbers: [] };
+    foodCounts[foodKey].count += 1;
+    foodCounts[foodKey].numbers.push(orderNumber);
     if (!byDeptFood[dept]) byDeptFood[dept] = {};
-    byDeptFood[dept][foodKey] = (byDeptFood[dept][foodKey] || 0) + 1;
+    if (!byDeptFood[dept][foodKey]) byDeptFood[dept][foodKey] = { count: 0, numbers: [] };
+    byDeptFood[dept][foodKey].count += 1;
+    byDeptFood[dept][foodKey].numbers.push(orderNumber);
   });
 
   const summaryHtml = Object.entries(byDeptDrink)
@@ -1452,23 +1464,23 @@ function renderOrders() {
   if (el.foodSummary) {
     const foodHtml = Object.entries(foodCounts)
       .sort((a, b) => {
-        if (b[1] !== a[1]) return b[1] - a[1];
+        if (b[1].count !== a[1].count) return b[1].count - a[1].count;
         return a[0].localeCompare(b[0], 'zh-Hant');
       })
-      .map(([food, count]) => `- ${food} ${t('xLabel')} ${count}`)
+      .map(([food, entry]) => formatFoodSummaryLine(food, entry))
       .join('<br>');
     el.foodSummary.innerHTML = foodHtml;
   }
   if (el.foodSummaryByDept) {
     const foodByDeptHtml = Object.entries(byDeptFood)
       .map(([dept, foodMap]) => {
-        const deptTotal = Object.values(foodMap).reduce((sum, count) => sum + Number(count || 0), 0);
+        const deptTotal = Object.values(foodMap).reduce((sum, entry) => sum + (Number(entry && entry.count) || 0), 0);
         const foodsList = Object.entries(foodMap)
           .sort((a, b) => {
-            if (b[1] !== a[1]) return b[1] - a[1];
+            if (b[1].count !== a[1].count) return b[1].count - a[1].count;
             return a[0].localeCompare(b[0], 'zh-Hant');
           })
-          .map(([food, count]) => `- ${food} ${t('xLabel')} ${count}`)
+          .map(([food, entry]) => formatFoodSummaryLine(food, entry))
           .join('<br>');
         return `<div><strong>${dept}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${deptTotal}</span></span><br>${foodsList}</div>`;
       })
