@@ -1769,7 +1769,9 @@ function serveStatic(req, reqPath, res) {
     if (err) return text(res, 404, 'Not found');
     const ext = path.extname(filePath).toLowerCase();
     const isVersionedAsset = /\.(css|js|png|svg)$/i.test(filePath) && /[?&]v=|-[0-9]{8,}/i.test(req.url || '');
-    const cacheControl = isVersionedAsset
+    const cacheControl = path.basename(filePath).toLowerCase() === 'service-worker.js'
+      ? 'no-store'
+      : isVersionedAsset
       ? 'public, max-age=31536000, immutable'
       : (ext === '.html' ? 'no-store' : 'public, max-age=300');
     res.writeHead(200, {
