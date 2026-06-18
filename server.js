@@ -1705,10 +1705,21 @@ function validateOrder(order) {
 function toCsv(orders) {
   const header = ['No', 'Dept', 'Name', 'Food', 'Addon', 'Drink', 'Price'];
   const lines = [header.join(',')];
+  const stripAddonPriceText = value => {
+    const text = String(value ?? '').trim();
+    if (!text) return '';
+    return text
+      .replace(/\(\s*\+\s*\$?\s*\d+(?:\.\d+)?\s*\)/g, '')
+      .replace(/\+\s*\$?\s*\d+(?:\.\d+)?/g, '')
+      .replace(/\s*([,;\\/、])\s*/g, '$1')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/^[,;\\/、\s]+|[,;\\/、\s]+$/g, '')
+      .trim();
+  };
   const normalizeAddon = value => {
     const raw = String(value ?? '').trim();
     if (!raw) return '';
-    if (!/[\u3400-\u9fff]/.test(raw)) return raw;
+    if (!/[\u3400-\u9fff]/.test(raw)) return stripAddonPriceText(raw);
     let out = '';
     for (const ch of raw) {
       if (/[\u3400-\u9fff]/.test(ch)) out += ch;
@@ -1717,7 +1728,7 @@ function toCsv(orders) {
       else if (/\s/.test(ch)) out += ' ';
     }
     out = out.replace(/\s+/g, ' ').replace(/\s*([+,;\\/、])\s*/g, '$1').trim();
-    return out || raw;
+    return stripAddonPriceText(out || raw);
   };
   orders.forEach((o, i) => {
     const row = [i + 1, o.dept, o.name, o.food, normalizeAddon(o.addon || ''), o.drink || '', o.price].map(value => {

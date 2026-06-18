@@ -1824,7 +1824,7 @@ async function exportXlsx() {
     o.dept || '',
     o.name || '',
     displayFood(o.food || ''),
-    displayAddon(o.addon || ''),
+    stripAddonPriceText(displayAddon(o.addon || '')),
     displayDrink(o.drink || ''),
     Number(o.price || 0)
   ]);
