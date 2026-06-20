@@ -22,6 +22,7 @@ const state = {
   menuEdit: null,
   adminUsers: [],
   logs: [],
+  restaurantContacts: [],
   seed: { restaurants: [], staff: {}, drinks: [], menus: {} }
 };
 
@@ -52,6 +53,10 @@ const el = {
   restaurantList: document.getElementById('restaurantList'),
   newRestaurant: document.getElementById('newRestaurant'),
   addRestaurantBtn: document.getElementById('addRestaurantBtn'),
+  contactRestaurantSelect: document.getElementById('contactRestaurantSelect'),
+  contactPhone: document.getElementById('contactPhone'),
+  contactEmail: document.getElementById('contactEmail'),
+  contactNote: document.getElementById('contactNote'),
   drinkTable: document.getElementById('drinkTable'),
   drinkTc: document.getElementById('drinkTc'),
   drinkSc: document.getElementById('drinkSc'),
@@ -388,8 +393,52 @@ async function fetchSeedByCredentials(username, password) {
   const payload = await api(`/api/admin/seed?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`);
   return {
     seed: payload.seed || { restaurants: [], staff: {}, drinks: [], menus: {} },
+    restaurantContacts: Array.isArray(payload.restaurantContacts) ? payload.restaurantContacts : [],
     user: payload.user || { username, permissions: [], staffDepartments: [], isRoot: false }
   };
+}
+
+function normalizeRestaurantContact(contact = {}) {
+  const restaurant = String(contact.restaurant || '').trim();
+  if (!restaurant) return null;
+  return {
+    restaurant,
+    phone: String(contact.phone || '').trim(),
+    email: String(contact.email || '').trim(),
+    note: String(contact.note || '').trim()
+  };
+}
+
+function collectRestaurantContacts() {
+  const contacts = Array.isArray(state.restaurantContacts) ? state.restaurantContacts : [];
+  const selected = String((el.contactRestaurantSelect && el.contactRestaurantSelect.value) || '').trim();
+  const map = new Map();
+  contacts.map(normalizeRestaurantContact).filter(Boolean).forEach(contact => {
+    if (contact.phone || contact.email || contact.note) map.set(contact.restaurant, contact);
+  });
+  if (selected) {
+    const contact = {
+      restaurant: selected,
+      phone: String((el.contactPhone && el.contactPhone.value) || '').trim(),
+      email: String((el.contactEmail && el.contactEmail.value) || '').trim(),
+      note: String((el.contactNote && el.contactNote.value) || '').trim()
+    };
+    if (contact.phone || contact.email || contact.note) map.set(selected, contact);
+    else map.delete(selected);
+  }
+  const validRestaurants = new Set((state.seed.restaurants || []).map(name => String(name || '').trim()).filter(Boolean));
+  return Array.from(map.values())
+    .filter(contact => validRestaurants.has(contact.restaurant))
+    .sort((a, b) => a.restaurant.localeCompare(b.restaurant));
+}
+
+function syncSelectedRestaurantContact() {
+  const selected = String((el.contactRestaurantSelect && el.contactRestaurantSelect.value) || '').trim();
+  const contact = (state.restaurantContacts || []).map(normalizeRestaurantContact).filter(Boolean)
+    .find(item => item.restaurant === selected) || {};
+  if (el.contactPhone) el.contactPhone.value = contact.phone || '';
+  if (el.contactEmail) el.contactEmail.value = contact.email || '';
+  if (el.contactNote) el.contactNote.value = contact.note || '';
 }
 
 async function fetchAdminUsers() {
@@ -602,11 +651,13 @@ function normalizeSeed() {
 
 function renderRestaurants() {
   const selectedRestaurant = String(el.menuRestaurantSelect.value || '');
+  const selectedContactRestaurant = String((el.contactRestaurantSelect && el.contactRestaurantSelect.value) || '');
   el.restaurantList.innerHTML = '';
   state.seed.restaurants.forEach((r, i) => {
     el.restaurantList.appendChild(tag(r, () => {
       state.seed.restaurants.splice(i, 1);
       delete state.seed.menus[r];
+      state.restaurantContacts = (state.restaurantContacts || []).filter(contact => String(contact.restaurant || '').trim() !== r);
       renderAll();
       markDirty('已刪除餐廳');
     }));
@@ -619,6 +670,18 @@ function renderRestaurants() {
     el.menuRestaurantSelect.value = selectedRestaurant;
   } else {
     el.menuRestaurantSelect.value = '';
+  }
+
+  if (el.contactRestaurantSelect) {
+    el.contactRestaurantSelect.innerHTML = state.seed.restaurants.length
+      ? state.seed.restaurants.map(r => `<option value="${r}">${r}</option>`).join('')
+      : '<option value="">-- 餐廳 --</option>';
+    if (selectedContactRestaurant && state.seed.restaurants.includes(selectedContactRestaurant)) {
+      el.contactRestaurantSelect.value = selectedContactRestaurant;
+    } else if (state.seed.restaurants.length) {
+      el.contactRestaurantSelect.value = state.seed.restaurants[0];
+    }
+    syncSelectedRestaurantContact();
   }
 }
 
@@ -911,7 +974,7 @@ async function persistIfDirty(reasonLabel) {
     normalizeSeed();
     await api('/api/admin/seed', {
       method: 'POST',
-      body: JSON.stringify(adminAuthBody({ seed: state.seed }))
+      body: JSON.stringify(adminAuthBody({ seed: state.seed, restaurantContacts: collectRestaurantContacts() }))
     });
     state.dirty = false;
     await loadAdminLogs({ silent: true });
@@ -1010,7 +1073,9 @@ async function saveSection(section) {
 
     normalizeSeed();
     setBusy(true);
+    if (section === 'restaurants') state.restaurantContacts = collectRestaurantContacts();
     const savePayload = { seed: state.seed, section };
+    if (section === 'restaurants') savePayload.restaurantContacts = state.restaurantContacts;
     if (section === 'menus' && menuRestaurant) savePayload.menuRestaurant = menuRestaurant;
     await api('/api/admin/seed', {
       method: 'POST',
@@ -1038,6 +1103,7 @@ async function loadSeed() {
     setBusy(true);
     const payload = await fetchSeedByCredentials(state.username, state.password);
     state.seed = payload.seed;
+    state.restaurantContacts = payload.restaurantContacts;
     state.permissions = Array.isArray(payload.user.permissions) ? payload.user.permissions : [];
     state.allowedStaffDepartments = Array.isArray(payload.user.staffDepartments) ? payload.user.staffDepartments : [];
     state.isRoot = Boolean(payload.user.isRoot);
@@ -1065,7 +1131,7 @@ async function saveSeed() {
     setBusy(true);
     await api('/api/admin/seed', {
       method: 'POST',
-      body: JSON.stringify(adminAuthBody({ seed: state.seed }))
+      body: JSON.stringify(adminAuthBody({ seed: state.seed, restaurantContacts: collectRestaurantContacts() }))
     });
     state.dirty = false;
     await loadAdminLogs({ silent: true });
@@ -1354,6 +1420,7 @@ async function login() {
     state.allowedStaffDepartments = Array.isArray(user.staffDepartments) ? user.staffDepartments : [];
     state.isRoot = Boolean(user.isRoot);
     state.seed = payload.seed;
+    state.restaurantContacts = payload.restaurantContacts;
     if (hasPermission('users')) {
       try {
         state.adminUsers = await fetchAdminUsers();
@@ -1474,6 +1541,17 @@ el.addRestaurantBtn.onclick = () => {
   renderAll();
   markDirty('已新增餐廳');
 };
+
+el.contactRestaurantSelect?.addEventListener('change', () => {
+  syncSelectedRestaurantContact();
+});
+
+[el.contactPhone, el.contactEmail, el.contactNote].forEach(input => {
+  input?.addEventListener('input', () => {
+    state.restaurantContacts = collectRestaurantContacts();
+    markDirty('已更新餐廳聯絡資料');
+  });
+});
 
 el.addDrinkBtn.onclick = () => {
   if (!requireAuth()) return;
@@ -1608,15 +1686,6 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
-
-
-
-
-
-
-
-
-
 
 
 

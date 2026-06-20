@@ -26,6 +26,7 @@ const LADY_RUBY_STATE_FILE = path.join(DATA_DIR, 'state.lady-ruby.json');
 const DRINK_FLAGS_FILE = path.join(DATA_DIR, 'drink-flags.json');
 const ADMIN_USERS_FILE = path.join(DATA_DIR, 'admin-users.json');
 const ADMIN_LOGS_FILE = path.join(DATA_DIR, 'admin-logs.json');
+const RESTAURANT_CONTACTS_FILE = path.join(DATA_DIR, 'restaurant-contacts.json');
 const APP_MAIN = 'main';
 const APP_LADY_RUBY = 'lady-ruby';
 const APP_IDS = new Set([APP_MAIN, APP_LADY_RUBY]);
@@ -58,6 +59,7 @@ const TABLES = {
   drinks: process.env.SUPABASE_TABLE_DRINKS || 'drinks',
   staff: process.env.SUPABASE_TABLE_STAFF || 'staff',
   menus: process.env.SUPABASE_TABLE_MENUS || 'menus',
+  restaurantContacts: process.env.SUPABASE_TABLE_RESTAURANT_CONTACTS || 'restaurant_contacts',
   appState: process.env.SUPABASE_TABLE_APP_STATE || 'app_state',
   orders: process.env.SUPABASE_TABLE_ORDERS || 'orders',
   adminUsers: process.env.SUPABASE_TABLE_ADMIN_USERS || 'admin_users',
@@ -598,6 +600,35 @@ function defaultSeed() {
 
 function defaultState() {
   return { date: todayISO(), restaurant: null, cutoffTime: DEFAULT_CUTOFF_TIME, orders: [] };
+}
+
+function normalizeRestaurantContact(input) {
+  if (!input || typeof input !== 'object') return null;
+  const restaurant = normText(input.restaurant);
+  if (!restaurant) return null;
+  return {
+    restaurant,
+    phone: normText(input.phone),
+    email: normText(input.email).toLowerCase(),
+    note: normText(input.note)
+  };
+}
+
+function normalizeRestaurantContacts(input) {
+  const map = new Map();
+  (Array.isArray(input) ? input : []).forEach(item => {
+    const contact = normalizeRestaurantContact(item);
+    if (!contact) return;
+    if (contact.phone || contact.email || contact.note) map.set(contact.restaurant, contact);
+  });
+  return Array.from(map.values()).sort((a, b) => a.restaurant.localeCompare(b.restaurant));
+}
+
+function contactMapByRestaurant(contacts) {
+  return normalizeRestaurantContacts(contacts).reduce((map, contact) => {
+    map[contact.restaurant] = contact;
+    return map;
+  }, {});
 }
 
 function normalizeAppId(input) {
@@ -1299,6 +1330,39 @@ async function getAdminLogsSupabase(options = {}) {
   }
 }
 
+async function getRestaurantContactsSupabase() {
+  try {
+    const rows = await supaSelect(TABLES.restaurantContacts, 'restaurant,phone,email,note', {
+      order: [{ column: 'restaurant' }]
+    });
+    return normalizeRestaurantContacts(rows || []);
+  } catch (err) {
+    if (isMissingSupabaseTable(err, TABLES.restaurantContacts)) return [];
+    throw err;
+  }
+}
+
+async function saveRestaurantContactsSupabase(contacts) {
+  const rows = normalizeRestaurantContacts(contacts);
+  try {
+    await supaDeleteAll(TABLES.restaurantContacts, 'restaurant');
+  } catch (err) {
+    if (isMissingSupabaseTable(err, TABLES.restaurantContacts)) return;
+    throw err;
+  }
+  if (!rows.length) return;
+  const { error } = await supabase.from(TABLES.restaurantContacts).insert(rows.map(contact => ({
+    restaurant: contact.restaurant,
+    phone: contact.phone,
+    email: contact.email,
+    note: contact.note
+  })));
+  if (error) {
+    if (isMissingSupabaseTable(error, TABLES.restaurantContacts)) return;
+    throw new Error(`Supabase insert restaurant contacts failed: ${error.message}`);
+  }
+}
+
 async function appendAdminLogSupabase(entry) {
   const normalized = normalizeAdminLogEntry(entry);
   if (!normalized) return;
@@ -1509,6 +1573,14 @@ async function saveAdminUsersLocal(users) {
   writeJson(ADMIN_USERS_FILE, normalizeAdminUsers(users));
 }
 
+async function getRestaurantContactsLocal() {
+  return normalizeRestaurantContacts(readJsonSafe(RESTAURANT_CONTACTS_FILE, []));
+}
+
+async function saveRestaurantContactsLocal(contacts) {
+  writeJson(RESTAURANT_CONTACTS_FILE, normalizeRestaurantContacts(contacts));
+}
+
 async function getAdminLogsLocal(options = {}) {
   const limit = Number.isFinite(options.limit) ? Math.max(1, Math.min(200, Math.floor(options.limit))) : 100;
   const username = normText(options.username).toLowerCase();
@@ -1588,6 +1660,14 @@ const storage = {
   saveAdminUsers(users) {
     if (USE_SUPABASE) return saveAdminUsersSupabase(users);
     return saveAdminUsersLocal(users);
+  },
+  getRestaurantContacts() {
+    if (USE_SUPABASE) return getRestaurantContactsSupabase();
+    return getRestaurantContactsLocal();
+  },
+  saveRestaurantContacts(contacts) {
+    if (USE_SUPABASE) return saveRestaurantContactsSupabase(contacts);
+    return saveRestaurantContactsLocal(contacts);
   },
   getAdminLogs(options = {}) {
     if (USE_SUPABASE) return getAdminLogsSupabase(options);
@@ -1884,11 +1964,15 @@ async function handleApi(req, res, urlObj) {
   if (req.method === 'GET' && pathname === '/api/bootstrap') {
     const appId = getAppIdFromRequest(urlObj);
     const seed = await storage.getSeed();
+    const restaurantContacts = await storage.getRestaurantContacts();
+    const restaurantContactMap = contactMapByRestaurant(restaurantContacts);
     const rawState = await storage.getState(appId);
     const state = await ensureStateHasValidRestaurant(appId, seed, rawState);
     return json(res, 200, {
       date: state.date,
       restaurants: seed.restaurants,
+      restaurantContacts: restaurantContactMap,
+      currentRestaurantContact: state.restaurant ? (restaurantContactMap[state.restaurant] || null) : null,
       staff: getScopedStaff(seed.staff, appId),
       drinks: seed.drinks,
       currentRestaurant: state.restaurant,
@@ -2144,8 +2228,10 @@ async function handleApi(req, res, urlObj) {
     clearAuthFailures(req, 'admin');
     await ensureRecentLoginLog(admin);
     const seed = await storage.getSeed();
+    const restaurantContacts = await storage.getRestaurantContacts();
     return json(res, 200, {
       seed: scopeSeedForAdmin(seed, admin),
+      restaurantContacts,
       user: {
         username: admin.username,
         permissions: admin.permissions,
@@ -2206,6 +2292,12 @@ async function handleApi(req, res, urlObj) {
         ? mergeScopedMenuRestaurantSeed(currentSeed, nextSeed, menuRestaurant)
         : nextSeed);
     await storage.saveSeed(finalSeed);
+    if (section === 'restaurants' || (!section && admin.isRoot)) {
+      const restaurantSet = new Set((finalSeed.restaurants || []).map(normText).filter(Boolean));
+      const nextContacts = normalizeRestaurantContacts(body && body.restaurantContacts)
+        .filter(contact => restaurantSet.has(contact.restaurant));
+      await storage.saveRestaurantContacts(nextContacts);
+    }
     await appendAdminLogSafe(buildSeedLogEntry({
       admin,
       section: section || 'all',

@@ -2,6 +2,7 @@ const state = {
   appId: document.body.dataset.appId || 'main',
   defaultCutoffTime: '13:00',
   restaurants: [],
+  restaurantContacts: {},
   staff: {},
   drinks: [],
   menu: {},
@@ -67,6 +68,7 @@ const i18n = {
     importHint: 'Excel/CSV 標題欄需包含：type, restaurant, category, item, price, dept, name, drink',
     datePrefix: '日期：',
     currentRestaurant: '目前：',
+    restaurantContact: '聯絡：',
     notSet: '未設定',
     noOrders: '未有訂單',
     noDrink: '無',
@@ -143,6 +145,7 @@ const i18n = {
     importHint: 'Excel/CSV 标题栏需包含：type, restaurant, category, item, price, dept, name, drink',
     datePrefix: '日期：',
     currentRestaurant: '目前：',
+    restaurantContact: '联系：',
     notSet: '未设置',
     noOrders: '暂无订单',
     noDrink: '无',
@@ -219,6 +222,7 @@ const i18n = {
     importHint: 'Excel/CSV headers: type, restaurant, category, item, price, dept, name, drink',
     datePrefix: 'Date: ',
     currentRestaurant: 'Current: ',
+    restaurantContact: 'Contact: ',
     notSet: 'Not set',
     noOrders: 'No orders yet',
     noDrink: 'No drink',
@@ -360,6 +364,7 @@ const el = {
   restaurantPasswordInput: document.getElementById('restaurantPasswordInput'),
   restaurantActionHint: document.getElementById('restaurantActionHint'),
   currentRestaurantText: document.getElementById('currentRestaurantText'),
+  currentRestaurantContactText: document.getElementById('currentRestaurantContactText'),
   cutoffTimeInput: document.getElementById('cutoffTimeInput'),
   cutoffTimeText: document.getElementById('cutoffTimeText'),
   cutoffNotice: document.getElementById('cutoffNotice'),
@@ -997,10 +1002,28 @@ function renderRestaurants() {
   if (state.currentRestaurant) el.restaurantSelect.value = state.currentRestaurant;
   if (el.cutoffTimeInput) el.cutoffTimeInput.value = state.cutoffTime || state.defaultCutoffTime;
   el.currentRestaurantText.textContent = `${t('currentRestaurant')}${state.currentRestaurant || t('notSet')}`;
+  renderCurrentRestaurantContact();
   el.cutoffTimeText.textContent = state.cutoffTime ? `${t('cutoffAt')}${state.cutoffTime}` : t('cutoffNotSet');
   syncRestaurantLock();
   updateCutoffUi();
   updateDiagSummary();
+}
+
+function renderCurrentRestaurantContact() {
+  if (!el.currentRestaurantContactText) return;
+  const contactMap = state.restaurantContacts && typeof state.restaurantContacts === 'object' ? state.restaurantContacts : {};
+  const contact = state.currentRestaurant ? contactMap[state.currentRestaurant] : null;
+  const parts = [];
+  if (contact && contact.phone) parts.push(contact.phone);
+  if (contact && contact.email) parts.push(contact.email);
+  if (contact && contact.note) parts.push(contact.note);
+  if (!parts.length) {
+    el.currentRestaurantContactText.classList.add('hidden');
+    el.currentRestaurantContactText.textContent = '';
+    return;
+  }
+  el.currentRestaurantContactText.textContent = `${t('restaurantContact')}${parts.join(' / ')}`;
+  el.currentRestaurantContactText.classList.remove('hidden');
 }
 
 function renderDepartments() {
@@ -1556,6 +1579,7 @@ async function loadBootstrap() {
   try {
     const payload = await api('/api/bootstrap');
     state.restaurants = payload.restaurants || [];
+    state.restaurantContacts = payload.restaurantContacts || {};
     state.staff = payload.staff || {};
     state.drinks = payload.drinks || [];
     state.currentRestaurant = payload.currentRestaurant || null;

@@ -35,6 +35,13 @@ create table if not exists public.restaurants (
   name text primary key
 );
 
+create table if not exists public.restaurant_contacts (
+  restaurant text primary key references public.restaurants(name) on delete cascade,
+  phone text not null default '',
+  email text not null default '',
+  note text not null default ''
+);
+
 create table if not exists public.drinks (
   tc text primary key,
   sc text not null,
@@ -141,6 +148,7 @@ This app uses the server-side `SUPABASE_SERVICE_ROLE_KEY`, so you can safely ena
 
 ```sql
 alter table if exists public.restaurants enable row level security;
+alter table if exists public.restaurant_contacts enable row level security;
 alter table if exists public.drinks enable row level security;
 alter table if exists public.staff enable row level security;
 alter table if exists public.menus enable row level security;
@@ -168,6 +176,7 @@ alter table if exists public.admin_users enable row level security;
 alter table if exists public.admin_logs enable row level security;
 
 grant select, insert, update, delete on table public.restaurants to service_role;
+grant select, insert, update, delete on table public.restaurant_contacts to service_role;
 grant select, insert, update, delete on table public.drinks to service_role;
 grant select, insert, update, delete on table public.staff to service_role;
 grant select, insert, update, delete on table public.menus to service_role;
@@ -179,6 +188,7 @@ grant select, insert, update, delete on table public.admin_logs to service_role;
 grant usage, select on all sequences in schema public to service_role;
 
 revoke all on table public.restaurants from anon, authenticated;
+revoke all on table public.restaurant_contacts from anon, authenticated;
 revoke all on table public.drinks from anon, authenticated;
 revoke all on table public.staff from anon, authenticated;
 revoke all on table public.menus from anon, authenticated;
