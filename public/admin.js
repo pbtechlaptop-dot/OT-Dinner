@@ -432,6 +432,36 @@ function collectRestaurantContacts() {
     .sort((a, b) => a.restaurant.localeCompare(b.restaurant));
 }
 
+function collectSelectedRestaurantContact() {
+  const restaurant = String((el.contactRestaurantSelect && el.contactRestaurantSelect.value) || '').trim();
+  if (!restaurant) return null;
+  return normalizeRestaurantContact({
+    restaurant,
+    phone: String((el.contactPhone && el.contactPhone.value) || '').trim(),
+    email: String((el.contactEmail && el.contactEmail.value) || '').trim(),
+    note: String((el.contactNote && el.contactNote.value) || '').trim()
+  });
+}
+
+function updateRestaurantContactState(contact) {
+  const normalized = normalizeRestaurantContact(contact);
+  if (!normalized) return;
+  const next = (state.restaurantContacts || []).map(normalizeRestaurantContact).filter(Boolean)
+    .filter(item => item.restaurant !== normalized.restaurant);
+  if (normalized.phone || normalized.email || normalized.note) next.push(normalized);
+  state.restaurantContacts = next.sort((a, b) => a.restaurant.localeCompare(b.restaurant));
+}
+
+async function saveSelectedRestaurantContact() {
+  const contact = collectSelectedRestaurantContact();
+  if (!contact) return;
+  const payload = await api('/api/admin/restaurant-contact', {
+    method: 'POST',
+    body: JSON.stringify(adminAuthBody({ contact }))
+  });
+  state.restaurantContacts = Array.isArray(payload.restaurantContacts) ? payload.restaurantContacts : state.restaurantContacts;
+}
+
 function syncSelectedRestaurantContact() {
   const selected = String((el.contactRestaurantSelect && el.contactRestaurantSelect.value) || '').trim();
   const contact = (state.restaurantContacts || []).map(normalizeRestaurantContact).filter(Boolean)
@@ -974,8 +1004,9 @@ async function persistIfDirty(reasonLabel) {
     normalizeSeed();
     await api('/api/admin/seed', {
       method: 'POST',
-      body: JSON.stringify(adminAuthBody({ seed: state.seed, restaurantContacts: collectRestaurantContacts() }))
+      body: JSON.stringify(adminAuthBody({ seed: state.seed }))
     });
+    await saveSelectedRestaurantContact();
     state.dirty = false;
     await loadAdminLogs({ silent: true });
     setStatus(`已先儲存，再載入「${reasonLabel}」。`);
@@ -1073,14 +1104,13 @@ async function saveSection(section) {
 
     normalizeSeed();
     setBusy(true);
-    if (section === 'restaurants') state.restaurantContacts = collectRestaurantContacts();
     const savePayload = { seed: state.seed, section };
-    if (section === 'restaurants') savePayload.restaurantContacts = state.restaurantContacts;
     if (section === 'menus' && menuRestaurant) savePayload.menuRestaurant = menuRestaurant;
     await api('/api/admin/seed', {
       method: 'POST',
       body: JSON.stringify(adminAuthBody(savePayload))
     });
+    if (section === 'restaurants') await saveSelectedRestaurantContact();
     state.dirty = false;
     await loadAdminLogs({ silent: true });
     renderAll();
@@ -1131,8 +1161,9 @@ async function saveSeed() {
     setBusy(true);
     await api('/api/admin/seed', {
       method: 'POST',
-      body: JSON.stringify(adminAuthBody({ seed: state.seed, restaurantContacts: collectRestaurantContacts() }))
+      body: JSON.stringify(adminAuthBody({ seed: state.seed }))
     });
+    await saveSelectedRestaurantContact();
     state.dirty = false;
     await loadAdminLogs({ silent: true });
     setStatus('儲存成功。');
@@ -1548,7 +1579,7 @@ el.contactRestaurantSelect?.addEventListener('change', () => {
 
 [el.contactPhone, el.contactEmail, el.contactNote].forEach(input => {
   input?.addEventListener('input', () => {
-    state.restaurantContacts = collectRestaurantContacts();
+    updateRestaurantContactState(collectSelectedRestaurantContact());
     markDirty('已更新餐廳聯絡資料');
   });
 });
@@ -1686,7 +1717,4 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
-
-
-
 

@@ -1171,6 +1171,10 @@ async function getSeedSupabase() {
 async function saveSeedSupabase(input) {
   const seed = normalizeSeed(input);
   const drinkFlags = extractDrinkFlags(seed);
+  const existingRestaurantContacts = await getRestaurantContactsSupabase().catch(err => {
+    if (isMissingSupabaseTable(err, TABLES.restaurantContacts)) return [];
+    throw err;
+  });
 
   await supaDeleteAll(TABLES.menus, 'id');
   await supaDeleteAll(TABLES.staff, 'id');
@@ -1180,6 +1184,11 @@ async function saveSeedSupabase(input) {
   if (seed.restaurants.length) {
     const { error } = await supabase.from(TABLES.restaurants).insert(seed.restaurants.map(name => ({ name })));
     if (error) throw new Error(`Supabase insert restaurants failed: ${error.message}`);
+  }
+
+  if (existingRestaurantContacts.length) {
+    const restaurantSet = new Set(seed.restaurants);
+    await saveRestaurantContactsSupabase(existingRestaurantContacts.filter(contact => restaurantSet.has(contact.restaurant)));
   }
 
   if (seed.drinks.length) {
@@ -1360,6 +1369,34 @@ async function saveRestaurantContactsSupabase(contacts) {
   if (error) {
     if (isMissingSupabaseTable(error, TABLES.restaurantContacts)) return;
     throw new Error(`Supabase insert restaurant contacts failed: ${error.message}`);
+  }
+}
+
+async function saveRestaurantContactSupabase(contactInput) {
+  const contact = normalizeRestaurantContact(contactInput);
+  if (!contact) return [];
+  try {
+    if (!contact.phone && !contact.email && !contact.note) {
+      const { error } = await supabase
+        .from(TABLES.restaurantContacts)
+        .delete()
+        .eq('restaurant', contact.restaurant);
+      if (error && !isMissingSupabaseTable(error, TABLES.restaurantContacts)) {
+        throw new Error(`Supabase delete restaurant contact failed: ${error.message}`);
+      }
+      return getRestaurantContactsSupabase();
+    }
+    const { error } = await supabase
+      .from(TABLES.restaurantContacts)
+      .upsert(contact, { onConflict: 'restaurant' });
+    if (error) {
+      if (isMissingSupabaseTable(error, TABLES.restaurantContacts)) return [];
+      throw new Error(`Supabase save restaurant contact failed: ${error.message}`);
+    }
+    return getRestaurantContactsSupabase();
+  } catch (err) {
+    if (isMissingSupabaseTable(err, TABLES.restaurantContacts)) return [];
+    throw err;
   }
 }
 
@@ -1581,6 +1618,16 @@ async function saveRestaurantContactsLocal(contacts) {
   writeJson(RESTAURANT_CONTACTS_FILE, normalizeRestaurantContacts(contacts));
 }
 
+async function saveRestaurantContactLocal(contactInput) {
+  const contact = normalizeRestaurantContact(contactInput);
+  if (!contact) return getRestaurantContactsLocal();
+  const contacts = await getRestaurantContactsLocal();
+  const next = contacts.filter(item => item.restaurant !== contact.restaurant);
+  if (contact.phone || contact.email || contact.note) next.push(contact);
+  await saveRestaurantContactsLocal(next);
+  return getRestaurantContactsLocal();
+}
+
 async function getAdminLogsLocal(options = {}) {
   const limit = Number.isFinite(options.limit) ? Math.max(1, Math.min(200, Math.floor(options.limit))) : 100;
   const username = normText(options.username).toLowerCase();
@@ -1668,6 +1715,10 @@ const storage = {
   saveRestaurantContacts(contacts) {
     if (USE_SUPABASE) return saveRestaurantContactsSupabase(contacts);
     return saveRestaurantContactsLocal(contacts);
+  },
+  saveRestaurantContact(contact) {
+    if (USE_SUPABASE) return saveRestaurantContactSupabase(contact);
+    return saveRestaurantContactLocal(contact);
   },
   getAdminLogs(options = {}) {
     if (USE_SUPABASE) return getAdminLogsSupabase(options);
@@ -2292,12 +2343,6 @@ async function handleApi(req, res, urlObj) {
         ? mergeScopedMenuRestaurantSeed(currentSeed, nextSeed, menuRestaurant)
         : nextSeed);
     await storage.saveSeed(finalSeed);
-    if (section === 'restaurants' || (!section && admin.isRoot)) {
-      const restaurantSet = new Set((finalSeed.restaurants || []).map(normText).filter(Boolean));
-      const nextContacts = normalizeRestaurantContacts(body && body.restaurantContacts)
-        .filter(contact => restaurantSet.has(contact.restaurant));
-      await storage.saveRestaurantContacts(nextContacts);
-    }
     await appendAdminLogSafe(buildSeedLogEntry({
       admin,
       section: section || 'all',
@@ -2306,6 +2351,37 @@ async function handleApi(req, res, urlObj) {
       afterSeed: finalSeed
     }));
     return json(res, 200, { ok: true, merged: false });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/restaurant-contact') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const body = await parseBody(req);
+    const admin = await authenticateAdmin(body);
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    if (!requireAdminPermission(admin, 'restaurants')) {
+      return json(res, 403, { error: 'You do not have permission to edit restaurants.' });
+    }
+    const contact = normalizeRestaurantContact(body && body.contact);
+    if (!contact) return json(res, 400, { error: 'restaurant contact is required' });
+    const seed = await storage.getSeed();
+    if (!(seed.restaurants || []).includes(contact.restaurant)) {
+      return json(res, 400, { error: 'Unknown restaurant' });
+    }
+    const restaurantContacts = await storage.saveRestaurantContact(contact);
+    await appendAdminLogSafe({
+      username: admin.username,
+      action: 'save',
+      section: 'restaurants',
+      summary: `更新餐廳聯絡資料：${contact.restaurant}`,
+      details: { restaurant: contact.restaurant }
+    });
+    return json(res, 200, { ok: true, restaurantContacts });
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/reset-day') {
