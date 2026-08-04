@@ -1419,7 +1419,7 @@ function buildFoodSummaryLabel(order) {
   const food = String(displayFood(order.food) || '').trim();
   const addon = stripAddonPriceText(displayAddon(order.addon || ''));
   if (!food) return '';
-  return addon ? `${food} ${addon}` : food;
+  return addon ? `${food}（${addon}）` : food;
 }
 
 function formatFoodSummaryLine(food, entry) {
