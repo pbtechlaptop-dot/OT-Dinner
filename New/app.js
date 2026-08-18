@@ -8,6 +8,7 @@ const state = {
   currentRestaurant: '',
   cutoffPassed: false,
   date: '',
+  lastOrdersSignature: '',
   lateOrder: {
     active: false,
     username: '',
@@ -810,6 +811,17 @@ function renderOrders() {
   }).join('<br><br>');
 }
 
+function orderSignature(orders) {
+  return JSON.stringify((orders || []).map(order => [
+    order.dept || '',
+    order.name || '',
+    order.food || '',
+    Number(order.price || 0),
+    order.addon || '',
+    order.drink || ''
+  ]));
+}
+
 function currentDrink(drink) {
   const parts = String(drink || '').split(' → ').map(part => part.trim()).filter(Boolean);
   return parts.length ? parts[parts.length - 1] : '';
@@ -847,6 +859,7 @@ async function load() {
   state.drinks = bootstrap.drinks || [];
   state.menu = bootstrap.currentMenu || {};
   state.orders = bootstrap.orders || [];
+  state.lastOrdersSignature = orderSignature(state.orders);
   state.currentRestaurant = bootstrap.currentRestaurant || '';
   state.cutoffPassed = Boolean(bootstrap.cutoffPassed);
   state.date = bootstrap.date || '';
@@ -903,6 +916,7 @@ async function submitOrder() {
     });
     if (Array.isArray(payload.orders)) state.orders = payload.orders;
     else state.orders = await api('/api/orders').then(data => data.orders || []);
+    state.lastOrdersSignature = orderSignature(state.orders);
     state.selected.clear();
     if (state.lateOrder.active) {
       state.lateOrder.active = false;
@@ -916,6 +930,34 @@ async function submitOrder() {
   } catch (err) {
     showToast(err.message);
   }
+}
+
+async function refreshOrdersSilently() {
+  if (refreshOrdersSilently.inFlight) return;
+  refreshOrdersSilently.inFlight = true;
+  try {
+    const payload = await api(`/api/orders?_=${Date.now()}`);
+    const incoming = payload.orders || [];
+    const signature = orderSignature(incoming);
+    state.currentRestaurant = payload.currentRestaurant || state.currentRestaurant;
+    state.cutoffPassed = Boolean(payload.cutoffPassed);
+    if (signature !== state.lastOrdersSignature) {
+      state.orders = incoming;
+      state.lastOrdersSignature = signature;
+      renderOrders();
+    }
+  } catch {
+  } finally {
+    refreshOrdersSilently.inFlight = false;
+  }
+}
+
+function startAutoRefresh() {
+  if (startAutoRefresh.timer) clearInterval(startAutoRefresh.timer);
+  startAutoRefresh.timer = setInterval(() => {
+    if (document.hidden) return;
+    refreshOrdersSilently();
+  }, 5000);
 }
 
 function buildEntryFoodText(entry) {
@@ -1172,3 +1214,4 @@ el.selectionList.addEventListener('change', event => {
 state.lang = detectLang();
 updateStaticText();
 load().catch(err => showToast(err.message));
+startAutoRefresh();
