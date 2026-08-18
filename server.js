@@ -4,6 +4,27 @@ const path = require('path');
 const crypto = require('crypto');
 const { URL } = require('url');
 
+function loadLocalEnvFile(fileName = '.env.production.vercel') {
+  const filePath = path.join(__dirname, fileName);
+  if (!fs.existsSync(filePath)) return;
+  const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const index = trimmed.indexOf('=');
+    if (index <= 0) return;
+    const key = trimmed.slice(0, index).trim();
+    if (!key || key === 'PATH' || key === 'Path' || process.env[key] !== undefined) return;
+    let value = trimmed.slice(index + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  });
+}
+
+loadLocalEnvFile();
+
 let createClient = null;
 try {
   ({ createClient } = require('@supabase/supabase-js'));
@@ -27,6 +48,7 @@ const DRINK_FLAGS_FILE = path.join(DATA_DIR, 'drink-flags.json');
 const ADMIN_USERS_FILE = path.join(DATA_DIR, 'admin-users.json');
 const ADMIN_LOGS_FILE = path.join(DATA_DIR, 'admin-logs.json');
 const RESTAURANT_CONTACTS_FILE = path.join(DATA_DIR, 'restaurant-contacts.json');
+const NEW_SETTINGS_FILE = path.join(DATA_DIR, 'new-settings.json');
 const APP_MAIN = 'main';
 const APP_LADY_RUBY = 'lady-ruby';
 const APP_IDS = new Set([APP_MAIN, APP_LADY_RUBY]);
@@ -63,7 +85,8 @@ const TABLES = {
   appState: process.env.SUPABASE_TABLE_APP_STATE || 'app_state',
   orders: process.env.SUPABASE_TABLE_ORDERS || 'orders',
   adminUsers: process.env.SUPABASE_TABLE_ADMIN_USERS || 'admin_users',
-  adminLogs: process.env.SUPABASE_TABLE_ADMIN_LOGS || 'admin_logs'
+  adminLogs: process.env.SUPABASE_TABLE_ADMIN_LOGS || 'admin_logs',
+  appKv: process.env.SUPABASE_TABLE_APP_KV || 'app_kv'
 };
 
 const DEFAULT_CUTOFF_TIME = '13:00';
@@ -71,6 +94,7 @@ const SEED_CACHE_TTL_MS = Number(process.env.SEED_CACHE_TTL_MS || 30000);
 const AUTH_WINDOW_MS = Number(process.env.AUTH_WINDOW_MS || 10 * 60 * 1000);
 const AUTH_MAX_FAILURES = Number(process.env.AUTH_MAX_FAILURES || 8);
 const ADMIN_USER_KV_KEY = 'admin_users';
+const NEW_SETTINGS_KV_KEY = 'new_settings';
 const ADMIN_PERMISSION_ALL = '*';
 const ADMIN_PERMISSIONS = [
   'import',
@@ -81,6 +105,7 @@ const ADMIN_PERMISSIONS = [
   'reset_main',
   'reset_lady_ruby',
   'late_order',
+  'new_settings',
   'users'
 ];
 
@@ -1016,6 +1041,14 @@ function normalizeState(input) {
   };
 }
 
+function normalizeNewSettings(input) {
+  const raw = input && typeof input === 'object' ? input : {};
+  const priceLimit = Number(raw.priceLimit);
+  return {
+    priceLimit: Number.isFinite(priceLimit) && priceLimit >= 0 ? priceLimit : 22
+  };
+}
+
 async function ensureStateHasValidRestaurant(appId, seedInput, stateInput) {
   const seed = normalizeSeed(seedInput);
   const state = normalizeState(stateInput);
@@ -1594,6 +1627,30 @@ async function resetDaySupabase(appId = APP_MAIN) {
   await saveStateSupabase(appId, reset);
 }
 
+async function getNewSettingsSupabase() {
+  try {
+    const row = await supaSelect(TABLES.appKv, 'key,value', { eq: { key: NEW_SETTINGS_KV_KEY }, maybeSingle: true });
+    return normalizeNewSettings(row && row.value);
+  } catch (err) {
+    if (isMissingSupabaseTable(err, TABLES.appKv)) return normalizeNewSettings({});
+    throw err;
+  }
+}
+
+async function saveNewSettingsSupabase(settingsInput) {
+  const settings = normalizeNewSettings(settingsInput);
+  const { error } = await supabase
+    .from(TABLES.appKv)
+    .upsert({ key: NEW_SETTINGS_KV_KEY, value: settings }, { onConflict: 'key' });
+  if (error) {
+    if (isMissingSupabaseTable(error, TABLES.appKv)) {
+      throw new Error('Supabase app_kv table is missing. Please create app_kv before saving new settings in production.');
+    }
+    throw new Error(`Supabase save new settings failed: ${error.message}`);
+  }
+  return settings;
+}
+
 async function getSeedLocal() {
   return normalizeSeed(readJsonSafe(SEED_FILE, defaultSeed()));
 }
@@ -1678,6 +1735,16 @@ async function resetDayLocal(appId = APP_MAIN) {
   writeJson(stateFileForApp(appId), defaultState());
 }
 
+async function getNewSettingsLocal() {
+  return normalizeNewSettings(readJsonSafe(NEW_SETTINGS_FILE, normalizeNewSettings({})));
+}
+
+async function saveNewSettingsLocal(settingsInput) {
+  const settings = normalizeNewSettings(settingsInput);
+  writeJson(NEW_SETTINGS_FILE, settings);
+  return settings;
+}
+
 function invalidateSeedCache() {
   seedCache.value = null;
   seedCache.expiresAt = 0;
@@ -1746,6 +1813,14 @@ const storage = {
     const normalizedAppId = normalizeAppId(appId);
     if (USE_SUPABASE) return resetDaySupabase(normalizedAppId);
     return resetDayLocal(normalizedAppId);
+  },
+  getNewSettings() {
+    if (USE_SUPABASE) return getNewSettingsSupabase();
+    return getNewSettingsLocal();
+  },
+  saveNewSettings(settings) {
+    if (USE_SUPABASE) return saveNewSettingsSupabase(settings);
+    return saveNewSettingsLocal(settings);
   }
 };
 
@@ -1978,6 +2053,7 @@ function normalizeAdminSection(section) {
     staff: 'staff',
     menus: 'menus',
     users: 'users',
+    new_settings: 'new_settings',
     reset_main: 'reset_main',
     reset_lady_ruby: 'reset_lady_ruby'
   };
@@ -2033,6 +2109,11 @@ async function handleApi(req, res, urlObj) {
       currentMenu: state.restaurant ? (seed.menus[state.restaurant] || {}) : {},
       app: appId
     });
+  }
+
+  if (req.method === 'GET' && pathname === '/api/new-settings') {
+    const settings = await storage.getNewSettings();
+    return json(res, 200, settings);
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/usernames') {
@@ -2290,6 +2371,35 @@ async function handleApi(req, res, urlObj) {
         isRoot: admin.isRoot
       }
     });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/new-settings') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const body = await parseBody(req);
+    const admin = await authenticateAdmin(body);
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    if (!requireAdminPermission(admin, 'new_settings')) {
+      return json(res, 403, { error: 'You do not have permission to edit new settings.' });
+    }
+    const priceLimit = Number(body.priceLimit);
+    if (!Number.isFinite(priceLimit) || priceLimit < 0) {
+      return json(res, 400, { error: 'priceLimit must be a positive number' });
+    }
+    const settings = await storage.saveNewSettings({ priceLimit });
+    await storage.appendAdminLog({
+      username: admin.username,
+      action: 'update',
+      section: 'new_settings',
+      summary: `更新新版價錢上限：$${settings.priceLimit}`,
+      details: settings
+    });
+    return json(res, 200, { ok: true, settings });
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/seed') {

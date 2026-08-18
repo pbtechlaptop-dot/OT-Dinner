@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f5f8b" />
+  <title>新版 Admin</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <h1>新版 Admin</h1>
+        <p>設定新版選食物的價錢上限</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn-ghost" href="/">返回新版前台</a>
+        <a class="btn btn-ghost" href="http://127.0.0.1:3000/admin/">原本後台</a>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>價錢上限</h2>
+      <p class="hint">這個設定只屬於 `New` 版本，不會改動原本網站 code 或後台資料。</p>
+      <div class="grid" style="margin-top:12px;">
+        <label>
+          Admin 帳號
+          <input id="usernameInput" value="admin" autocomplete="username" />
+        </label>
+        <label>
+          Admin 密碼
+          <input id="passwordInput" type="password" autocomplete="current-password" />
+        </label>
+        <label>
+          每人價錢上限
+          <input id="priceLimitInput" type="number" min="0" step="0.01" />
+        </label>
+        <div style="display:flex; align-items:end;">
+          <button id="saveBtn" class="btn" type="button" style="width:100%;">儲存上限</button>
+        </div>
+      </div>
+      <div id="status" class="notice">載入中...</div>
+    </section>
+  </main>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/admin.js"></script>
+</body>
+</html>

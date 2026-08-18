@@ -1,0 +1,1174 @@
+const state = {
+  lang: 'tc',
+  priceLimit: 22,
+  staff: {},
+  drinks: [],
+  menu: {},
+  orders: [],
+  currentRestaurant: '',
+  cutoffPassed: false,
+  date: '',
+  lateOrder: {
+    active: false,
+    username: '',
+    password: ''
+  },
+  selected: new Map()
+};
+
+const el = {
+  appTitle: document.getElementById('appTitle'),
+  dateText: document.getElementById('dateText'),
+  restaurantText: document.getElementById('restaurantText'),
+  langTc: document.getElementById('langTc'),
+  langSc: document.getElementById('langSc'),
+  langEn: document.getElementById('langEn'),
+  mainLink: document.getElementById('mainLink'),
+  staffTitle: document.getElementById('staffTitle'),
+  deptLabel: document.getElementById('deptLabel'),
+  nameLabel: document.getElementById('nameLabel'),
+  drinkLabel: document.getElementById('drinkLabel'),
+  deptSelect: document.getElementById('deptSelect'),
+  nameSelect: document.getElementById('nameSelect'),
+  drinkSelect: document.getElementById('drinkSelect'),
+  foodTitle: document.getElementById('foodTitle'),
+  categorySelect: document.getElementById('categorySelect'),
+  foodList: document.getElementById('foodList'),
+  limitLabel: document.getElementById('limitLabel'),
+  kindsLabel: document.getElementById('kindsLabel'),
+  qtyLabel: document.getElementById('qtyLabel'),
+  balanceLabel: document.getElementById('balanceLabel'),
+  limitText: document.getElementById('limitText'),
+  selectedKindsText: document.getElementById('selectedKindsText'),
+  selectedQtyText: document.getElementById('selectedQtyText'),
+  balanceBox: document.getElementById('balanceBox'),
+  balanceText: document.getElementById('balanceText'),
+  budgetNotice: document.getElementById('budgetNotice'),
+  selectedFoodTitle: document.getElementById('selectedFoodTitle'),
+  selectionList: document.getElementById('selectionList'),
+  addonLabel: document.getElementById('addonLabel'),
+  addonInput: document.getElementById('addonInput'),
+  submitBtn: document.getElementById('submitBtn'),
+  ordersTitle: document.getElementById('ordersTitle'),
+  ordersDeptTh: document.getElementById('ordersDeptTh'),
+  ordersNameTh: document.getElementById('ordersNameTh'),
+  ordersFoodTh: document.getElementById('ordersFoodTh'),
+  ordersAddonTh: document.getElementById('ordersAddonTh'),
+  ordersDrinkTh: document.getElementById('ordersDrinkTh'),
+  ordersPriceTh: document.getElementById('ordersPriceTh'),
+  ordersBody: document.getElementById('ordersBody'),
+  ordersTotal: document.getElementById('ordersTotal'),
+  totalLabel: document.getElementById('totalLabel'),
+  drinkSummaryTitle: document.getElementById('drinkSummaryTitle'),
+  drinkSummary: document.getElementById('drinkSummary'),
+  foodSummaryTitle: document.getElementById('foodSummaryTitle'),
+  foodSummary: document.getElementById('foodSummary'),
+  foodSummaryByDeptTitle: document.getElementById('foodSummaryByDeptTitle'),
+  foodSummaryByDept: document.getElementById('foodSummaryByDept'),
+  confirmModal: document.getElementById('confirmModal'),
+  confirmTitle: document.getElementById('confirmTitle'),
+  confirmMessage: document.getElementById('confirmMessage'),
+  cancelChangeBtn: document.getElementById('cancelChangeBtn'),
+  confirmChangeBtn: document.getElementById('confirmChangeBtn'),
+  toast: document.getElementById('toast')
+};
+
+const i18n = {
+  tc: {
+    appTitle: '加班 Order 飯系統 - New',
+    date: '日期：',
+    restaurant: '今日餐廳：',
+    notSet: '未設定',
+    admin: '新版 Admin',
+    main: '舊前台',
+    staffTitle: '1) 同事資料',
+    dept: '部門',
+    name: '同事',
+    drink: '飲品',
+    food: '餐點',
+    foodTitle: '2) 選擇食物',
+    limit: '上限',
+    kinds: '已選款式',
+    qty: '總數量',
+    balance: '剩餘 / 超出',
+    canAdd: amount => `仍可在上限內加選 ${amount}。`,
+    overLimit: amount => `已超過上限 ${amount}，請減少食物後再下單。`,
+    initialBudget: '可在上限內選一份或多份食物；超過上限不能下單。',
+    selectedFood: '已選食物',
+    noSelectedFood: '未選食物。',
+    addon: '加配 / 備註',
+    addonPlaceholder: '例如：走蔥、加飯',
+    submit: '提交訂單',
+    ordersTitle: '3) 今日訂單',
+    price: '價錢',
+    total: '總計',
+    drinkSummary: '飲品總計',
+    foodSummary: '餐點總計',
+    foodSummaryByDept: '餐點總計（按部門）',
+    confirmTitle: '確認變更訂單',
+    cancel: '取消',
+    confirm: '確定變更',
+    chooseDept: '-- 選擇部門 --',
+    chooseName: '-- 選擇同事 --',
+    noDrink: '-- 無 --',
+    allCats: '全部分類',
+    noFoods: '未有餐點。',
+    hasOptions: '有選項',
+    options: '選項',
+    pairOptions: '雙拼選擇',
+    completeOption: (food, label) => `請完成「${food}」的${label}。`,
+    maxOption: (food, label, max) => `「${food}」的${label}最多只可選 ${max} 項。`,
+    chooseDeptToast: '請先選擇部門',
+    chooseNameToast: '請先選擇同事',
+    chooseFoodToast: '請先選擇食物',
+    cannotOrderOver: amount => `已超過上限 ${amount}，不能下單`,
+    noOrders: '未有訂單',
+    orderAdded: '已提交訂單',
+    orderUpdated: '已更新訂單',
+    lateOnlyAfterCutoff: '截單後才需要使用主管補單。',
+    lateNoUsers: '未有可補單用戶，請先在後台加入補單權限。',
+    lateUserPrompt: '請輸入補單用戶帳號',
+    latePasswordPrompt: '請輸入補單用戶密碼',
+    lateEnabled: '已開啟主管補單',
+    drinkChangeNoOrders: '今日未有訂單。',
+    drinkChangeSaved: '已更新飲品',
+    drinkChangeNoChanges: '未有需要儲存的飲品更改。',
+    newDrink: '新飲品',
+    changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> 由現在<br><span class="old">${oldText}</span><br>改為<br><span class="new">${newText}</span>`
+  },
+  sc: {
+    appTitle: '加班订餐系统 - New',
+    date: '日期：',
+    restaurant: '今日餐厅：',
+    notSet: '未设置',
+    admin: '新版 Admin',
+    main: '旧前台',
+    staffTitle: '1) 人员资料',
+    dept: '部门',
+    name: '人员',
+    drink: '饮品',
+    food: '餐点',
+    foodTitle: '2) 选择食物',
+    limit: '上限',
+    kinds: '已选款式',
+    qty: '总数量',
+    balance: '剩余 / 超出',
+    canAdd: amount => `仍可在上限内加选 ${amount}。`,
+    overLimit: amount => `已超过上限 ${amount}，请减少食物后再下单。`,
+    initialBudget: '可在上限内选一份或多份食物；超过上限不能下单。',
+    selectedFood: '已选食物',
+    noSelectedFood: '未选食物。',
+    addon: '加配 / 备注',
+    addonPlaceholder: '例如：走葱、加饭',
+    submit: '提交订单',
+    ordersTitle: '3) 今日订单',
+    price: '价格',
+    total: '总计',
+    drinkSummary: '饮品总计',
+    foodSummary: '餐点总计',
+    foodSummaryByDept: '餐点总计（按部门）',
+    confirmTitle: '确认变更订单',
+    cancel: '取消',
+    confirm: '确认变更',
+    chooseDept: '-- 选择部门 --',
+    chooseName: '-- 选择同事 --',
+    noDrink: '-- 无 --',
+    allCats: '全部分类',
+    noFoods: '未有餐点。',
+    hasOptions: '有选项',
+    options: '选项',
+    pairOptions: '双拼选择',
+    completeOption: (food, label) => `请完成「${food}」的${label}。`,
+    maxOption: (food, label, max) => `「${food}」的${label}最多只可选 ${max} 项。`,
+    chooseDeptToast: '请先选择部门',
+    chooseNameToast: '请先选择同事',
+    chooseFoodToast: '请先选择食物',
+    cannotOrderOver: amount => `已超过上限 ${amount}，不能下单`,
+    noOrders: '未有订单',
+    orderAdded: '已提交订单',
+    orderUpdated: '已更新订单',
+    lateOnlyAfterCutoff: '截单后才需要使用主管补单。',
+    lateNoUsers: '未有可补单用户，请先在后台加入补单权限。',
+    lateUserPrompt: '请输入补单用户帐号',
+    latePasswordPrompt: '请输入补单用户密码',
+    lateEnabled: '已开启主管补单',
+    drinkChangeNoOrders: '今日未有订单。',
+    drinkChangeSaved: '已更新饮品',
+    drinkChangeNoChanges: '未有需要保存的饮品更改。',
+    newDrink: '新饮品',
+    changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> 由现在<br><span class="old">${oldText}</span><br>改为<br><span class="new">${newText}</span>`
+  },
+  en: {
+    appTitle: 'Overtime Meal Order - New',
+    date: 'Date: ',
+    restaurant: 'Restaurant: ',
+    notSet: 'Not set',
+    admin: 'New Admin',
+    main: 'Old Page',
+    staffTitle: '1) Staff',
+    dept: 'Department',
+    name: 'Name',
+    drink: 'Drink',
+    food: 'Food',
+    foodTitle: '2) Choose Food',
+    limit: 'Limit',
+    kinds: 'Items',
+    qty: 'Quantity',
+    balance: 'Remaining / Over',
+    canAdd: amount => `Remaining within limit: ${amount}.`,
+    overLimit: amount => `Over limit by ${amount}. Please reduce food before ordering.`,
+    initialBudget: 'Choose one or more foods within the limit. Orders over the limit cannot be submitted.',
+    selectedFood: 'Selected Food',
+    noSelectedFood: 'No food selected.',
+    addon: 'Addon / Note',
+    addonPlaceholder: 'e.g. no onion, extra rice',
+    submit: 'Submit Order',
+    ordersTitle: '3) Today Orders',
+    price: 'Price',
+    total: 'Total',
+    drinkSummary: 'Drink Summary',
+    foodSummary: 'Food Summary',
+    foodSummaryByDept: 'Food Summary by Department',
+    confirmTitle: 'Confirm Order Change',
+    cancel: 'Cancel',
+    confirm: 'Confirm Change',
+    chooseDept: '-- Select Department --',
+    chooseName: '-- Select Name --',
+    noDrink: '-- None --',
+    allCats: 'All Categories',
+    noFoods: 'No food available.',
+    hasOptions: 'Options',
+    options: 'Options',
+    pairOptions: 'Pair Choices',
+    completeOption: (food, label) => `Please complete ${label} for ${food}.`,
+    maxOption: (food, label, max) => `${label} for ${food} allows at most ${max}.`,
+    chooseDeptToast: 'Please select department',
+    chooseNameToast: 'Please select name',
+    chooseFoodToast: 'Please choose food',
+    cannotOrderOver: amount => `Over limit by ${amount}. Cannot submit.`,
+    noOrders: 'No orders yet',
+    orderAdded: 'Order submitted',
+    orderUpdated: 'Order updated',
+    lateOnlyAfterCutoff: 'Supervisor late order is only needed after cutoff.',
+    lateNoUsers: 'No late-order users yet. Add late-order permission in admin first.',
+    lateUserPrompt: 'Enter late-order username',
+    latePasswordPrompt: 'Enter late-order password',
+    lateEnabled: 'Supervisor late order enabled',
+    drinkChangeNoOrders: 'No orders today.',
+    drinkChangeSaved: 'Drinks updated',
+    drinkChangeNoChanges: 'No drink changes to save.',
+    newDrink: 'New drink',
+    changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> will change from<br><span class="old">${oldText}</span><br>to<br><span class="new">${newText}</span>`
+  }
+};
+
+let toSc = value => String(value || '');
+let toTc = value => String(value || '');
+try {
+  if (window.OpenCC && window.OpenCC.Converter) {
+    toSc = window.OpenCC.Converter({ from: 'tw', to: 'cn' });
+    toTc = window.OpenCC.Converter({ from: 'cn', to: 'tw' });
+  }
+} catch {
+  toSc = value => String(value || '');
+  toTc = value => String(value || '');
+}
+
+function t(key, ...args) {
+  const value = i18n[state.lang][key];
+  return typeof value === 'function' ? value(...args) : value;
+}
+
+function money(value) {
+  const number = Number(value || 0);
+  return `$${number.toFixed(2)}`;
+}
+
+function detectLang() {
+  const raw = String((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
+  if (raw.startsWith('zh-hans') || raw === 'zh-cn' || raw === 'zh-sg') return 'sc';
+  if (raw.startsWith('zh')) return 'tc';
+  return 'en';
+}
+
+function localFood(food) {
+  if (!food) return '';
+  if (state.lang === 'en') return food.nameEn || food.name;
+  if (state.lang === 'sc') {
+    const sc = food.nameSc || food.name;
+    return sc === food.name ? toSc(food.name) : sc;
+  }
+  return food.name;
+}
+
+function localDrink(drink) {
+  if (!drink) return '';
+  if (state.lang === 'en') return drink.en || drink.tc;
+  if (state.lang === 'sc') {
+    const sc = drink.sc || drink.tc;
+    return sc === drink.tc ? toSc(drink.tc) : sc;
+  }
+  return drink.tc;
+}
+
+function localCategory(category) {
+  const value = String(category || '').trim();
+  if (!value) return value;
+  const slashParts = value.split('/').map(part => part.trim()).filter(Boolean);
+  if (state.lang === 'en' && slashParts.length > 1) return slashParts[slashParts.length - 1];
+  if (state.lang !== 'en' && slashParts.length) {
+    const tc = slashParts[0];
+    return state.lang === 'sc' ? toSc(tc) : tc;
+  }
+  return value;
+}
+
+function foodLookup() {
+  const map = {};
+  allFoods().forEach(food => {
+    if (food.name) map[food.name] = localFood(food);
+  });
+  return map;
+}
+
+function drinkLookup() {
+  const map = {};
+  (state.drinks || []).map(normalizeDrink).forEach(drink => {
+    if (drink.tc) map[drink.tc] = localDrink(drink);
+  });
+  return map;
+}
+
+function displayOrderFood(value) {
+  let text = String(value || '').trim();
+  if (!text) return '';
+  const map = foodLookup();
+  Object.keys(map).sort((a, b) => b.length - a.length).forEach(tc => {
+    if (tc && map[tc] && map[tc] !== tc) text = text.split(tc).join(map[tc]);
+  });
+  return text;
+}
+
+function displayOrderDrink(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const map = drinkLookup();
+  return text.split(' → ').map(part => map[part.trim()] || part.trim()).join(' → ');
+}
+
+function showToast(message) {
+  el.toast.textContent = message;
+  el.toast.classList.remove('hidden');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => el.toast.classList.add('hidden'), 2600);
+}
+
+function updateStaticText() {
+  document.documentElement.lang = state.lang === 'en' ? 'en' : (state.lang === 'sc' ? 'zh-Hans' : 'zh-Hant');
+  document.title = t('appTitle');
+  el.appTitle.textContent = t('appTitle');
+  el.dateText.textContent = `${t('date')}${state.date || '--'}`;
+  el.restaurantText.textContent = `${t('restaurant')}${state.currentRestaurant || t('notSet')}`;
+  el.mainLink.textContent = t('main');
+  el.staffTitle.textContent = t('staffTitle');
+  el.deptLabel.textContent = t('dept');
+  el.nameLabel.textContent = t('name');
+  el.drinkLabel.textContent = t('drink');
+  el.foodTitle.textContent = t('foodTitle');
+  el.limitLabel.textContent = t('limit');
+  el.kindsLabel.textContent = t('kinds');
+  el.qtyLabel.textContent = t('qty');
+  el.balanceLabel.textContent = t('balance');
+  el.selectedFoodTitle.textContent = t('selectedFood');
+  el.addonLabel.textContent = t('addon');
+  el.addonInput.placeholder = t('addonPlaceholder');
+  el.submitBtn.textContent = t('submit');
+  el.ordersTitle.textContent = t('ordersTitle');
+  el.ordersDeptTh.textContent = t('dept');
+  el.ordersNameTh.textContent = t('name');
+  el.ordersFoodTh.textContent = t('food');
+  el.ordersAddonTh.textContent = t('addon').split('/')[0].trim();
+  el.ordersDrinkTh.textContent = t('drink');
+  el.ordersPriceTh.textContent = t('price');
+  el.totalLabel.textContent = t('total');
+  el.drinkSummaryTitle.textContent = t('drinkSummary');
+  el.foodSummaryTitle.textContent = t('foodSummary');
+  el.foodSummaryByDeptTitle.textContent = t('foodSummaryByDept');
+  el.confirmTitle.textContent = t('confirmTitle');
+  el.cancelChangeBtn.textContent = t('cancel');
+  el.confirmChangeBtn.textContent = t('confirm');
+  if (!state.selected.size) el.budgetNotice.textContent = t('initialBudget');
+}
+
+function setLanguage(lang) {
+  state.lang = lang;
+  updateStaticText();
+  renderCategories();
+  renderDrinks();
+  renderFoods();
+  renderSelection();
+  renderOrders();
+}
+
+async function api(path, options = {}) {
+  const requestOptions = { headers: { 'Content-Type': 'application/json' }, ...options };
+  if (requestOptions.body && typeof requestOptions.body === 'string') {
+    try {
+      const body = JSON.parse(requestOptions.body);
+      if (!body.app) requestOptions.body = JSON.stringify({ ...body, app: 'main' });
+    } catch {
+    }
+  }
+  const response = await fetch(path, requestOptions);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({ error: 'Request failed' }));
+    throw new Error(payload.error || 'Request failed');
+  }
+  return response.json();
+}
+
+function fillSelect(select, items, placeholder) {
+  select.innerHTML = '';
+  const first = document.createElement('option');
+  first.value = '';
+  first.textContent = placeholder;
+  select.appendChild(first);
+  items.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.value;
+    option.textContent = item.label;
+    select.appendChild(option);
+  });
+}
+
+function normalizeDrink(raw) {
+  if (typeof raw === 'string') return { tc: raw, paused: false };
+  return {
+    tc: String(raw && (raw.tc || raw.name) || '').trim(),
+    sc: String(raw && (raw.sc || raw.tc || raw.name) || '').trim(),
+    en: String(raw && (raw.en || raw.tc || raw.name) || '').trim(),
+    paused: Boolean(raw && raw.paused)
+  };
+}
+
+function normalizeFood(raw, category) {
+  const name = String(raw && (raw.nameTc || raw.name || raw.tc) || '').trim();
+  const price = Number(raw && raw.price);
+  const food = {
+    key: `${category}::${name}`,
+    category,
+    name,
+    nameSc: String(raw && (raw.nameSc || raw.sc || raw.nameTc || raw.name || raw.tc) || '').trim(),
+    nameEn: String(raw && raw.nameEn || '').trim(),
+    price: Number.isFinite(price) ? price : 0,
+    paused: Boolean(raw && raw.paused)
+  };
+  if (Array.isArray(raw && raw.optionGroups) && raw.optionGroups.length) {
+    food.optionGroups = raw.optionGroups;
+  }
+  return food;
+}
+
+function parseChoiceLabel(labelRaw) {
+  const raw = String(labelRaw || '').trim();
+  if (!raw) return null;
+  const match = raw.match(/^(.*?)(?:\s*\(\s*(?:\+|加)?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)\s*\)\s*|\s*(?:\+|加)\s*\$?\s*([0-9]+(?:\.[0-9]+)?)\s*)$/);
+  if (!match) return null;
+  const label = String(match[1] || '').trim();
+  const price = Number(match[2] || match[3]);
+  if (!label || !Number.isFinite(price) || price <= 0) return null;
+  return { label, price };
+}
+
+function normalizeOptionChoice(choice) {
+  if (typeof choice === 'string' || typeof choice === 'number') {
+    const labelRaw = String(choice).trim();
+    if (!labelRaw) return null;
+    return parseChoiceLabel(labelRaw) || { label: labelRaw, price: 0 };
+  }
+  if (!choice || typeof choice !== 'object') return null;
+  const label = String(choice.label || choice.name || choice.value || choice.text || '').trim();
+  if (!label) return null;
+  const price = Number(choice.price ?? choice.add ?? choice.extra);
+  return { label, price: Number.isFinite(price) ? price : 0 };
+}
+
+function formatOptionLabel(label, price) {
+  const displayLabel = state.lang === 'sc' ? toSc(label) : label;
+  return Number.isFinite(price) && price > 0 ? `${displayLabel} (+${money(price)})` : displayLabel;
+}
+
+function allFoods() {
+  const list = [];
+  Object.entries(state.menu || {}).forEach(([category, items]) => {
+    (items || []).forEach(item => {
+      const food = normalizeFood(item, category);
+      if (!Array.isArray(food.optionGroups) || !food.optionGroups.length) {
+        const inferred = inferOptionGroups(food, items);
+        if (inferred.length) food.optionGroups = inferred;
+      }
+      if (food.name && !food.paused) list.push(food);
+    });
+  });
+  return list;
+}
+
+function inferOptionGroups(food, rawItems) {
+  if (!food || !food.name.includes('雙拼')) return [];
+  const choices = [];
+  (rawItems || []).forEach(raw => {
+    const name = String(raw && (raw.nameTc || raw.name || raw.tc) || '').trim();
+    if (!name || name === food.name || name.includes('雙拼')) return;
+    const simplified = simplifyChoiceName(name);
+    if (!simplified || choices.includes(simplified)) return;
+    choices.push(simplified);
+  });
+  if (choices.length < 2) return [];
+  return [{
+    label: 'pairOptions',
+    inferredPair: true,
+    min: 2,
+    max: 2,
+    choices
+  }];
+}
+
+function simplifyChoiceName(name) {
+  let value = String(name || '').trim();
+  value = value.replace(/\([^)]*\)/g, '').replace(/（[^）]*）/g, '').trim();
+  value = value.replace(/湯?麵$|湯?面$|飯$|河$|米$|米粉$|米綫$|撈麵$|撈面$/g, '').trim();
+  value = value.replace(/^各式/, '').trim();
+  return value;
+}
+
+function getTotals() {
+  let total = 0;
+  let qty = 0;
+  state.selected.forEach(entry => {
+    total += getEntryUnitPrice(entry) * entry.qty;
+    qty += entry.qty;
+  });
+  return { total, qty, kinds: state.selected.size };
+}
+
+function getEntryOptionExtra(entry) {
+  const groups = Array.isArray(entry && entry.food && entry.food.optionGroups) ? entry.food.optionGroups : [];
+  return groups.reduce((sum, group, index) => {
+    const selected = Array.isArray(entry.options && entry.options[index]) ? entry.options[index] : [];
+    const choices = (group.choices || []).map(normalizeOptionChoice).filter(Boolean);
+    selected.forEach(label => {
+      const choice = choices.find(item => item.label === label);
+      if (choice && Number.isFinite(choice.price)) sum += choice.price;
+    });
+    return sum;
+  }, 0);
+}
+
+function getEntryUnitPrice(entry) {
+  return Number(entry && entry.food && entry.food.price || 0) + getEntryOptionExtra(entry);
+}
+
+function renderDepartments() {
+  const departments = Object.keys(state.staff || {});
+  fillSelect(el.deptSelect, departments.map(dept => ({ value: dept, label: dept })), t('chooseDept'));
+  const single = departments.length === 1 ? departments[0] : '';
+  if (single) {
+    el.deptSelect.value = single;
+    renderNames();
+  }
+}
+
+function renderNames() {
+  const names = state.staff[el.deptSelect.value] || [];
+  fillSelect(el.nameSelect, names.map(name => ({ value: name, label: name })), t('chooseName'));
+}
+
+function renderDrinks() {
+  const drinks = (state.drinks || []).map(normalizeDrink).filter(drink => drink.tc && !drink.paused);
+  fillSelect(el.drinkSelect, drinks.map(drink => ({ value: drink.tc, label: localDrink(drink) })), t('noDrink'));
+}
+
+function renderCategories() {
+  const categories = Object.keys(state.menu || {});
+  fillSelect(el.categorySelect, categories.map(category => ({ value: category, label: localCategory(category) })), t('allCats'));
+}
+
+function renderFoods() {
+  const category = el.categorySelect.value;
+  const foods = allFoods().filter(food => {
+    if (category && food.category !== category) return false;
+    return true;
+  });
+
+  if (!foods.length) {
+    el.foodList.innerHTML = `<p class="hint">${escapeHtml(t('noFoods'))}</p>`;
+    return;
+  }
+
+  el.foodList.innerHTML = foods.map(food => {
+    const selected = state.selected.get(food.key);
+    const qty = selected ? selected.qty : 0;
+    return `
+      <div class="food-item ${qty ? 'selected' : ''}" data-key="${escapeHtml(food.key)}">
+        <div>
+          <div class="food-name">${escapeHtml(localFood(food))}</div>
+          <div class="food-meta">${money(food.price)}${Array.isArray(food.optionGroups) && food.optionGroups.length ? ` · ${escapeHtml(t('hasOptions'))}` : ''}</div>
+        </div>
+        <div class="qty">
+          <button type="button" data-action="minus" aria-label="減少">-</button>
+          <input data-action="qty" type="number" min="0" step="1" value="${qty}" aria-label="數量" />
+          <button type="button" data-action="plus" aria-label="增加">+</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSelection() {
+  const entries = Array.from(state.selected.values());
+  if (!entries.length) {
+    el.selectionList.innerHTML = `<p class="hint">${escapeHtml(t('noSelectedFood'))}</p>`;
+  } else {
+    el.selectionList.innerHTML = entries.map(({ food, qty }) => `
+      <div class="selected-line selection-detail" data-key="${escapeHtml(food.key)}">
+        <div>
+          <div class="selected-main">
+            <span>${escapeHtml(localFood(food))} x ${qty}</span>
+            <strong>${money(getEntryUnitPrice(state.selected.get(food.key)) * qty)}</strong>
+          </div>
+          ${renderEntryOptions(state.selected.get(food.key))}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const totals = getTotals();
+  const optionValidation = validateSelectedOptions();
+  const balance = state.priceLimit - totals.total;
+  el.limitText.textContent = money(state.priceLimit);
+  el.selectedKindsText.textContent = String(totals.kinds);
+  el.selectedQtyText.textContent = String(totals.qty);
+  el.balanceText.textContent = balance >= 0 ? money(balance) : `超出 ${money(Math.abs(balance))}`;
+  el.balanceBox.classList.toggle('ok', balance >= 0);
+  el.balanceBox.classList.toggle('over', balance < 0);
+  el.budgetNotice.className = `notice ${balance >= 0 ? 'ok' : 'danger'}`;
+  el.budgetNotice.textContent = balance >= 0
+    ? (optionValidation.ok ? t('canAdd', money(balance)) : optionValidation.error)
+    : t('overLimit', money(Math.abs(balance)));
+  el.submitBtn.disabled = totals.qty === 0 || totals.total > state.priceLimit || !optionValidation.ok;
+}
+
+function renderEntryOptions(entry) {
+  const groups = Array.isArray(entry && entry.food && entry.food.optionGroups) ? entry.food.optionGroups : [];
+  if (!groups.length) return '';
+  return `<div class="option-groups">${groups.map((group, groupIndex) => {
+    const label = group.inferredPair || group.label === 'pairOptions' ? t('pairOptions') : (group.label || t('options'));
+    const choices = (group.choices || []).map(normalizeOptionChoice).filter(Boolean);
+    const max = Number.isFinite(group.max) ? group.max : choices.length;
+    const min = Number.isFinite(group.min) ? group.min : (max === 1 ? 1 : 0);
+    const isSingle = max === 1 && min <= 1;
+    const selected = Array.isArray(entry.options && entry.options[groupIndex]) ? entry.options[groupIndex] : [];
+    return `
+      <div class="option-group">
+        <div class="option-title">${escapeHtml(label)} <span>(${min}${max === min ? '' : `-${max}`})</span></div>
+        <div class="option-list">
+          ${choices.map(choice => {
+            const checked = selected.includes(choice.label) ? 'checked' : '';
+            return `
+              <label class="option-choice">
+                <input
+                  type="${isSingle ? 'radio' : 'checkbox'}"
+                  name="option-${escapeHtml(entry.food.key)}-${groupIndex}"
+                  value="${escapeHtml(choice.label)}"
+                  data-action="option"
+                  data-key="${escapeHtml(entry.food.key)}"
+                  data-group="${groupIndex}"
+                  ${checked}
+                />
+                <span>${escapeHtml(formatOptionLabel(choice.label, choice.price))}</span>
+              </label>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }).join('')}</div>`;
+}
+
+function validateSelectedOptions() {
+  for (const entry of state.selected.values()) {
+    const groups = Array.isArray(entry.food.optionGroups) ? entry.food.optionGroups : [];
+    for (let index = 0; index < groups.length; index += 1) {
+      const group = groups[index] || {};
+      const choices = (group.choices || []).map(normalizeOptionChoice).filter(Boolean);
+      const max = Number.isFinite(group.max) ? group.max : choices.length;
+      const min = Number.isFinite(group.min) ? group.min : (max === 1 ? 1 : 0);
+      const selected = Array.isArray(entry.options && entry.options[index]) ? entry.options[index] : [];
+      if (selected.length < min) {
+        const label = group.inferredPair || group.label === 'pairOptions' ? t('pairOptions') : (group.label || t('options'));
+        return { ok: false, error: t('completeOption', localFood(entry.food), label) };
+      }
+      if (selected.length > max) {
+        const label = group.inferredPair || group.label === 'pairOptions' ? t('pairOptions') : (group.label || t('options'));
+        return { ok: false, error: t('maxOption', localFood(entry.food), label, max) };
+      }
+    }
+  }
+  return { ok: true, error: '' };
+}
+
+function setFoodQty(key, qty) {
+  const food = allFoods().find(item => item.key === key);
+  if (!food) return;
+  const nextQty = Math.max(0, Math.floor(Number(qty) || 0));
+  if (nextQty <= 0) state.selected.delete(key);
+  else {
+    const existing = state.selected.get(key);
+    state.selected.set(key, { food, qty: nextQty, options: existing && existing.options ? existing.options : {} });
+  }
+  renderFoods();
+  renderSelection();
+}
+
+function setFoodOption(key, groupIndex, label, checked, single) {
+  const entry = state.selected.get(key);
+  if (!entry) return;
+  const options = { ...(entry.options || {}) };
+  const current = Array.isArray(options[groupIndex]) ? [...options[groupIndex]] : [];
+  if (single) {
+    options[groupIndex] = checked ? [label] : [];
+  } else if (checked && !current.includes(label)) {
+    current.push(label);
+    options[groupIndex] = current;
+  } else if (!checked) {
+    options[groupIndex] = current.filter(item => item !== label);
+  }
+  state.selected.set(key, { ...entry, options });
+  renderSelection();
+}
+
+function renderOrders() {
+  const orders = state.orders || [];
+  if (!orders.length) {
+    el.ordersBody.innerHTML = `<tr><td colspan="7">${escapeHtml(t('noOrders'))}</td></tr>`;
+    el.ordersTotal.textContent = money(0);
+    el.drinkSummary.textContent = '';
+    el.foodSummary.textContent = '';
+    el.foodSummaryByDept.textContent = '';
+    return;
+  }
+  let total = 0;
+  el.ordersBody.innerHTML = orders.map((order, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(order.dept || '')}</td>
+      <td>${escapeHtml(order.name || '')}</td>
+      <td>${escapeHtml(displayOrderFood(order.food || ''))}</td>
+      <td>${escapeHtml(order.addon || '')}</td>
+      <td>${escapeHtml(displayOrderDrink(order.drink || '') || t('noDrink').replace(/-/g, '').trim())}</td>
+      <td>${money(order.price)}</td>
+    </tr>
+  `).join('');
+
+  const drinkByDept = {};
+  const foodCounts = {};
+  const foodByDept = {};
+  orders.forEach((order, index) => {
+    const dept = String(order.dept || '').trim() || '-';
+    const drink = currentDrink(displayOrderDrink(String(order.drink || '').trim()));
+    const foodLabel = buildFoodSummaryLabel(order);
+    total += Number(order.price || 0);
+    if (drink) {
+      if (!drinkByDept[dept]) drinkByDept[dept] = {};
+      drinkByDept[dept][drink] = (drinkByDept[dept][drink] || 0) + 1;
+    }
+    if (foodLabel) {
+      if (!foodCounts[foodLabel]) foodCounts[foodLabel] = { count: 0, numbers: [] };
+      foodCounts[foodLabel].count += 1;
+      foodCounts[foodLabel].numbers.push(index + 1);
+      if (!foodByDept[dept]) foodByDept[dept] = {};
+      if (!foodByDept[dept][foodLabel]) foodByDept[dept][foodLabel] = { count: 0, numbers: [] };
+      foodByDept[dept][foodLabel].count += 1;
+      foodByDept[dept][foodLabel].numbers.push(index + 1);
+    }
+  });
+
+  el.ordersTotal.textContent = money(total);
+  el.drinkSummary.innerHTML = Object.entries(drinkByDept).map(([dept, drinks]) => {
+    const count = Object.values(drinks).reduce((sum, n) => sum + Number(n || 0), 0);
+    const lines = Object.entries(drinks).map(([drink, qty]) => `- ${escapeHtml(drink)} x ${qty}`).join('<br>');
+    return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${count}</span></strong><br>${lines}`;
+  }).join('<br><br>');
+  el.foodSummary.innerHTML = Object.entries(foodCounts)
+    .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0], 'zh-Hant'))
+    .map(([food, entry]) => formatFoodSummaryLine(food, entry))
+    .join('<br>');
+  el.foodSummaryByDept.innerHTML = Object.entries(foodByDept).map(([dept, foods]) => {
+    const count = Object.values(foods).reduce((sum, entry) => sum + Number(entry.count || 0), 0);
+    const lines = Object.entries(foods).map(([food, entry]) => formatFoodSummaryLine(food, entry)).join('<br>');
+    return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${count}</span></strong><br>${lines}`;
+  }).join('<br><br>');
+}
+
+function currentDrink(drink) {
+  const parts = String(drink || '').split(' → ').map(part => part.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : '';
+}
+
+function buildFoodSummaryLabel(order) {
+  const food = displayOrderFood(order.food || '');
+  const addon = String(order.addon || '').trim();
+  if (!food) return '';
+  return addon ? `${food}（${addon}）` : food;
+}
+
+function formatFoodSummaryLine(food, entry) {
+  const numbers = Array.isArray(entry.numbers) ? entry.numbers.join(',') : '';
+  const prefix = numbers ? `(${escapeHtml(numbers)}) - ` : '';
+  return `- ${prefix}${escapeHtml(food)} x ${Number(entry.count || 0)}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function load() {
+  const [settings, bootstrap] = await Promise.all([
+    api('/api/new-settings'),
+    api('/api/bootstrap')
+  ]);
+  state.priceLimit = Number(settings.priceLimit) || 22;
+  state.staff = bootstrap.staff || {};
+  state.drinks = bootstrap.drinks || [];
+  state.menu = bootstrap.currentMenu || {};
+  state.orders = bootstrap.orders || [];
+  state.currentRestaurant = bootstrap.currentRestaurant || '';
+  state.cutoffPassed = Boolean(bootstrap.cutoffPassed);
+  state.date = bootstrap.date || '';
+  updateStaticText();
+  renderDepartments();
+  renderDrinks();
+  renderCategories();
+  renderFoods();
+  renderSelection();
+  renderOrders();
+}
+
+async function submitOrder() {
+  const dept = el.deptSelect.value;
+  const name = el.nameSelect.value;
+  if (!dept) return showToast(t('chooseDeptToast'));
+  if (!name) return showToast(t('chooseNameToast'));
+  const entries = Array.from(state.selected.values());
+  if (!entries.length) return showToast(t('chooseFoodToast'));
+
+  const totals = getTotals();
+  const optionValidation = validateSelectedOptions();
+  if (!optionValidation.ok) return showToast(optionValidation.error);
+  if (totals.total > state.priceLimit) {
+    return showToast(t('cannotOrderOver', money(totals.total - state.priceLimit)));
+  }
+  const food = entries.map(entry => `${buildEntryFoodText(entry)} x${entry.qty}`).join(' + ');
+  const addonRaw = String(el.addonInput.value || '').trim();
+  const addon = addonRaw;
+  const order = {
+    dept,
+    name,
+    food,
+    addon,
+    drink: el.drinkSelect.value,
+    price: totals.total
+  };
+  if (state.cutoffPassed && state.lateOrder.active) {
+    order.lateOrder = true;
+    order.lateOrderUsername = state.lateOrder.username;
+    order.lateOrderPassword = state.lateOrder.password;
+  }
+
+  const existing = (state.orders || []).find(item => item.dept === dept && item.name === name);
+  if (existing && !sameOrder(existing, order)) {
+    const confirmed = await confirmOrderChange(existing, order);
+    if (!confirmed) return;
+  }
+
+  try {
+    const payload = await api('/api/orders', {
+      method: 'POST',
+      body: JSON.stringify(order)
+    });
+    if (Array.isArray(payload.orders)) state.orders = payload.orders;
+    else state.orders = await api('/api/orders').then(data => data.orders || []);
+    state.selected.clear();
+    if (state.lateOrder.active) {
+      state.lateOrder.active = false;
+      state.lateOrder.password = '';
+    }
+    el.addonInput.value = '';
+    renderFoods();
+    renderSelection();
+    renderOrders();
+    showToast(payload.updated ? t('orderUpdated') : t('orderAdded'));
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+function buildEntryFoodText(entry) {
+  const optionText = buildEntryOptionText(entry);
+  const foodName = localFood(entry.food);
+  return optionText ? `${foodName}（${optionText}）` : foodName;
+}
+
+function buildEntryOptionText(entry) {
+  const groups = Array.isArray(entry.food.optionGroups) ? entry.food.optionGroups : [];
+  const parts = [];
+  groups.forEach((group, index) => {
+    const selected = Array.isArray(entry.options && entry.options[index]) ? entry.options[index] : [];
+    if (!selected.length) return;
+    const labels = state.lang === 'sc' ? selected.map(label => toSc(label)) : selected;
+    parts.push(labels.join('+'));
+  });
+  return parts.join(', ');
+}
+
+function sameOrder(a, b) {
+  return String(a.food || '') === String(b.food || '')
+    && String(a.addon || '') === String(b.addon || '')
+    && String(a.drink || '') === String(b.drink || '')
+    && Number(a.price || 0) === Number(b.price || 0);
+}
+
+function describeOrder(order) {
+  const parts = [String(order.food || '').trim()];
+  if (order.addon) parts.push(String(order.addon).trim());
+  if (order.drink) parts.push(String(order.drink).trim());
+  parts.push(money(order.price || 0));
+  return parts.filter(Boolean).join(' / ');
+}
+
+function confirmOrderChange(existing, next) {
+  return new Promise(resolve => {
+    el.confirmMessage.innerHTML = `
+      <span class="nowrap">${escapeHtml(next.name || existing.name || '')}</span> 由現在
+      <br><span class="old">${escapeHtml(describeOrder(existing))}</span>
+      <br>改為
+      <br><span class="new">${escapeHtml(describeOrder(next))}</span>
+    `;
+    el.confirmModal.classList.remove('hidden');
+
+    const cleanup = () => {
+      el.confirmChangeBtn.removeEventListener('click', onConfirm);
+      el.cancelChangeBtn.removeEventListener('click', onCancel);
+      el.confirmModal.classList.add('hidden');
+    };
+    const onConfirm = () => {
+      cleanup();
+      resolve(true);
+    };
+    const onCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+    el.confirmChangeBtn.addEventListener('click', onConfirm);
+    el.cancelChangeBtn.addEventListener('click', onCancel);
+  });
+}
+
+function bindHiddenTrigger(node, action, options = {}) {
+  if (!node) return;
+  const allowHold = options.allowHold !== false;
+  let tapCount = 0;
+  let resetTimer = null;
+  let holdTimer = null;
+  let holdTriggered = false;
+  node.style.touchAction = 'manipulation';
+  const handleTap = event => {
+    if (event) event.preventDefault();
+    if (holdTriggered) {
+      holdTriggered = false;
+      return;
+    }
+    tapCount += 1;
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(() => { tapCount = 0; }, 1200);
+    if (tapCount < 4) return;
+    tapCount = 0;
+    action();
+  };
+  const startHold = () => {
+    if (!allowHold) return;
+    clearTimeout(holdTimer);
+    holdTriggered = false;
+    holdTimer = setTimeout(() => {
+      tapCount = 0;
+      holdTriggered = true;
+      action();
+    }, 900);
+  };
+  const clearHold = () => clearTimeout(holdTimer);
+  node.addEventListener('pointerup', handleTap);
+  node.addEventListener('pointerdown', startHold);
+  node.addEventListener('pointerleave', clearHold);
+  node.addEventListener('pointercancel', clearHold);
+  node.addEventListener('pointerup', clearHold);
+}
+
+function openAdminAccess() {
+  window.location.href = '/admin/';
+}
+
+async function openLateOrderAccess() {
+  if (!state.cutoffPassed) return showToast(t('lateOnlyAfterCutoff'));
+  try {
+    const usersPayload = await api('/api/late-order/users');
+    const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
+    if (!users.length) return showToast(t('lateNoUsers'));
+    const defaultUser = users[0] && users[0].username ? users[0].username : '';
+    const username = String(window.prompt(t('lateUserPrompt'), defaultUser) || '').trim();
+    if (!username) return;
+    const password = String(window.prompt(t('latePasswordPrompt')) || '').trim();
+    if (!password) return;
+    const payload = await api('/api/late-order/authorize', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    state.lateOrder.active = true;
+    state.lateOrder.username = payload.user && payload.user.username ? payload.user.username : username;
+    state.lateOrder.password = password;
+    showToast(t('lateEnabled'));
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+async function openDrinkChangeAccess() {
+  try {
+    if (!state.orders.length) return showToast(t('drinkChangeNoOrders'));
+    const usersPayload = await api('/api/late-order/users');
+    const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
+    if (!users.length) return showToast(t('lateNoUsers'));
+    const defaultUser = users[0] && users[0].username ? users[0].username : '';
+    const username = String(window.prompt(t('lateUserPrompt'), defaultUser) || '').trim();
+    if (!username) return;
+    const password = String(window.prompt(t('latePasswordPrompt')) || '').trim();
+    if (!password) return;
+    await api('/api/late-order/authorize', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    showDrinkChangeModal(username, password);
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+function showDrinkChangeModal(username, password) {
+  let modal = document.getElementById('drinkChangeModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'drinkChangeModal';
+    modal.className = 'modal hidden';
+    document.body.appendChild(modal);
+  }
+  const drinks = (state.drinks || []).map(normalizeDrink).filter(drink => drink.tc && !drink.paused);
+  const rows = (state.orders || []).map((order, index) => {
+    const current = currentDrink(String(order.drink || '').trim());
+    const options = [`<option value="">${escapeHtml(t('noDrink').replace(/-/g, '').trim())}</option>`]
+      .concat(drinks.map(drink => {
+        const selected = drink.tc === current ? ' selected' : '';
+        return `<option value="${escapeHtml(drink.tc)}"${selected}>${escapeHtml(localDrink(drink))}</option>`;
+      })).join('');
+    return `<tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(order.dept || '')}</td>
+      <td>${escapeHtml(order.name || '')}</td>
+      <td>${escapeHtml(displayOrderDrink(order.drink || '') || t('noDrink').replace(/-/g, '').trim())}</td>
+      <td><select class="drink-change-select" data-dept="${escapeHtml(order.dept || '')}" data-name="${escapeHtml(order.name || '')}" data-current="${escapeHtml(current)}">${options}</select></td>
+    </tr>`;
+  }).join('');
+  modal.innerHTML = `
+    <div class="modal-card wide-modal">
+      <h3>${escapeHtml(t('newDrink'))}</h3>
+      <div class="table-wrap drink-change-table">
+        <table>
+          <thead><tr><th>#</th><th>${escapeHtml(t('dept'))}</th><th>${escapeHtml(t('name'))}</th><th>${escapeHtml(t('drink'))}</th><th>${escapeHtml(t('newDrink'))}</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button id="drinkChangeCancelBtn" class="btn btn-light" type="button">${escapeHtml(t('cancel'))}</button>
+        <button id="drinkChangeSaveBtn" class="btn" type="button">${escapeHtml(t('confirm'))}</button>
+      </div>
+    </div>`;
+  modal.classList.remove('hidden');
+  modal.querySelector('#drinkChangeCancelBtn').addEventListener('click', () => modal.classList.add('hidden'));
+  modal.querySelector('#drinkChangeSaveBtn').addEventListener('click', () => saveDrinkChanges(username, password, modal));
+}
+
+async function saveDrinkChanges(username, password, modal) {
+  const changes = Array.from(modal.querySelectorAll('.drink-change-select'))
+    .map(select => ({
+      dept: select.dataset.dept,
+      name: select.dataset.name,
+      current: select.dataset.current,
+      drink: select.value
+    }))
+    .filter(change => change.drink !== change.current);
+  if (!changes.length) return showToast(t('drinkChangeNoChanges'));
+  try {
+    let latestOrders = null;
+    for (const change of changes) {
+      const payload = await api('/api/orders/drink-change', {
+        method: 'POST',
+        body: JSON.stringify({ username, password, dept: change.dept, name: change.name, drink: change.drink })
+      });
+      if (Array.isArray(payload.orders)) latestOrders = payload.orders;
+    }
+    if (latestOrders) state.orders = latestOrders;
+    modal.classList.add('hidden');
+    renderOrders();
+    showToast(t('drinkChangeSaved'));
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+el.deptSelect.addEventListener('change', renderNames);
+el.categorySelect.addEventListener('change', renderFoods);
+el.langTc.addEventListener('click', () => setLanguage('tc'));
+el.langSc.addEventListener('click', () => setLanguage('sc'));
+el.langEn.addEventListener('click', () => setLanguage('en'));
+bindHiddenTrigger(el.staffTitle, openAdminAccess);
+bindHiddenTrigger(el.foodTitle, openLateOrderAccess, { allowHold: false });
+bindHiddenTrigger(el.ordersTitle, openDrinkChangeAccess, { allowHold: false });
+el.submitBtn.addEventListener('click', submitOrder);
+el.foodList.addEventListener('click', event => {
+  const item = event.target.closest('.food-item');
+  if (!item) return;
+  const key = item.dataset.key;
+  const current = state.selected.get(key);
+  const qty = current ? current.qty : 0;
+  const action = event.target.dataset.action;
+  if (action === 'plus') setFoodQty(key, qty + 1);
+  if (action === 'minus') setFoodQty(key, qty - 1);
+});
+el.foodList.addEventListener('change', event => {
+  if (event.target.dataset.action !== 'qty') return;
+  const item = event.target.closest('.food-item');
+  if (!item) return;
+  setFoodQty(item.dataset.key, event.target.value);
+});
+el.selectionList.addEventListener('change', event => {
+  if (event.target.dataset.action !== 'option') return;
+  const input = event.target;
+  setFoodOption(input.dataset.key, input.dataset.group, input.value, input.checked, input.type === 'radio');
+});
+
+state.lang = detectLang();
+updateStaticText();
+load().catch(err => showToast(err.message));

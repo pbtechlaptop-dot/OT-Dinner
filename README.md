@@ -75,6 +75,12 @@ create table if not exists public.app_state (
   cutoff_time text null
 );
 
+create table if not exists public.app_kv (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.orders (
   id bigserial primary key,
   app_id text not null default 'main',

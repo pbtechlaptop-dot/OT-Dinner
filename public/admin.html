@@ -65,6 +65,23 @@
         </div>
       </section>
 
+      <section id="sectionNewSettings" class="mb-3 rounded-xl border border-slate-200 bg-white p-4">
+        <div class="mb-2 flex items-center justify-between gap-2">
+          <div>
+            <h2 class="text-lg font-bold text-pbnavy">新版設定</h2>
+            <p class="text-sm text-slate-500">只影響 New 版下單頁的多選食物上限，不會影響原本前台下單。</p>
+          </div>
+          <button id="saveNewSettingsBtn" class="rounded-md bg-pborange px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-600">儲存新版設定</button>
+        </div>
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-[220px_1fr]">
+          <label class="grid gap-1 text-sm text-slate-600">
+            每人價錢上限
+            <input id="newPriceLimit" type="number" min="0" step="0.01" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          </label>
+          <p id="newSettingsHint" class="self-end text-sm text-slate-500">登入後會載入目前設定。</p>
+        </div>
+      </section>
+
       <section id="sectionRestaurants" class="mb-3 rounded-xl border border-slate-200 bg-white p-4">
         <div class="mb-2 flex items-center justify-between gap-2"><h2 class="text-lg font-bold text-pbnavy">2) 餐廳</h2><div class="flex gap-2"><button id="saveRestaurantBtn" class="rounded-md bg-pborange px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-600">儲存此區</button></div></div>
         <div class="mb-2 flex flex-wrap gap-2" id="restaurantList"></div>

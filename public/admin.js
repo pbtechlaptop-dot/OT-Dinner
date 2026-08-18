@@ -8,6 +8,7 @@ const ADMIN_PERMISSION_OPTIONS = [
   { key: 'reset_main', label: '重置主站訂單' },
   { key: 'reset_lady_ruby', label: '重置 Lady Ruby 訂單' },
   { key: 'late_order', label: '補單' },
+  { key: 'new_settings', label: '新版設定' },
   { key: 'users', label: '用戶與權限' }
 ];
 
@@ -42,6 +43,7 @@ const el = {
 
   sectionImport: document.getElementById('sectionImport'),
   sectionRestaurants: document.getElementById('sectionRestaurants'),
+  sectionNewSettings: document.getElementById('sectionNewSettings'),
   sectionDrinks: document.getElementById('sectionDrinks'),
   sectionStaff: document.getElementById('sectionStaff'),
   sectionMenus: document.getElementById('sectionMenus'),
@@ -50,6 +52,9 @@ const el = {
 
   importFile: document.getElementById('importFile'),
   importBtn: document.getElementById('importBtn'),
+  newPriceLimit: document.getElementById('newPriceLimit'),
+  newSettingsHint: document.getElementById('newSettingsHint'),
+  saveNewSettingsBtn: document.getElementById('saveNewSettingsBtn'),
   restaurantList: document.getElementById('restaurantList'),
   newRestaurant: document.getElementById('newRestaurant'),
   addRestaurantBtn: document.getElementById('addRestaurantBtn'),
@@ -177,6 +182,7 @@ function updateCurrentUserText() {
 
 function setSectionVisibility() {
   setVisible(el.sectionImport, hasPermission('import'));
+  setVisible(el.sectionNewSettings, hasPermission('new_settings'));
   setVisible(el.sectionRestaurants, hasPermission('restaurants'));
   setVisible(el.sectionDrinks, hasPermission('drinks'));
   setVisible(el.sectionStaff, hasPermission('staff'));
@@ -396,6 +402,35 @@ async function fetchSeedByCredentials(username, password) {
     restaurantContacts: Array.isArray(payload.restaurantContacts) ? payload.restaurantContacts : [],
     user: payload.user || { username, permissions: [], staffDepartments: [], isRoot: false }
   };
+}
+
+async function loadNewSettings() {
+  const settings = await api('/api/new-settings');
+  if (el.newPriceLimit) el.newPriceLimit.value = Number(settings.priceLimit || 22).toFixed(2);
+  if (el.newSettingsHint) el.newSettingsHint.textContent = `目前上限：$${Number(settings.priceLimit || 22).toFixed(2)}`;
+}
+
+async function saveNewSettings() {
+  if (!requireAuth()) return;
+  const priceLimit = Number(el.newPriceLimit && el.newPriceLimit.value);
+  if (!Number.isFinite(priceLimit) || priceLimit < 0) return setStatus('請輸入有效的新版價錢上限。', true);
+  try {
+    setBusy(true);
+    const payload = await api('/api/admin/new-settings', {
+      method: 'POST',
+      body: JSON.stringify(adminAuthBody({ priceLimit }))
+    });
+    const settings = payload.settings || { priceLimit };
+    if (el.newPriceLimit) el.newPriceLimit.value = Number(settings.priceLimit || 22).toFixed(2);
+    if (el.newSettingsHint) el.newSettingsHint.textContent = `目前上限：$${Number(settings.priceLimit || 22).toFixed(2)}`;
+    setStatus(`已儲存新版價錢上限：$${Number(settings.priceLimit || 22).toFixed(2)}`);
+    showToast('已儲存新版設定');
+  } catch (err) {
+    setStatus(err.message, true);
+    handleAdminPasswordError(err);
+  } finally {
+    setBusy(false);
+  }
 }
 
 function normalizeRestaurantContact(contact = {}) {
@@ -1134,6 +1169,7 @@ async function loadSeed() {
     const payload = await fetchSeedByCredentials(state.username, state.password);
     state.seed = payload.seed;
     state.restaurantContacts = payload.restaurantContacts;
+    await loadNewSettings();
     state.permissions = Array.isArray(payload.user.permissions) ? payload.user.permissions : [];
     state.allowedStaffDepartments = Array.isArray(payload.user.staffDepartments) ? payload.user.staffDepartments : [];
     state.isRoot = Boolean(payload.user.isRoot);
@@ -1527,6 +1563,7 @@ el.saveBtn.onclick = saveSeed;
 el.resetDayBtn.onclick = () => resetDay('main');
 if (el.resetLadyRubyBtn) el.resetLadyRubyBtn.onclick = () => resetDay('lady-ruby');
 el.importBtn.onclick = importSeed;
+if (el.saveNewSettingsBtn) el.saveNewSettingsBtn.onclick = saveNewSettings;
 
 el.saveRestaurantBtn.onclick = () => saveSection('restaurants');
 el.saveDrinkBtn.onclick = () => saveSection('drinks');
@@ -1717,4 +1754,3 @@ attachAutoConvert();
 renderNewUserPermissions();
 loadLoginUsernames();
 setAuthUi(false);
-

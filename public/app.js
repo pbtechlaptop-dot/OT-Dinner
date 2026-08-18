@@ -565,6 +565,12 @@ function applyI18n() {
 
 function updateExportLinks() {
   if (el.exportCsvLink) el.exportCsvLink.href = apiPath('/api/export/csv');
+  const newFrontendLink = document.getElementById('newFrontendLink');
+  if (newFrontendLink) {
+    newFrontendLink.href = location.hostname === '127.0.0.1' || location.hostname === 'localhost'
+      ? 'http://127.0.0.1:3100/'
+      : '/new/';
+  }
 }
 
 function fillSelect(select, items, placeholder) {
