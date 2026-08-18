@@ -71,6 +71,8 @@ const el = {
   confirmMessage: document.getElementById('confirmMessage'),
   cancelChangeBtn: document.getElementById('cancelChangeBtn'),
   confirmChangeBtn: document.getElementById('confirmChangeBtn'),
+  busyOverlay: document.getElementById('busyOverlay'),
+  busyText: document.getElementById('busyText'),
   toast: document.getElementById('toast')
 };
 
@@ -135,6 +137,7 @@ const i18n = {
     drinkChangeSaved: '已更新飲品',
     drinkChangeNoChanges: '未有需要儲存的飲品更改。',
     newDrink: '新飲品',
+    busy: '系統處理中，請稍候...',
     changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> 由現在<br><span class="old">${oldText}</span><br>改為<br><span class="new">${newText}</span>`
   },
   sc: {
@@ -197,6 +200,7 @@ const i18n = {
     drinkChangeSaved: '已更新饮品',
     drinkChangeNoChanges: '未有需要保存的饮品更改。',
     newDrink: '新饮品',
+    busy: '系统处理中，请稍候...',
     changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> 由现在<br><span class="old">${oldText}</span><br>改为<br><span class="new">${newText}</span>`
   },
   en: {
@@ -259,6 +263,7 @@ const i18n = {
     drinkChangeSaved: 'Drinks updated',
     drinkChangeNoChanges: 'No drink changes to save.',
     newDrink: 'New drink',
+    busy: 'Processing, please wait...',
     changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> will change from<br><span class="old">${oldText}</span><br>to<br><span class="new">${newText}</span>`
   }
 };
@@ -362,6 +367,12 @@ function showToast(message) {
   el.toast.classList.remove('hidden');
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => el.toast.classList.add('hidden'), 2600);
+}
+
+function setBusy(isBusy, text) {
+  if (!el.busyOverlay) return;
+  if (el.busyText) el.busyText.textContent = text || t('busy');
+  el.busyOverlay.classList.toggle('hidden', !isBusy);
 }
 
 function updateStaticText() {
@@ -850,26 +861,31 @@ function escapeHtml(value) {
 }
 
 async function load() {
-  const [settings, bootstrap] = await Promise.all([
-    api('/api/new-settings'),
-    api('/api/bootstrap')
-  ]);
-  state.priceLimit = Number(settings.priceLimit) || 22;
-  state.staff = bootstrap.staff || {};
-  state.drinks = bootstrap.drinks || [];
-  state.menu = bootstrap.currentMenu || {};
-  state.orders = bootstrap.orders || [];
-  state.lastOrdersSignature = orderSignature(state.orders);
-  state.currentRestaurant = bootstrap.currentRestaurant || '';
-  state.cutoffPassed = Boolean(bootstrap.cutoffPassed);
-  state.date = bootstrap.date || '';
-  updateStaticText();
-  renderDepartments();
-  renderDrinks();
-  renderCategories();
-  renderFoods();
-  renderSelection();
-  renderOrders();
+  setBusy(true);
+  try {
+    const [settings, bootstrap] = await Promise.all([
+      api('/api/new-settings'),
+      api('/api/bootstrap')
+    ]);
+    state.priceLimit = Number(settings.priceLimit) || 22;
+    state.staff = bootstrap.staff || {};
+    state.drinks = bootstrap.drinks || [];
+    state.menu = bootstrap.currentMenu || {};
+    state.orders = bootstrap.orders || [];
+    state.lastOrdersSignature = orderSignature(state.orders);
+    state.currentRestaurant = bootstrap.currentRestaurant || '';
+    state.cutoffPassed = Boolean(bootstrap.cutoffPassed);
+    state.date = bootstrap.date || '';
+    updateStaticText();
+    renderDepartments();
+    renderDrinks();
+    renderCategories();
+    renderFoods();
+    renderSelection();
+    renderOrders();
+  } finally {
+    setBusy(false);
+  }
 }
 
 async function submitOrder() {
@@ -910,6 +926,7 @@ async function submitOrder() {
   }
 
   try {
+    setBusy(true);
     const payload = await api('/api/orders', {
       method: 'POST',
       body: JSON.stringify(order)
@@ -929,6 +946,8 @@ async function submitOrder() {
     showToast(payload.updated ? t('orderUpdated') : t('orderAdded'));
   } catch (err) {
     showToast(err.message);
+  } finally {
+    setBusy(false);
   }
 }
 
@@ -1067,6 +1086,7 @@ function openAdminAccess() {
 async function openLateOrderAccess() {
   if (!state.cutoffPassed) return showToast(t('lateOnlyAfterCutoff'));
   try {
+    setBusy(true);
     const usersPayload = await api('/api/late-order/users');
     const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
     if (!users.length) return showToast(t('lateNoUsers'));
@@ -1085,11 +1105,14 @@ async function openLateOrderAccess() {
     showToast(t('lateEnabled'));
   } catch (err) {
     showToast(err.message);
+  } finally {
+    setBusy(false);
   }
 }
 
 async function openDrinkChangeAccess() {
   try {
+    setBusy(true);
     if (!state.orders.length) return showToast(t('drinkChangeNoOrders'));
     const usersPayload = await api('/api/late-order/users');
     const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
@@ -1106,6 +1129,8 @@ async function openDrinkChangeAccess() {
     showDrinkChangeModal(username, password);
   } catch (err) {
     showToast(err.message);
+  } finally {
+    setBusy(false);
   }
 }
 
@@ -1163,6 +1188,7 @@ async function saveDrinkChanges(username, password, modal) {
     .filter(change => change.drink !== change.current);
   if (!changes.length) return showToast(t('drinkChangeNoChanges'));
   try {
+    setBusy(true);
     let latestOrders = null;
     for (const change of changes) {
       const payload = await api('/api/orders/drink-change', {
@@ -1177,6 +1203,8 @@ async function saveDrinkChanges(username, password, modal) {
     showToast(t('drinkChangeSaved'));
   } catch (err) {
     showToast(err.message);
+  } finally {
+    setBusy(false);
   }
 }
 
