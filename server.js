@@ -40,6 +40,7 @@ const LADY_RUBY_PASSWORD = process.env.LADY_RUBY_PASSWORD || '7777';
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
+const NEW_PUBLIC_DIR = path.join(ROOT, 'New');
 const DATA_DIR = path.join(ROOT, 'data');
 const SEED_FILE = path.join(DATA_DIR, 'seed.json');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
@@ -1973,13 +1974,21 @@ function getAppIdFromRequest(urlObj, body) {
 
 function serveStatic(req, reqPath, res) {
   const isLadyRubyPage = reqPath === '/lady-ruby' || reqPath === '/lady-ruby/';
+  const isNewPage = reqPath === '/new' || reqPath === '/new/' || reqPath.startsWith('/new/');
+  let baseDir = PUBLIC_DIR;
   let safePath = reqPath === '/'
     ? '/index.html'
     : ((reqPath === '/admin' || reqPath === '/admin/') ? '/admin.html' : reqPath);
   if (isLadyRubyPage) safePath = '/lady-ruby.html';
+  if (isNewPage) {
+    baseDir = NEW_PUBLIC_DIR;
+    safePath = (reqPath === '/new' || reqPath === '/new/')
+      ? '/index.html'
+      : reqPath.replace(/^\/new/, '') || '/index.html';
+  }
   safePath = path.normalize(safePath).replace(/^\.\.(\\|\/|$)/, '');
-  const filePath = path.join(PUBLIC_DIR, safePath);
-  if (!filePath.startsWith(PUBLIC_DIR)) return text(res, 403, 'Forbidden');
+  const filePath = path.join(baseDir, safePath);
+  if (!filePath.startsWith(baseDir)) return text(res, 403, 'Forbidden');
   // Lady Ruby page is now public; no access cookie required.
 
   fs.readFile(filePath, (err, data) => {
