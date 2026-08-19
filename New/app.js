@@ -1073,6 +1073,7 @@ async function submitOrder() {
     else state.orders = await api('/api/orders').then(data => data.orders || []);
     state.lastOrdersSignature = orderSignature(state.orders);
     state.selected.clear();
+    el.categorySelect.value = '';
     resetStaffForm();
     if (state.lateOrder.active) {
       state.lateOrder.active = false;
