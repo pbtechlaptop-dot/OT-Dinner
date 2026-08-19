@@ -20,6 +20,8 @@ const state = {
   selected: new Map()
 };
 
+const LAST_STAFF_KEY = 'otDinnerNewLastStaff';
+
 const el = {
   appTitle: document.getElementById('appTitle'),
   dateText: document.getElementById('dateText'),
@@ -678,6 +680,32 @@ function fillSelect(select, items, placeholder) {
   });
 }
 
+function readLastStaff() {
+  try {
+    return JSON.parse(localStorage.getItem(LAST_STAFF_KEY) || 'null') || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLastStaff(dept, name) {
+  try {
+    localStorage.setItem(LAST_STAFF_KEY, JSON.stringify({ dept, name }));
+  } catch {
+  }
+}
+
+function applyLastStaff() {
+  const last = readLastStaff();
+  if (!last || !last.dept || !last.name) return false;
+  const names = state.staff && state.staff[last.dept];
+  if (!Array.isArray(names) || !names.includes(last.name)) return false;
+  el.deptSelect.value = last.dept;
+  renderNames();
+  el.nameSelect.value = last.name;
+  return true;
+}
+
 function normalizeDrink(raw) {
   if (typeof raw === 'string') return { tc: raw, paused: false };
   return {
@@ -1127,6 +1155,7 @@ async function load() {
     state.date = bootstrap.date || '';
     updateStaticText();
     renderDepartments();
+    applyLastStaff();
     renderDrinks();
     renderCategories();
     renderSelection();
@@ -1183,6 +1212,7 @@ async function submitOrder() {
     if (Array.isArray(payload.orders)) state.orders = payload.orders;
     else state.orders = await api('/api/orders').then(data => data.orders || []);
     state.lastOrdersSignature = orderSignature(state.orders);
+    saveLastStaff(dept, name);
     state.selected.clear();
     el.categorySelect.value = '';
     resetStaffForm();
