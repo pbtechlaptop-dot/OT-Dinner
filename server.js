@@ -2393,9 +2393,6 @@ async function handleApi(req, res, urlObj) {
       return json(res, 403, { error: 'Invalid admin username or password' });
     }
     clearAuthFailures(req, 'admin');
-    if (!requireAdminPermission(admin, 'new_settings')) {
-      return json(res, 403, { error: 'You do not have permission to edit new settings.' });
-    }
     const priceLimit = Number(body.priceLimit);
     if (!Number.isFinite(priceLimit) || priceLimit < 0) {
       return json(res, 400, { error: 'priceLimit must be a positive number' });

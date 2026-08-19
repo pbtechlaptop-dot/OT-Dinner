@@ -182,7 +182,7 @@ function updateCurrentUserText() {
 
 function setSectionVisibility() {
   setVisible(el.sectionImport, hasPermission('import'));
-  setVisible(el.sectionNewSettings, hasPermission('new_settings'));
+  setVisible(el.sectionNewSettings, state.authenticated);
   setVisible(el.sectionRestaurants, hasPermission('restaurants'));
   setVisible(el.sectionDrinks, hasPermission('drinks'));
   setVisible(el.sectionStaff, hasPermission('staff'));
@@ -1488,6 +1488,7 @@ async function login() {
     state.isRoot = Boolean(user.isRoot);
     state.seed = payload.seed;
     state.restaurantContacts = payload.restaurantContacts;
+    await loadNewSettings();
     if (hasPermission('users')) {
       try {
         state.adminUsers = await fetchAdminUsers();
