@@ -1045,8 +1045,16 @@ function normalizeState(input) {
 function normalizeNewSettings(input) {
   const raw = input && typeof input === 'object' ? input : {};
   const priceLimit = Number(raw.priceLimit);
+  const announcementRaw = raw.announcement && typeof raw.announcement === 'object' ? raw.announcement : {};
+  const message = normText(announcementRaw.message);
+  const version = normText(announcementRaw.version) || (message ? '1' : '');
   return {
-    priceLimit: Number.isFinite(priceLimit) && priceLimit >= 0 ? priceLimit : 22
+    priceLimit: Number.isFinite(priceLimit) && priceLimit >= 0 ? priceLimit : 22,
+    announcement: {
+      enabled: Boolean(announcementRaw.enabled),
+      message,
+      version
+    }
   };
 }
 
@@ -2397,12 +2405,25 @@ async function handleApi(req, res, urlObj) {
     if (!Number.isFinite(priceLimit) || priceLimit < 0) {
       return json(res, 400, { error: 'priceLimit must be a positive number' });
     }
-    const settings = await storage.saveNewSettings({ priceLimit });
+    const currentSettings = await storage.getNewSettings();
+    const currentAnnouncement = currentSettings.announcement || {};
+    const announcementMessage = normText(body.announcementMessage);
+    const announcementEnabled = Boolean(body.announcementEnabled);
+    const announcementChanged = announcementMessage !== normText(currentAnnouncement.message)
+      || announcementEnabled !== Boolean(currentAnnouncement.enabled);
+    const settings = await storage.saveNewSettings({
+      priceLimit,
+      announcement: {
+        enabled: announcementEnabled,
+        message: announcementMessage,
+        version: announcementChanged ? new Date().toISOString() : currentAnnouncement.version
+      }
+    });
     await storage.appendAdminLog({
       username: admin.username,
       action: 'update',
       section: 'new_settings',
-      summary: `更新新版價錢上限：$${settings.priceLimit}`,
+      summary: `更新新版設定：上限 $${settings.priceLimit}${announcementChanged ? '，通告已更新' : ''}`,
       details: settings
     });
     return json(res, 200, { ok: true, settings });

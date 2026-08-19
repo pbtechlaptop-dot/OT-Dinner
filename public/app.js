@@ -26,6 +26,9 @@ const state = {
   lastOrdersSignature: ''
 };
 
+const ANNOUNCEMENT_SEEN_KEY = 'otDinnerAnnouncementSeenVersion';
+const announcementDismissedVersions = new Set();
+
 let toSc = v => String(v || '');
 let toTc = v => String(v || '');
 try {
@@ -299,6 +302,9 @@ i18n.tc.drinkChangeNoOrders = '今日未有訂單。';
 i18n.tc.drinkChangeNoChanges = '未有需要儲存的飲品更改。';
 i18n.tc.drinkChangeSaved = '已更新飲品';
 i18n.tc.newDrink = '新飲品';
+i18n.tc.announcementTitle = '通告';
+i18n.tc.announcementOk = '知道了';
+i18n.tc.announcementDontShow = '不再顯示';
 i18n.sc.confirmOrderChangeTitle = '确认变更订单';
 i18n.sc.confirmOrderChange = '确认变更';
 i18n.sc.lateOrderTitle = '主管补单';
@@ -323,6 +329,9 @@ i18n.sc.drinkChangeNoOrders = '今日未有订单。';
 i18n.sc.drinkChangeNoChanges = '未有需要保存的饮品更改。';
 i18n.sc.drinkChangeSaved = '已更新饮品';
 i18n.sc.newDrink = '新饮品';
+i18n.sc.announcementTitle = '通告';
+i18n.sc.announcementOk = '知道了';
+i18n.sc.announcementDontShow = '不再显示';
 i18n.en.confirmOrderChangeTitle = 'Confirm order change';
 i18n.en.confirmOrderChange = 'Confirm change';
 i18n.en.lateOrderTitle = 'Supervisor Late Order';
@@ -347,6 +356,9 @@ i18n.en.drinkChangeNoOrders = 'No orders today.';
 i18n.en.drinkChangeNoChanges = 'No drink changes to save.';
 i18n.en.drinkChangeSaved = 'Drinks updated';
 i18n.en.newDrink = 'New drink';
+i18n.en.announcementTitle = 'Announcement';
+i18n.en.announcementOk = 'OK';
+i18n.en.announcementDontShow = "Don't show again";
 
 const el = {
   appTitle: document.getElementById('appTitle'),
@@ -655,6 +667,48 @@ function closeOrderChangeModal() {
   el.orderChangeModal.classList.add('hidden');
   el.orderChangeModal.classList.remove('flex');
   el.orderChangeMessage.textContent = '';
+}
+
+function showAnnouncementIfNeeded(settings) {
+  const announcement = settings && settings.announcement ? settings.announcement : null;
+  if (!announcement || !announcement.enabled || !String(announcement.message || '').trim()) return;
+  const version = String(announcement.version || announcement.message).trim();
+  if (announcementDismissedVersions.has(version)) return;
+  try {
+    if (localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) === version) return;
+  } catch {
+  }
+  let modal = document.getElementById('announcementModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'announcementModal';
+    modal.className = 'fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/45 px-4';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
+      <h3 class="text-lg font-bold text-pbnavy">${escapeHtml(t('announcementTitle'))}</h3>
+      <div class="mt-3 whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">${escapeHtml(announcement.message)}</div>
+      <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button id="announcementHideBtn" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">${escapeHtml(t('announcementDontShow'))}</button>
+        <button id="announcementOkBtn" type="button" class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong">${escapeHtml(t('announcementOk'))}</button>
+      </div>
+    </div>`;
+  const close = () => {
+    announcementDismissedVersions.add(version);
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  };
+  modal.querySelector('#announcementOkBtn').onclick = close;
+  modal.querySelector('#announcementHideBtn').onclick = () => {
+    try {
+      localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, version);
+    } catch {
+    }
+    close();
+  };
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
 }
 
 function ensureLateOrderUi() {
@@ -1586,7 +1640,10 @@ async function loadBootstrap() {
   setBusy(true);
   setDiag(t('diagLoading'));
   try {
-    const payload = await api('/api/bootstrap');
+    const [payload, settings] = await Promise.all([
+      api('/api/bootstrap'),
+      api('/api/new-settings')
+    ]);
     state.restaurants = payload.restaurants || [];
     state.restaurantContacts = payload.restaurantContacts || {};
     state.staff = payload.staff || {};
@@ -1605,6 +1662,7 @@ async function loadBootstrap() {
     await loadMenu(state.currentRestaurant, payload.currentMenu || null);
     renderOrders();
     updateDiagSummary();
+    showAnnouncementIfNeeded(settings);
   } catch (err) {
     setDiag(`${t('loadFailedPrefix')}${err.message}`, true);
     throw err;

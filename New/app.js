@@ -21,6 +21,8 @@ const state = {
 };
 
 const LAST_STAFF_KEY = 'otDinnerNewLastStaff';
+const ANNOUNCEMENT_SEEN_KEY = 'otDinnerAnnouncementSeenVersion';
+const announcementDismissedVersions = new Set();
 
 const el = {
   appTitle: document.getElementById('appTitle'),
@@ -207,6 +209,10 @@ const i18n = {
     newDrink: '新飲品',
     busy: '系統處理中，請稍候...',
     changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> 由現在<br><span class="old">${oldText}</span><br>改為<br><span class="new">${newText}</span>`
+    ,
+    announcementTitle: '通告',
+    announcementOk: '知道了',
+    announcementDontShow: '不再顯示'
   },
   sc: {
     appTitle: '加班订餐系统 - New',
@@ -311,7 +317,10 @@ const i18n = {
     drinkChangeNoChanges: '未有需要保存的饮品更改。',
     newDrink: '新饮品',
     busy: '系统处理中，请稍候...',
-    changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> 由现在<br><span class="old">${oldText}</span><br>改为<br><span class="new">${newText}</span>`
+    changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> 由现在<br><span class="old">${oldText}</span><br>改为<br><span class="new">${newText}</span>`,
+    announcementTitle: '通告',
+    announcementOk: '知道了',
+    announcementDontShow: '不再显示'
   },
   en: {
     appTitle: 'Overtime Meal Order - New',
@@ -416,7 +425,10 @@ const i18n = {
     drinkChangeNoChanges: 'No drink changes to save.',
     newDrink: 'New drink',
     busy: 'Processing, please wait...',
-    changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> will change from<br><span class="old">${oldText}</span><br>to<br><span class="new">${newText}</span>`
+    changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> will change from<br><span class="old">${oldText}</span><br>to<br><span class="new">${newText}</span>`,
+    announcementTitle: 'Announcement',
+    announcementOk: 'OK',
+    announcementDontShow: "Don't show again"
   }
 };
 
@@ -1161,6 +1173,7 @@ async function load() {
     renderSelection();
     renderOrders();
     updateDiagSummary();
+    showAnnouncementIfNeeded(settings);
   } finally {
     setBusy(false);
   }
@@ -1257,6 +1270,46 @@ function openRestaurantModal() {
 function closeRestaurantModal() {
   el.restaurantModal.classList.add('hidden');
   el.restaurantPasswordInput.value = '';
+}
+
+function showAnnouncementIfNeeded(settings) {
+  const announcement = settings && settings.announcement ? settings.announcement : null;
+  if (!announcement || !announcement.enabled || !String(announcement.message || '').trim()) return;
+  const version = String(announcement.version || announcement.message).trim();
+  if (announcementDismissedVersions.has(version)) return;
+  try {
+    if (localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) === version) return;
+  } catch {
+  }
+  let modal = document.getElementById('announcementModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'announcementModal';
+    modal.className = 'modal hidden';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>${escapeHtml(t('announcementTitle'))}</h3>
+      <div class="announcement-message">${escapeHtml(announcement.message)}</div>
+      <div class="modal-actions">
+        <button id="announcementHideBtn" class="btn btn-light" type="button">${escapeHtml(t('announcementDontShow'))}</button>
+        <button id="announcementOkBtn" class="btn" type="button">${escapeHtml(t('announcementOk'))}</button>
+      </div>
+    </div>`;
+  const close = () => {
+    announcementDismissedVersions.add(version);
+    modal.classList.add('hidden');
+  };
+  modal.querySelector('#announcementOkBtn').onclick = close;
+  modal.querySelector('#announcementHideBtn').onclick = () => {
+    try {
+      localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, version);
+    } catch {
+    }
+    close();
+  };
+  modal.classList.remove('hidden');
 }
 
 async function saveRestaurantSettings() {

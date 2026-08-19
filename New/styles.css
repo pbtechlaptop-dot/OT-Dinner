@@ -545,6 +545,18 @@ tfoot td {
   margin-top: 14px;
 }
 
+.announcement-message {
+  margin-top: 12px;
+  white-space: pre-wrap;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .btn-light {
   background: white;
   color: var(--ink);

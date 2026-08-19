@@ -53,6 +53,9 @@ const el = {
   importFile: document.getElementById('importFile'),
   importBtn: document.getElementById('importBtn'),
   newPriceLimit: document.getElementById('newPriceLimit'),
+  announcementEnabled: document.getElementById('announcementEnabled'),
+  announcementMessage: document.getElementById('announcementMessage'),
+  announcementHint: document.getElementById('announcementHint'),
   newSettingsHint: document.getElementById('newSettingsHint'),
   saveNewSettingsBtn: document.getElementById('saveNewSettingsBtn'),
   restaurantList: document.getElementById('restaurantList'),
@@ -128,6 +131,14 @@ function ensureNewSettingsSection() {
         <input id="newPriceLimit" type="number" min="0" step="0.01" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
       </label>
       <p id="newSettingsHint" class="self-end text-sm text-slate-500">登入後會載入目前設定。</p>
+    </div>
+    <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <label class="mb-2 flex items-center gap-2 text-sm font-semibold text-pbnavy">
+        <input id="announcementEnabled" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
+        開啟前台通告
+      </label>
+      <textarea id="announcementMessage" rows="4" placeholder="輸入通告內容；儲存後，前台和新前台打開時會彈出顯示。" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+      <p id="announcementHint" class="mt-1 text-xs text-slate-500">同事按「不再顯示」後不會再見到同一通告；你更新內容或開關後會重新顯示。</p>
     </div>`;
   const importSection = document.getElementById('sectionImport');
   if (importSection && importSection.parentNode) {
@@ -137,6 +148,9 @@ function ensureNewSettingsSection() {
   }
   el.sectionNewSettings = section;
   el.newPriceLimit = document.getElementById('newPriceLimit');
+  el.announcementEnabled = document.getElementById('announcementEnabled');
+  el.announcementMessage = document.getElementById('announcementMessage');
+  el.announcementHint = document.getElementById('announcementHint');
   el.newSettingsHint = document.getElementById('newSettingsHint');
   el.saveNewSettingsBtn = document.getElementById('saveNewSettingsBtn');
 }
@@ -445,7 +459,11 @@ async function fetchSeedByCredentials(username, password) {
 async function loadNewSettings() {
   const settings = await api('/api/new-settings');
   if (el.newPriceLimit) el.newPriceLimit.value = Number(settings.priceLimit || 22).toFixed(2);
+  const announcement = settings.announcement || {};
+  if (el.announcementEnabled) el.announcementEnabled.checked = Boolean(announcement.enabled);
+  if (el.announcementMessage) el.announcementMessage.value = String(announcement.message || '');
   if (el.newSettingsHint) el.newSettingsHint.textContent = `目前上限：$${Number(settings.priceLimit || 22).toFixed(2)}`;
+  if (el.announcementHint && announcement.version) el.announcementHint.textContent = `目前通告版本：${announcement.version}`;
 }
 
 async function saveNewSettings() {
@@ -456,11 +474,19 @@ async function saveNewSettings() {
     setBusy(true);
     const payload = await api('/api/admin/new-settings', {
       method: 'POST',
-      body: JSON.stringify(adminAuthBody({ priceLimit }))
+      body: JSON.stringify(adminAuthBody({
+        priceLimit,
+        announcementEnabled: Boolean(el.announcementEnabled && el.announcementEnabled.checked),
+        announcementMessage: String(el.announcementMessage && el.announcementMessage.value || '').trim()
+      }))
     });
     const settings = payload.settings || { priceLimit };
+    const announcement = settings.announcement || {};
     if (el.newPriceLimit) el.newPriceLimit.value = Number(settings.priceLimit || 22).toFixed(2);
     if (el.newSettingsHint) el.newSettingsHint.textContent = `目前上限：$${Number(settings.priceLimit || 22).toFixed(2)}`;
+    if (el.announcementEnabled) el.announcementEnabled.checked = Boolean(announcement.enabled);
+    if (el.announcementMessage) el.announcementMessage.value = String(announcement.message || '');
+    if (el.announcementHint) el.announcementHint.textContent = announcement.version ? `目前通告版本：${announcement.version}` : '未有通告版本。';
     setStatus(`已儲存新版價錢上限：$${Number(settings.priceLimit || 22).toFixed(2)}`);
     showToast('已儲存新版設定');
   } catch (err) {
