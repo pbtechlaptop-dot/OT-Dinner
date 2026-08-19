@@ -162,6 +162,7 @@ const i18n = {
     chooseName: '-- 選擇同事 --',
     noDrink: '-- 無 --',
     allCats: '選擇分類',
+    allCategories: '全部分類',
     chooseCategoryFirst: '請先選擇分類。',
     noFoods: '未有餐點。',
     hasOptions: '有選項',
@@ -250,6 +251,7 @@ const i18n = {
     chooseName: '-- 选择同事 --',
     noDrink: '-- 无 --',
     allCats: '选择分类',
+    allCategories: '全部分类',
     chooseCategoryFirst: '请先选择分类。',
     noFoods: '未有餐点。',
     hasOptions: '有选项',
@@ -338,6 +340,7 @@ const i18n = {
     chooseName: '-- Select Name --',
     noDrink: '-- None --',
     allCats: 'Select Category',
+    allCategories: 'All Categories',
     chooseCategoryFirst: 'Please select a category first.',
     noFoods: 'No food available.',
     hasOptions: 'Options',
@@ -749,7 +752,10 @@ function renderDrinks() {
 
 function renderCategories() {
   const categories = Object.keys(state.menu || {});
-  fillSelect(el.categorySelect, categories.map(category => ({ value: category, label: localCategory(category) })), t('allCats'));
+  fillSelect(el.categorySelect, [
+    { value: '__all__', label: t('allCategories') },
+    ...categories.map(category => ({ value: category, label: localCategory(category) }))
+  ], t('allCats'));
   el.categorySelect.selectedIndex = 0;
   el.categorySelect.value = '';
   renderFoods();
@@ -762,7 +768,7 @@ function renderFoods() {
     return;
   }
   const foods = allFoods().filter(food => {
-    return food.category === category;
+    return category === '__all__' || food.category === category;
   });
 
   if (!foods.length) {
