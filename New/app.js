@@ -128,6 +128,11 @@ const i18n = {
     restaurantChanged: '已更改餐廳，舊單已清空',
     cutoffUpdated: '已更新截單時間',
     xlsxMissing: 'XLSX 工具未載入',
+    requestFailed: '系統連線失敗，請再試一次。',
+    invalidPassword: '密碼不正確',
+    setRestaurantFirst: '請先設定今日餐廳',
+    orderCutoffPassed: '下單時間已過，請聯絡部門主管或 Simon 下單。',
+    tooManyAttempts: '密碼錯誤次數太多，請稍後再試。',
     notSet: '未設定',
     admin: '新版 Admin',
     main: '舊前台',
@@ -219,6 +224,11 @@ const i18n = {
     restaurantChanged: '已更改餐厅，旧单已清空',
     cutoffUpdated: '已更新截单时间',
     xlsxMissing: 'XLSX 工具未载入',
+    requestFailed: '系统连接失败，请再试一次。',
+    invalidPassword: '密码不正确',
+    setRestaurantFirst: '请先设置今日餐厅',
+    orderCutoffPassed: '下单时间已过，请联络部门主管或 Simon 下单。',
+    tooManyAttempts: '密码错误次数太多，请稍后再试。',
     notSet: '未设置',
     admin: '新版 Admin',
     main: '旧前台',
@@ -310,6 +320,11 @@ const i18n = {
     restaurantChanged: 'Restaurant changed, old orders cleared',
     cutoffUpdated: 'Cutoff time updated',
     xlsxMissing: 'XLSX tool is not loaded',
+    requestFailed: 'Connection failed. Please try again.',
+    invalidPassword: 'Incorrect password',
+    setRestaurantFirst: 'Please set today restaurant first',
+    orderCutoffPassed: 'Ordering time has passed. Please contact your team leader or Simon to place an order.',
+    tooManyAttempts: 'Too many failed password attempts. Please try again later.',
     notSet: 'Not set',
     admin: 'New Admin',
     main: 'Old Page',
@@ -481,6 +496,17 @@ function showToast(message) {
   showToast.timer = setTimeout(() => el.toast.classList.add('hidden'), 2600);
 }
 
+function localizeErrorMessage(message) {
+  const text = String(message || '').trim();
+  if (!text) return t('requestFailed');
+  if (/too many failed password attempts/i.test(text)) return t('tooManyAttempts');
+  if (/invalid password|invalid admin username or password|invalid late order username or password/i.test(text)) return t('invalidPassword');
+  if (/please set today restaurant first/i.test(text)) return t('setRestaurantFirst');
+  if (/ordering cutoff has passed/i.test(text)) return t('orderCutoffPassed');
+  if (/request failed/i.test(text)) return t('requestFailed');
+  return text;
+}
+
 function setBusy(isBusy, text) {
   if (!el.busyOverlay) return;
   if (el.busyText) el.busyText.textContent = text || t('busy');
@@ -572,14 +598,15 @@ function updateDiagSummary() {
 
 function updateCutoffNotice() {
   if (!el.cutoffNotice) return;
-  if (!state.cutoffTime) {
+  if (!state.currentRestaurant && !state.cutoffTime) {
     el.cutoffNotice.className = 'cutoff-notice hidden';
     el.cutoffNotice.textContent = '';
     return;
   }
+  const cutoff = state.cutoffTime || '--';
   el.cutoffNotice.textContent = state.cutoffPassed
-    ? `${t('cutoff')}${state.cutoffTime}. ${t('cutoffPassedNotice')}`
-    : `${t('cutoff')}${state.cutoffTime}. ${t('cutoffActiveNotice')}`;
+    ? `${t('cutoff')}${cutoff}. ${t('cutoffPassedNotice')}`
+    : `${t('cutoff')}${cutoff}. ${t('cutoffActiveNotice')}`;
   el.cutoffNotice.className = `cutoff-notice ${state.cutoffPassed ? 'passed' : 'active'}`;
 }
 
@@ -605,7 +632,7 @@ async function api(path, options = {}) {
   const response = await fetch(path, requestOptions);
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(payload.error || 'Request failed');
+    throw new Error(localizeErrorMessage(payload.error || 'Request failed'));
   }
   return response.json();
 }
@@ -1290,21 +1317,21 @@ function sameOrder(a, b) {
 }
 
 function describeOrder(order) {
-  const parts = [String(order.food || '').trim()];
+  const parts = [displayOrderFood(order.food || '')];
   if (order.addon) parts.push(String(order.addon).trim());
-  if (order.drink) parts.push(String(order.drink).trim());
+  if (order.drink) parts.push(displayOrderDrink(order.drink || ''));
   parts.push(money(order.price || 0));
   return parts.filter(Boolean).join(' / ');
 }
 
 function confirmOrderChange(existing, next) {
   return new Promise(resolve => {
-    el.confirmMessage.innerHTML = `
-      <span class="nowrap">${escapeHtml(next.name || existing.name || '')}</span> 由現在
-      <br><span class="old">${escapeHtml(describeOrder(existing))}</span>
-      <br>改為
-      <br><span class="new">${escapeHtml(describeOrder(next))}</span>
-    `;
+    el.confirmMessage.innerHTML = t(
+      'changeMessage',
+      escapeHtml(next.name || existing.name || ''),
+      escapeHtml(describeOrder(existing)),
+      escapeHtml(describeOrder(next))
+    );
     el.confirmModal.classList.remove('hidden');
 
     const cleanup = () => {
