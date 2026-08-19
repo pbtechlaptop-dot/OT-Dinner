@@ -410,6 +410,25 @@ textarea:focus {
   color: var(--danger);
 }
 
+.cutoff-notice {
+  margin-bottom: 12px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.cutoff-notice.active {
+  border: 1px solid #facc15;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.cutoff-notice.passed {
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);

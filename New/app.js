@@ -94,6 +94,7 @@ const el = {
   restaurantPasswordInput: document.getElementById('restaurantPasswordInput'),
   cancelRestaurantBtn: document.getElementById('cancelRestaurantBtn'),
   setRestaurantBtn: document.getElementById('setRestaurantBtn'),
+  cutoffNotice: document.getElementById('cutoffNotice'),
   busyOverlay: document.getElementById('busyOverlay'),
   busyText: document.getElementById('busyText'),
   toast: document.getElementById('toast')
@@ -109,6 +110,8 @@ const i18n = {
     contact: '聯絡：',
     cutoff: '今日截單時間：',
     restaurantActionHint: '如需要改餐廳或截單時間，按設定餐廳並輸入密碼。',
+    cutoffActiveNotice: '請於截單前完成下單，如已過時請聯絡部門主管或 Simon。',
+    cutoffPassedNotice: '下單時間已過，請聯絡部門主管或 Simon 下單。',
     loadedSummary: (restaurants, restaurant, cutoff, orders) => `載入成功：餐廳 ${restaurants} 間，今日餐廳 ${restaurant}，截單 ${cutoff}，訂單 ${orders} 張`,
     exportCsv: '匯出 CSV',
     exportXlsx: '匯出 XLSX',
@@ -198,6 +201,8 @@ const i18n = {
     contact: '联系：',
     cutoff: '今日截单时间：',
     restaurantActionHint: '如需要改餐厅或截单时间，按设置餐厅并输入密码。',
+    cutoffActiveNotice: '请于截单前完成下单，如已过时请联络部门主管或 Simon。',
+    cutoffPassedNotice: '下单时间已过，请联络部门主管或 Simon 下单。',
     loadedSummary: (restaurants, restaurant, cutoff, orders) => `载入成功：餐厅 ${restaurants} 间，今日餐厅 ${restaurant}，截单 ${cutoff}，订单 ${orders} 张`,
     exportCsv: '导出 CSV',
     exportXlsx: '导出 XLSX',
@@ -287,6 +292,8 @@ const i18n = {
     contact: 'Contact: ',
     cutoff: 'Cutoff time: ',
     restaurantActionHint: 'To change the restaurant or cutoff time, click Set Restaurant and enter the password.',
+    cutoffActiveNotice: 'Please place your order before the cutoff time. After that, contact your team leader or Simon.',
+    cutoffPassedNotice: 'Ordering time has passed. Please contact your team leader or Simon to place an order.',
     loadedSummary: (restaurants, restaurant, cutoff, orders) => `Loaded: ${restaurants} restaurants, today's restaurant ${restaurant}, cutoff ${cutoff}, ${orders} orders`,
     exportCsv: 'Export CSV',
     exportXlsx: 'Export XLSX',
@@ -491,6 +498,7 @@ function updateStaticText() {
   el.restaurantCurrentText.textContent = `${t('currentRestaurant')}${state.currentRestaurant || t('notSet')}`;
   el.cutoffText.textContent = `${t('cutoff')}${state.cutoffTime || '--'}`;
   renderRestaurantContact();
+  updateCutoffNotice();
   el.exportCsvLink.textContent = t('exportCsv');
   el.exportXlsxBtn.textContent = t('exportXlsx');
   el.openRestaurantModalBtn.textContent = t('setRestaurant');
@@ -560,6 +568,19 @@ function updateDiagSummary() {
     state.cutoffTime || '--',
     (state.orders || []).length
   );
+}
+
+function updateCutoffNotice() {
+  if (!el.cutoffNotice) return;
+  if (!state.cutoffTime) {
+    el.cutoffNotice.className = 'cutoff-notice hidden';
+    el.cutoffNotice.textContent = '';
+    return;
+  }
+  el.cutoffNotice.textContent = state.cutoffPassed
+    ? `${t('cutoff')}${state.cutoffTime}. ${t('cutoffPassedNotice')}`
+    : `${t('cutoff')}${state.cutoffTime}. ${t('cutoffActiveNotice')}`;
+  el.cutoffNotice.className = `cutoff-notice ${state.cutoffPassed ? 'passed' : 'active'}`;
 }
 
 function setLanguage(lang) {
