@@ -430,7 +430,11 @@ function localCategory(category) {
 function foodLookup() {
   const map = {};
   allFoods().forEach(food => {
-    if (food.name) map[food.name] = localFood(food);
+    const target = localFood(food);
+    [food.name, food.nameSc, food.nameEn].forEach(name => {
+      const key = String(name || '').trim();
+      if (key) map[key] = target;
+    });
   });
   return map;
 }
@@ -1236,7 +1240,7 @@ function startAutoRefresh() {
 
 function buildEntryFoodText(entry) {
   const optionText = buildEntryOptionText(entry);
-  const foodName = localFood(entry.food);
+  const foodName = entry && entry.food ? entry.food.name : '';
   return optionText ? `${foodName}（${optionText}）` : foodName;
 }
 
@@ -1246,8 +1250,7 @@ function buildEntryOptionText(entry) {
   groups.forEach((group, index) => {
     const selected = Array.isArray(entry.options && entry.options[index]) ? entry.options[index] : [];
     if (!selected.length) return;
-    const labels = state.lang === 'sc' ? selected.map(label => toSc(label)) : selected;
-    parts.push(labels.join('+'));
+    parts.push(selected.join('+'));
   });
   return parts.join(', ');
 }
