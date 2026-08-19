@@ -189,7 +189,16 @@ const i18n = {
     lateNoUsers: '未有可補單用戶，請先在後台加入補單權限。',
     lateUserPrompt: '請輸入補單用戶帳號',
     latePasswordPrompt: '請輸入補單用戶密碼',
+    lateOrderTitle: '主管補單',
+    lateOrderHint: '截單時間已過，只有有補單權限的後台用戶可以繼續下單。',
+    lateOrderUser: '補單用戶',
+    lateOrderPassword: '密碼',
+    lateOrderLogin: '開始補單',
+    lateOrderPasswordRequired: '請輸入補單用戶密碼',
     lateEnabled: '已開啟主管補單',
+    drinkChangeTitle: '更改飲品',
+    drinkChangeHint: '輸入有補單權限的用戶，即可更改今日訂單飲品。',
+    drinkChangeSave: '儲存飲品',
     drinkChangeNoOrders: '今日未有訂單。',
     drinkChangeSaved: '已更新飲品',
     drinkChangeNoChanges: '未有需要儲存的飲品更改。',
@@ -285,7 +294,16 @@ const i18n = {
     lateNoUsers: '未有可补单用户，请先在后台加入补单权限。',
     lateUserPrompt: '请输入补单用户帐号',
     latePasswordPrompt: '请输入补单用户密码',
+    lateOrderTitle: '主管补单',
+    lateOrderHint: '截单时间已过，只有有补单权限的后台用户可以继续下单。',
+    lateOrderUser: '补单用户',
+    lateOrderPassword: '密码',
+    lateOrderLogin: '开始补单',
+    lateOrderPasswordRequired: '请输入补单用户密码',
     lateEnabled: '已开启主管补单',
+    drinkChangeTitle: '更改饮品',
+    drinkChangeHint: '输入有补单权限的用户，即可更改今日订单饮品。',
+    drinkChangeSave: '保存饮品',
     drinkChangeNoOrders: '今日未有订单。',
     drinkChangeSaved: '已更新饮品',
     drinkChangeNoChanges: '未有需要保存的饮品更改。',
@@ -381,7 +399,16 @@ const i18n = {
     lateNoUsers: 'No late-order users yet. Add late-order permission in admin first.',
     lateUserPrompt: 'Enter late-order username',
     latePasswordPrompt: 'Enter late-order password',
+    lateOrderTitle: 'Supervisor Late Order',
+    lateOrderHint: 'The cutoff has passed. Only admin users with late-order permission can keep ordering.',
+    lateOrderUser: 'Late-order user',
+    lateOrderPassword: 'Password',
+    lateOrderLogin: 'Start Late Order',
+    lateOrderPasswordRequired: 'Please enter the late-order user password',
     lateEnabled: 'Supervisor late order enabled',
+    drinkChangeTitle: 'Change Drinks',
+    drinkChangeHint: 'Enter a user with late-order permission to change drinks for today orders.',
+    drinkChangeSave: 'Save Drinks',
     drinkChangeNoOrders: 'No orders today.',
     drinkChangeSaved: 'Drinks updated',
     drinkChangeNoChanges: 'No drink changes to save.',
@@ -1402,19 +1429,7 @@ async function openLateOrderAccess() {
     const usersPayload = await api('/api/late-order/users');
     const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
     if (!users.length) return showToast(t('lateNoUsers'));
-    const defaultUser = users[0] && users[0].username ? users[0].username : '';
-    const username = String(window.prompt(t('lateUserPrompt'), defaultUser) || '').trim();
-    if (!username) return;
-    const password = String(window.prompt(t('latePasswordPrompt')) || '').trim();
-    if (!password) return;
-    const payload = await api('/api/late-order/authorize', {
-      method: 'POST',
-      body: JSON.stringify({ username, password })
-    });
-    state.lateOrder.active = true;
-    state.lateOrder.username = payload.user && payload.user.username ? payload.user.username : username;
-    state.lateOrder.password = password;
-    showToast(t('lateEnabled'));
+    showLateOrderModal(users);
   } catch (err) {
     showToast(err.message);
   } finally {
@@ -1429,21 +1444,145 @@ async function openDrinkChangeAccess() {
     const usersPayload = await api('/api/late-order/users');
     const users = Array.isArray(usersPayload.users) ? usersPayload.users : [];
     if (!users.length) return showToast(t('lateNoUsers'));
-    const defaultUser = users[0] && users[0].username ? users[0].username : '';
-    const username = String(window.prompt(t('lateUserPrompt'), defaultUser) || '').trim();
-    if (!username) return;
-    const password = String(window.prompt(t('latePasswordPrompt')) || '').trim();
-    if (!password) return;
-    await api('/api/late-order/authorize', {
-      method: 'POST',
-      body: JSON.stringify({ username, password })
-    });
-    showDrinkChangeModal(username, password);
+    showDrinkChangeAuthModal(users);
   } catch (err) {
     showToast(err.message);
   } finally {
     setBusy(false);
   }
+}
+
+function userOptions(users) {
+  return users.map(user => `<option value="${escapeHtml(user.username || '')}">${escapeHtml(user.username || '')}</option>`).join('');
+}
+
+function showLateOrderModal(users) {
+  let modal = document.getElementById('lateOrderModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'lateOrderModal';
+    modal.className = 'modal hidden';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>${escapeHtml(t('lateOrderTitle'))}</h3>
+      <p>${escapeHtml(t('lateOrderHint'))}</p>
+      <div class="modal-fields">
+        <label>
+          <span>${escapeHtml(t('lateOrderUser'))}</span>
+          <select id="lateOrderUserSelect">${userOptions(users)}</select>
+        </label>
+        <label>
+          <span>${escapeHtml(t('lateOrderPassword'))}</span>
+          <input id="lateOrderPasswordInput" type="password" />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="lateOrderCancelBtn" class="btn btn-light" type="button">${escapeHtml(t('cancel'))}</button>
+        <button id="lateOrderLoginBtn" class="btn" type="button">${escapeHtml(t('lateOrderLogin'))}</button>
+      </div>
+    </div>`;
+  const close = () => modal.classList.add('hidden');
+  const authorize = async () => {
+    const username = String(modal.querySelector('#lateOrderUserSelect').value || '').trim();
+    const password = String(modal.querySelector('#lateOrderPasswordInput').value || '').trim();
+    if (!password) return showToast(t('lateOrderPasswordRequired'));
+    try {
+      setBusy(true);
+      const payload = await api('/api/late-order/authorize', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
+      state.lateOrder.active = true;
+      state.lateOrder.username = payload.user && payload.user.username ? payload.user.username : username;
+      state.lateOrder.password = password;
+      close();
+      showToast(t('lateEnabled'));
+    } catch (err) {
+      showToast(err.message);
+      const input = modal.querySelector('#lateOrderPasswordInput');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  modal.querySelector('#lateOrderCancelBtn').addEventListener('click', close);
+  modal.querySelector('#lateOrderLoginBtn').addEventListener('click', authorize);
+  modal.querySelector('#lateOrderPasswordInput').addEventListener('keydown', event => {
+    if (event.key === 'Enter') authorize();
+  });
+  modal.onclick = event => {
+    if (event.target === modal) close();
+  };
+  modal.classList.remove('hidden');
+  setTimeout(() => modal.querySelector('#lateOrderPasswordInput')?.focus(), 0);
+}
+
+function showDrinkChangeAuthModal(users) {
+  let modal = document.getElementById('drinkChangeAuthModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'drinkChangeAuthModal';
+    modal.className = 'modal hidden';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>${escapeHtml(t('drinkChangeTitle'))}</h3>
+      <p>${escapeHtml(t('drinkChangeHint'))}</p>
+      <div class="modal-fields">
+        <label>
+          <span>${escapeHtml(t('lateOrderUser'))}</span>
+          <select id="drinkChangeUserSelect">${userOptions(users)}</select>
+        </label>
+        <label>
+          <span>${escapeHtml(t('lateOrderPassword'))}</span>
+          <input id="drinkChangePasswordInput" type="password" />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="drinkChangeAuthCancelBtn" class="btn btn-light" type="button">${escapeHtml(t('cancel'))}</button>
+        <button id="drinkChangeAuthLoginBtn" class="btn" type="button">${escapeHtml(t('confirm'))}</button>
+      </div>
+    </div>`;
+  const close = () => modal.classList.add('hidden');
+  const authorize = async () => {
+    const username = String(modal.querySelector('#drinkChangeUserSelect').value || '').trim();
+    const password = String(modal.querySelector('#drinkChangePasswordInput').value || '').trim();
+    if (!password) return showToast(t('lateOrderPasswordRequired'));
+    try {
+      setBusy(true);
+      await api('/api/late-order/authorize', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
+      close();
+      showDrinkChangeModal(username, password);
+    } catch (err) {
+      showToast(err.message);
+      const input = modal.querySelector('#drinkChangePasswordInput');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  modal.querySelector('#drinkChangeAuthCancelBtn').addEventListener('click', close);
+  modal.querySelector('#drinkChangeAuthLoginBtn').addEventListener('click', authorize);
+  modal.querySelector('#drinkChangePasswordInput').addEventListener('keydown', event => {
+    if (event.key === 'Enter') authorize();
+  });
+  modal.onclick = event => {
+    if (event.target === modal) close();
+  };
+  modal.classList.remove('hidden');
+  setTimeout(() => modal.querySelector('#drinkChangePasswordInput')?.focus(), 0);
 }
 
 function showDrinkChangeModal(username, password) {
@@ -1472,7 +1611,7 @@ function showDrinkChangeModal(username, password) {
   }).join('');
   modal.innerHTML = `
     <div class="modal-card wide-modal">
-      <h3>${escapeHtml(t('newDrink'))}</h3>
+      <h3>${escapeHtml(t('drinkChangeTitle'))}</h3>
       <div class="table-wrap drink-change-table">
         <table>
           <thead><tr><th>#</th><th>${escapeHtml(t('dept'))}</th><th>${escapeHtml(t('name'))}</th><th>${escapeHtml(t('drink'))}</th><th>${escapeHtml(t('newDrink'))}</th></tr></thead>
@@ -1481,7 +1620,7 @@ function showDrinkChangeModal(username, password) {
       </div>
       <div class="modal-actions">
         <button id="drinkChangeCancelBtn" class="btn btn-light" type="button">${escapeHtml(t('cancel'))}</button>
-        <button id="drinkChangeSaveBtn" class="btn" type="button">${escapeHtml(t('confirm'))}</button>
+        <button id="drinkChangeSaveBtn" class="btn" type="button">${escapeHtml(t('drinkChangeSave'))}</button>
       </div>
     </div>`;
   modal.classList.remove('hidden');
@@ -1532,10 +1671,9 @@ el.exportXlsxBtn.addEventListener('click', exportXlsx);
 el.restaurantModal.addEventListener('click', event => {
   if (event.target === el.restaurantModal) closeRestaurantModal();
 });
-bindHiddenTrigger(el.staffTitle, openAdminAccess);
 bindHiddenTrigger(el.restaurantTitle, openAdminAccess);
-bindHiddenTrigger(el.foodTitle, openLateOrderAccess, { allowHold: false });
-bindHiddenTrigger(el.ordersTitle, openDrinkChangeAccess, { allowHold: false });
+bindHiddenTrigger(el.staffTitle, openLateOrderAccess, { allowHold: false });
+bindHiddenTrigger(el.foodTitle, openDrinkChangeAccess, { allowHold: false });
 el.submitBtn.addEventListener('click', submitOrder);
 el.foodList.addEventListener('click', event => {
   const item = event.target.closest('.food-item');
