@@ -635,9 +635,26 @@ tfoot td {
   .menu-layout,
   .grid,
   .filters,
-  .status-row,
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .status-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .stat {
+    border-radius: 8px;
+    padding: 8px 7px;
+  }
+
+  .stat span {
+    font-size: 11px;
+  }
+
+  .stat strong {
+    font-size: 18px;
   }
 
   .hero {
@@ -660,6 +677,18 @@ tfoot td {
 }
 
 @media (max-width: 520px) {
+  .status-row {
+    gap: 5px;
+  }
+
+  .stat {
+    padding: 7px 6px;
+  }
+
+  .stat strong {
+    font-size: 17px;
+  }
+
   .food-item {
     grid-template-columns: 1fr;
   }
