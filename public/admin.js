@@ -659,6 +659,16 @@ function attachAutoConvert() {
     const v = String(el.menuSc.value || '').trim();
     if (v) el.menuTc.value = toTc(v);
   });
+  if (el.announcementMessageTc && el.announcementMessageSc) {
+    el.announcementMessageTc.addEventListener('input', () => {
+      const v = String(el.announcementMessageTc.value || '').trim();
+      if (v) el.announcementMessageSc.value = toSc(v);
+    });
+    el.announcementMessageSc.addEventListener('input', () => {
+      const v = String(el.announcementMessageSc.value || '').trim();
+      if (v) el.announcementMessageTc.value = toTc(v);
+    });
+  }
 }
 
 function tag(text, onRemove) {
