@@ -4,8 +4,11 @@ const state = {
   staff: {},
   drinks: [],
   menu: {},
+  restaurants: [],
+  restaurantContacts: {},
   orders: [],
   currentRestaurant: '',
+  cutoffTime: '',
   cutoffPassed: false,
   date: '',
   lastOrdersSignature: '',
@@ -21,10 +24,15 @@ const el = {
   appTitle: document.getElementById('appTitle'),
   dateText: document.getElementById('dateText'),
   restaurantText: document.getElementById('restaurantText'),
+  diagText: document.getElementById('diagText'),
   langTc: document.getElementById('langTc'),
   langSc: document.getElementById('langSc'),
   langEn: document.getElementById('langEn'),
   mainLink: document.getElementById('mainLink'),
+  restaurantTitle: document.getElementById('restaurantTitle'),
+  restaurantCurrentText: document.getElementById('restaurantCurrentText'),
+  restaurantContactText: document.getElementById('restaurantContactText'),
+  cutoffText: document.getElementById('cutoffText'),
   staffTitle: document.getElementById('staffTitle'),
   deptLabel: document.getElementById('deptLabel'),
   nameLabel: document.getElementById('nameLabel'),
@@ -81,6 +89,11 @@ const i18n = {
     appTitle: '加班 Order 飯系統 - New',
     date: '日期：',
     restaurant: '今日餐廳：',
+    restaurantTitle: '今日餐廳',
+    currentRestaurant: '目前：',
+    contact: '聯絡：',
+    cutoff: '今日截單時間：',
+    loadedSummary: (restaurants, restaurant, cutoff, orders) => `載入成功：餐廳 ${restaurants} 間，今日餐廳 ${restaurant}，截單 ${cutoff}，訂單 ${orders} 張`,
     notSet: '未設定',
     admin: '新版 Admin',
     main: '舊前台',
@@ -94,6 +107,7 @@ const i18n = {
     kinds: '已選款式',
     qty: '總數量',
     balance: '剩餘 / 超出',
+    overWord: '超出',
     canAdd: amount => `仍可在上限內加選 ${amount}。`,
     overLimit: amount => `已超過上限 ${amount}，請減少食物後再下單。`,
     initialBudget: '可在上限內選一份或多份食物；超過上限不能下單。',
@@ -144,6 +158,11 @@ const i18n = {
     appTitle: '加班订餐系统 - New',
     date: '日期：',
     restaurant: '今日餐厅：',
+    restaurantTitle: '今日餐厅',
+    currentRestaurant: '目前：',
+    contact: '联系：',
+    cutoff: '今日截单时间：',
+    loadedSummary: (restaurants, restaurant, cutoff, orders) => `载入成功：餐厅 ${restaurants} 间，今日餐厅 ${restaurant}，截单 ${cutoff}，订单 ${orders} 张`,
     notSet: '未设置',
     admin: '新版 Admin',
     main: '旧前台',
@@ -157,6 +176,7 @@ const i18n = {
     kinds: '已选款式',
     qty: '总数量',
     balance: '剩余 / 超出',
+    overWord: '超出',
     canAdd: amount => `仍可在上限内加选 ${amount}。`,
     overLimit: amount => `已超过上限 ${amount}，请减少食物后再下单。`,
     initialBudget: '可在上限内选一份或多份食物；超过上限不能下单。',
@@ -207,6 +227,11 @@ const i18n = {
     appTitle: 'Overtime Meal Order - New',
     date: 'Date: ',
     restaurant: 'Restaurant: ',
+    restaurantTitle: 'Restaurant',
+    currentRestaurant: 'Current: ',
+    contact: 'Contact: ',
+    cutoff: 'Cutoff time: ',
+    loadedSummary: (restaurants, restaurant, cutoff, orders) => `Loaded: ${restaurants} restaurants, today's restaurant ${restaurant}, cutoff ${cutoff}, ${orders} orders`,
     notSet: 'Not set',
     admin: 'New Admin',
     main: 'Old Page',
@@ -220,6 +245,7 @@ const i18n = {
     kinds: 'Items',
     qty: 'Quantity',
     balance: 'Remaining / Over',
+    overWord: 'Over',
     canAdd: amount => `Remaining within limit: ${amount}.`,
     overLimit: amount => `Over limit by ${amount}. Please reduce food before ordering.`,
     initialBudget: 'Choose one or more foods within the limit. Orders over the limit cannot be submitted.',
@@ -381,6 +407,10 @@ function updateStaticText() {
   el.appTitle.textContent = t('appTitle');
   el.dateText.textContent = `${t('date')}${state.date || '--'}`;
   el.restaurantText.textContent = `${t('restaurant')}${state.currentRestaurant || t('notSet')}`;
+  el.restaurantTitle.textContent = t('restaurantTitle');
+  el.restaurantCurrentText.textContent = `${t('currentRestaurant')}${state.currentRestaurant || t('notSet')}`;
+  el.cutoffText.textContent = `${t('cutoff')}${state.cutoffTime || '--'}`;
+  renderRestaurantContact();
   el.mainLink.textContent = t('main');
   el.staffTitle.textContent = t('staffTitle');
   el.deptLabel.textContent = t('dept');
@@ -410,6 +440,35 @@ function updateStaticText() {
   el.cancelChangeBtn.textContent = t('cancel');
   el.confirmChangeBtn.textContent = t('confirm');
   if (!state.selected.size) el.budgetNotice.textContent = t('initialBudget');
+  updateDiagSummary();
+}
+
+function renderRestaurantContact() {
+  const contactMap = state.restaurantContacts && typeof state.restaurantContacts === 'object' ? state.restaurantContacts : {};
+  const contact = state.currentRestaurant ? contactMap[state.currentRestaurant] : null;
+  const parts = [];
+  if (contact && contact.phone) parts.push(contact.phone);
+  if (contact && contact.email) parts.push(contact.email);
+  if (contact && contact.note) parts.push(contact.note);
+  if (!parts.length) {
+    el.restaurantContactText.classList.add('hidden');
+    el.restaurantContactText.textContent = '';
+    return;
+  }
+  el.restaurantContactText.textContent = `${t('contact')}${parts.join(' / ')}`;
+  el.restaurantContactText.classList.remove('hidden');
+}
+
+function updateDiagSummary() {
+  if (!el.diagText) return;
+  const restaurantCount = Array.isArray(state.restaurants) ? state.restaurants.length : 0;
+  el.diagText.textContent = t(
+    'loadedSummary',
+    restaurantCount,
+    state.currentRestaurant || t('notSet'),
+    state.cutoffTime || '--',
+    (state.orders || []).length
+  );
 }
 
 function setLanguage(lang) {
@@ -660,7 +719,7 @@ function renderSelection() {
   el.limitText.textContent = money(state.priceLimit);
   el.selectedKindsText.textContent = String(totals.kinds);
   el.selectedQtyText.textContent = String(totals.qty);
-  el.balanceText.textContent = balance >= 0 ? money(balance) : `超出 ${money(Math.abs(balance))}`;
+  el.balanceText.textContent = balance >= 0 ? money(balance) : `${t('overWord')} ${money(Math.abs(balance))}`;
   el.balanceBox.classList.toggle('ok', balance >= 0);
   el.balanceBox.classList.toggle('over', balance < 0);
   el.budgetNotice.className = `notice ${balance >= 0 ? 'ok' : 'danger'}`;
@@ -868,12 +927,15 @@ async function load() {
       api('/api/bootstrap')
     ]);
     state.priceLimit = Number(settings.priceLimit) || 22;
+    state.restaurants = bootstrap.restaurants || [];
+    state.restaurantContacts = bootstrap.restaurantContacts || {};
     state.staff = bootstrap.staff || {};
     state.drinks = bootstrap.drinks || [];
     state.menu = bootstrap.currentMenu || {};
     state.orders = bootstrap.orders || [];
     state.lastOrdersSignature = orderSignature(state.orders);
     state.currentRestaurant = bootstrap.currentRestaurant || '';
+    state.cutoffTime = bootstrap.cutoffTime || '';
     state.cutoffPassed = Boolean(bootstrap.cutoffPassed);
     state.date = bootstrap.date || '';
     updateStaticText();
@@ -883,6 +945,7 @@ async function load() {
     renderFoods();
     renderSelection();
     renderOrders();
+    updateDiagSummary();
   } finally {
     setBusy(false);
   }
@@ -935,6 +998,7 @@ async function submitOrder() {
     else state.orders = await api('/api/orders').then(data => data.orders || []);
     state.lastOrdersSignature = orderSignature(state.orders);
     state.selected.clear();
+    resetStaffForm();
     if (state.lateOrder.active) {
       state.lateOrder.active = false;
       state.lateOrder.password = '';
@@ -943,12 +1007,22 @@ async function submitOrder() {
     renderFoods();
     renderSelection();
     renderOrders();
+    updateDiagSummary();
     showToast(payload.updated ? t('orderUpdated') : t('orderAdded'));
   } catch (err) {
     showToast(err.message);
   } finally {
     setBusy(false);
   }
+}
+
+function resetStaffForm() {
+  const departments = Object.keys(state.staff || {});
+  const single = departments.length === 1 ? departments[0] : '';
+  el.deptSelect.value = single || '';
+  renderNames();
+  el.nameSelect.value = '';
+  el.drinkSelect.value = '';
 }
 
 async function refreshOrdersSilently() {
@@ -958,12 +1032,19 @@ async function refreshOrdersSilently() {
     const payload = await api(`/api/orders?_=${Date.now()}`);
     const incoming = payload.orders || [];
     const signature = orderSignature(incoming);
+    const previousRestaurant = state.currentRestaurant;
+    const previousCutoffTime = state.cutoffTime;
     state.currentRestaurant = payload.currentRestaurant || state.currentRestaurant;
+    state.cutoffTime = payload.cutoffTime || state.cutoffTime;
     state.cutoffPassed = Boolean(payload.cutoffPassed);
+    if (state.currentRestaurant !== previousRestaurant || state.cutoffTime !== previousCutoffTime) {
+      updateStaticText();
+    }
     if (signature !== state.lastOrdersSignature) {
       state.orders = incoming;
       state.lastOrdersSignature = signature;
       renderOrders();
+      updateDiagSummary();
     }
   } catch {
   } finally {
