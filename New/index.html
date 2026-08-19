@@ -19,29 +19,30 @@
         <p id="diagText">載入中...</p>
       </div>
       <div class="actions">
-        <a id="exportCsvLink" class="btn" href="/api/export/csv">匯出 CSV</a>
-        <button id="exportXlsxBtn" class="btn" type="button">匯出 XLSX</button>
         <button id="langTc" class="btn btn-ghost" type="button">繁中</button>
         <button id="langSc" class="btn btn-ghost" type="button">简中</button>
         <button id="langEn" class="btn btn-ghost" type="button">EN</button>
         <a id="mainLink" class="btn btn-ghost" href="/">原本前台</a>
+        <a id="exportCsvLink" class="btn" href="/api/export/csv">匯出 CSV</a>
+        <button id="exportXlsxBtn" class="btn" type="button">匯出 XLSX</button>
       </div>
     </header>
 
     <section class="card">
-      <h2 id="restaurantTitle">今日餐廳</h2>
-      <div class="restaurant-info restaurant-panel">
-        <div>
-          <p id="restaurantCurrentText">目前：未設定</p>
-          <p id="restaurantContactText" class="hidden"></p>
-          <p id="cutoffText">今日截單時間：--</p>
-        </div>
+      <h2 id="restaurantTitle">1) 今日餐廳</h2>
+      <div class="restaurant-action">
+        <p id="restaurantActionHint">如需要改餐廳或截單時間，按設定餐廳並輸入密碼。</p>
         <button id="openRestaurantModalBtn" class="btn" type="button">設定餐廳</button>
+      </div>
+      <div class="restaurant-info">
+        <p id="restaurantCurrentText">目前：未設定</p>
+        <p id="restaurantContactText" class="hidden"></p>
+        <p id="cutoffText">今日截單時間：--</p>
       </div>
     </section>
 
     <section class="card">
-      <h2 id="staffTitle">1) 同事資料</h2>
+      <h2 id="staffTitle">2) 同事資料</h2>
       <div class="grid">
         <label>
           <span id="deptLabel">部門</span>
@@ -59,7 +60,7 @@
     </section>
 
     <section class="card">
-      <h2 id="foodTitle">2) 選擇食物</h2>
+      <h2 id="foodTitle">3) 選擇食物</h2>
       <div class="status-row">
         <div class="stat">
           <span id="limitLabel">上限</span>
@@ -101,7 +102,7 @@
     </section>
 
     <section class="card">
-      <h2 id="ordersTitle">3) 今日訂單</h2>
+      <h2 id="ordersTitle">4) 今日訂單</h2>
       <div class="table-wrap">
         <table>
           <thead>

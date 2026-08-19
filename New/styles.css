@@ -55,11 +55,22 @@ textarea {
   margin: 4px 0;
 }
 
-.restaurant-panel {
+.restaurant-action {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--soft);
+}
+
+.restaurant-action p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .hero {
@@ -590,12 +601,12 @@ tfoot td {
     flex-direction: column;
   }
 
-  .restaurant-panel {
+  .restaurant-action {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .restaurant-panel .btn {
+  .restaurant-action .btn {
     width: 100%;
   }
 
