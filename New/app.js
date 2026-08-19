@@ -746,11 +746,14 @@ function renderDrinks() {
 function renderCategories() {
   const categories = Object.keys(state.menu || {});
   fillSelect(el.categorySelect, categories.map(category => ({ value: category, label: localCategory(category) })), t('allCats'));
+  el.categorySelect.selectedIndex = 0;
+  el.categorySelect.value = '';
+  renderFoods();
 }
 
 function renderFoods() {
   const category = el.categorySelect.value;
-  if (!category) {
+  if (el.categorySelect.selectedIndex <= 0 || !category) {
     el.foodList.innerHTML = `<p class="hint">${escapeHtml(t('chooseCategoryFirst'))}</p>`;
     return;
   }
@@ -1041,7 +1044,6 @@ async function load() {
     renderDepartments();
     renderDrinks();
     renderCategories();
-    renderFoods();
     renderSelection();
     renderOrders();
     updateDiagSummary();
