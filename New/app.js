@@ -162,6 +162,7 @@ const i18n = {
     chooseName: '-- 選擇同事 --',
     noDrink: '-- 無 --',
     allCats: '選擇分類',
+    chooseCategoryFirst: '請先選擇分類。',
     noFoods: '未有餐點。',
     hasOptions: '有選項',
     options: '選項',
@@ -249,6 +250,7 @@ const i18n = {
     chooseName: '-- 选择同事 --',
     noDrink: '-- 无 --',
     allCats: '选择分类',
+    chooseCategoryFirst: '请先选择分类。',
     noFoods: '未有餐点。',
     hasOptions: '有选项',
     options: '选项',
@@ -336,6 +338,7 @@ const i18n = {
     chooseName: '-- Select Name --',
     noDrink: '-- None --',
     allCats: 'Select Category',
+    chooseCategoryFirst: 'Please select a category first.',
     noFoods: 'No food available.',
     hasOptions: 'Options',
     options: 'Options',
@@ -747,9 +750,12 @@ function renderCategories() {
 
 function renderFoods() {
   const category = el.categorySelect.value;
+  if (!category) {
+    el.foodList.innerHTML = `<p class="hint">${escapeHtml(t('chooseCategoryFirst'))}</p>`;
+    return;
+  }
   const foods = allFoods().filter(food => {
-    if (category && food.category !== category) return false;
-    return true;
+    return food.category === category;
   });
 
   if (!foods.length) {
