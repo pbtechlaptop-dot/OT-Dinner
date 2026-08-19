@@ -520,6 +520,7 @@ function displayOrderFood(value) {
   Object.keys(map).sort((a, b) => b.length - a.length).forEach(tc => {
     if (tc && map[tc] && map[tc] !== tc) text = text.split(tc).join(map[tc]);
   });
+  text = text.split(/\s+\+\s+/).map(part => part.replace(/\s+x\s*1\s*$/i, '').trim()).join(' + ');
   return text;
 }
 
@@ -1193,7 +1194,7 @@ async function submitOrder() {
   if (totals.total > state.priceLimit) {
     return showToast(t('cannotOrderOver', money(totals.total - state.priceLimit)));
   }
-  const food = entries.map(entry => `${buildEntryFoodText(entry)} x${entry.qty}`).join(' + ');
+  const food = entries.map(formatEntryOrderText).join(' + ');
   const addonRaw = String(el.addonInput.value || '').trim();
   const addon = addonRaw;
   const order = {
@@ -1413,6 +1414,12 @@ function buildEntryFoodText(entry) {
   const optionText = buildEntryOptionText(entry);
   const foodName = entry && entry.food ? entry.food.name : '';
   return optionText ? `${foodName}（${optionText}）` : foodName;
+}
+
+function formatEntryOrderText(entry) {
+  const text = buildEntryFoodText(entry);
+  const qty = Number(entry && entry.qty || 0);
+  return qty > 1 ? `${text} x${qty}` : text;
 }
 
 function buildEntryOptionText(entry) {
