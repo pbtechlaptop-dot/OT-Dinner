@@ -144,6 +144,8 @@ const i18n = {
     initialBudget: '可在上限內選一份或多份食物；超過上限不能下單。',
     selectedFood: '已選食物',
     noSelectedFood: '未選食物。',
+    editQty: '更改',
+    removeFood: '刪除',
     addon: '加配 / 備註',
     addonPlaceholder: '例如：走蔥、加飯',
     submit: '提交訂單',
@@ -159,7 +161,7 @@ const i18n = {
     chooseDept: '-- 選擇部門 --',
     chooseName: '-- 選擇同事 --',
     noDrink: '-- 無 --',
-    allCats: '全部分類',
+    allCats: '選擇分類',
     noFoods: '未有餐點。',
     hasOptions: '有選項',
     options: '選項',
@@ -229,6 +231,8 @@ const i18n = {
     initialBudget: '可在上限内选一份或多份食物；超过上限不能下单。',
     selectedFood: '已选食物',
     noSelectedFood: '未选食物。',
+    editQty: '更改',
+    removeFood: '删除',
     addon: '加配 / 备注',
     addonPlaceholder: '例如：走葱、加饭',
     submit: '提交订单',
@@ -244,7 +248,7 @@ const i18n = {
     chooseDept: '-- 选择部门 --',
     chooseName: '-- 选择同事 --',
     noDrink: '-- 无 --',
-    allCats: '全部分类',
+    allCats: '选择分类',
     noFoods: '未有餐点。',
     hasOptions: '有选项',
     options: '选项',
@@ -314,6 +318,8 @@ const i18n = {
     initialBudget: 'Choose one or more foods within the limit. Orders over the limit cannot be submitted.',
     selectedFood: 'Selected Food',
     noSelectedFood: 'No food selected.',
+    editQty: 'Edit',
+    removeFood: 'Delete',
     addon: 'Addon / Note',
     addonPlaceholder: 'e.g. no onion, extra rice',
     submit: 'Submit Order',
@@ -329,7 +335,7 @@ const i18n = {
     chooseDept: '-- Select Department --',
     chooseName: '-- Select Name --',
     noDrink: '-- None --',
-    allCats: 'All Categories',
+    allCats: 'Select Category',
     noFoods: 'No food available.',
     hasOptions: 'Options',
     options: 'Options',
@@ -779,8 +785,15 @@ function renderSelection() {
       <div class="selected-line selection-detail" data-key="${escapeHtml(food.key)}">
         <div>
           <div class="selected-main">
-            <span>${escapeHtml(localFood(food))} x ${qty}</span>
+            <span>${escapeHtml(localFood(food))}</span>
             <strong>${money(getEntryUnitPrice(state.selected.get(food.key)) * qty)}</strong>
+          </div>
+          <div class="selected-controls">
+            <span>${escapeHtml(t('editQty'))}</span>
+            <button type="button" data-action="selected-minus" aria-label="減少">-</button>
+            <input data-action="selected-qty" type="number" min="0" step="1" value="${qty}" aria-label="數量" />
+            <button type="button" data-action="selected-plus" aria-label="增加">+</button>
+            <button class="btn btn-light selected-remove" type="button" data-action="selected-remove">${escapeHtml(t('removeFood'))}</button>
           </div>
           ${renderEntryOptions(state.selected.get(food.key))}
         </div>
@@ -922,21 +935,21 @@ function renderOrders() {
   orders.forEach((order, index) => {
     const dept = String(order.dept || '').trim() || '-';
     const drink = currentDrink(displayOrderDrink(String(order.drink || '').trim()));
-    const foodLabel = buildFoodSummaryLabel(order);
     total += Number(order.price || 0);
     if (drink) {
       if (!drinkByDept[dept]) drinkByDept[dept] = {};
       drinkByDept[dept][drink] = (drinkByDept[dept][drink] || 0) + 1;
     }
-    if (foodLabel) {
-      if (!foodCounts[foodLabel]) foodCounts[foodLabel] = { count: 0, numbers: [] };
-      foodCounts[foodLabel].count += 1;
-      foodCounts[foodLabel].numbers.push(index + 1);
+    parseOrderFoodItems(order).forEach(({ label, qty }) => {
+      if (!label) return;
+      if (!foodCounts[label]) foodCounts[label] = { count: 0, numbers: [] };
+      foodCounts[label].count += qty;
+      if (!foodCounts[label].numbers.includes(index + 1)) foodCounts[label].numbers.push(index + 1);
       if (!foodByDept[dept]) foodByDept[dept] = {};
-      if (!foodByDept[dept][foodLabel]) foodByDept[dept][foodLabel] = { count: 0, numbers: [] };
-      foodByDept[dept][foodLabel].count += 1;
-      foodByDept[dept][foodLabel].numbers.push(index + 1);
-    }
+      if (!foodByDept[dept][label]) foodByDept[dept][label] = { count: 0, numbers: [] };
+      foodByDept[dept][label].count += qty;
+      if (!foodByDept[dept][label].numbers.includes(index + 1)) foodByDept[dept][label].numbers.push(index + 1);
+    });
   });
 
   el.ordersTotal.textContent = money(total);
@@ -972,11 +985,16 @@ function currentDrink(drink) {
   return parts.length ? parts[parts.length - 1] : '';
 }
 
-function buildFoodSummaryLabel(order) {
-  const food = displayOrderFood(order.food || '');
-  const addon = String(order.addon || '').trim();
-  if (!food) return '';
-  return addon ? `${food}（${addon}）` : food;
+function parseOrderFoodItems(order) {
+  const text = displayOrderFood(order.food || '');
+  return text.split(/\s+\+\s+/).map(part => {
+    const value = part.trim();
+    if (!value) return null;
+    const match = value.match(/\s+x\s*(\d+)\s*$/i);
+    const qty = match ? Math.max(1, Number(match[1]) || 1) : 1;
+    const label = match ? value.slice(0, match.index).trim() : value;
+    return { label, qty };
+  }).filter(Boolean);
 }
 
 function formatFoodSummaryLine(food, entry) {
@@ -1471,9 +1489,28 @@ el.foodList.addEventListener('change', event => {
   setFoodQty(item.dataset.key, event.target.value);
 });
 el.selectionList.addEventListener('change', event => {
-  if (event.target.dataset.action !== 'option') return;
   const input = event.target;
-  setFoodOption(input.dataset.key, input.dataset.group, input.value, input.checked, input.type === 'radio');
+  if (input.dataset.action === 'option') {
+    setFoodOption(input.dataset.key, input.dataset.group, input.value, input.checked, input.type === 'radio');
+    return;
+  }
+  if (input.dataset.action === 'selected-qty') {
+    const item = input.closest('.selected-line');
+    if (!item) return;
+    setFoodQty(item.dataset.key, input.value);
+  }
+});
+el.selectionList.addEventListener('click', event => {
+  const action = event.target.dataset.action;
+  if (!action || !action.startsWith('selected-')) return;
+  const item = event.target.closest('.selected-line');
+  if (!item) return;
+  const key = item.dataset.key;
+  const current = state.selected.get(key);
+  const qty = current ? current.qty : 0;
+  if (action === 'selected-plus') setFoodQty(key, qty + 1);
+  if (action === 'selected-minus') setFoodQty(key, qty - 1);
+  if (action === 'selected-remove') setFoodQty(key, 0);
 });
 
 state.lang = detectLang();

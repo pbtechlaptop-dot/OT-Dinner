@@ -315,6 +315,31 @@ textarea:focus {
   align-items: start;
 }
 
+.selected-controls {
+  display: grid;
+  grid-template-columns: auto 34px 52px 34px auto;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.selected-controls button {
+  min-height: 32px;
+  padding: 5px 9px;
+}
+
+.selected-controls input {
+  height: 32px;
+  padding: 5px;
+  text-align: center;
+}
+
+.selected-remove {
+  justify-self: end;
+}
+
 .option-groups {
   display: grid;
   gap: 8px;
@@ -618,5 +643,14 @@ tfoot td {
 @media (max-width: 520px) {
   .food-item {
     grid-template-columns: 1fr;
+  }
+
+  .selected-controls {
+    grid-template-columns: auto 34px 52px 34px;
+  }
+
+  .selected-remove {
+    grid-column: 1 / -1;
+    justify-self: stretch;
   }
 }
