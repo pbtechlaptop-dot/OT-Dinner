@@ -33,6 +33,9 @@ const el = {
   restaurantCurrentText: document.getElementById('restaurantCurrentText'),
   restaurantContactText: document.getElementById('restaurantContactText'),
   cutoffText: document.getElementById('cutoffText'),
+  openRestaurantModalBtn: document.getElementById('openRestaurantModalBtn'),
+  exportCsvLink: document.getElementById('exportCsvLink'),
+  exportXlsxBtn: document.getElementById('exportXlsxBtn'),
   staffTitle: document.getElementById('staffTitle'),
   deptLabel: document.getElementById('deptLabel'),
   nameLabel: document.getElementById('nameLabel'),
@@ -79,6 +82,17 @@ const el = {
   confirmMessage: document.getElementById('confirmMessage'),
   cancelChangeBtn: document.getElementById('cancelChangeBtn'),
   confirmChangeBtn: document.getElementById('confirmChangeBtn'),
+  restaurantModal: document.getElementById('restaurantModal'),
+  restaurantModalTitle: document.getElementById('restaurantModalTitle'),
+  restaurantModalHint: document.getElementById('restaurantModalHint'),
+  restaurantPickerLabel: document.getElementById('restaurantPickerLabel'),
+  restaurantSelect: document.getElementById('restaurantSelect'),
+  cutoffTimeLabel: document.getElementById('cutoffTimeLabel'),
+  cutoffTimeInput: document.getElementById('cutoffTimeInput'),
+  restaurantPasswordLabel: document.getElementById('restaurantPasswordLabel'),
+  restaurantPasswordInput: document.getElementById('restaurantPasswordInput'),
+  cancelRestaurantBtn: document.getElementById('cancelRestaurantBtn'),
+  setRestaurantBtn: document.getElementById('setRestaurantBtn'),
   busyOverlay: document.getElementById('busyOverlay'),
   busyText: document.getElementById('busyText'),
   toast: document.getElementById('toast')
@@ -94,6 +108,21 @@ const i18n = {
     contact: '聯絡：',
     cutoff: '今日截單時間：',
     loadedSummary: (restaurants, restaurant, cutoff, orders) => `載入成功：餐廳 ${restaurants} 間，今日餐廳 ${restaurant}，截單 ${cutoff}，訂單 ${orders} 張`,
+    exportCsv: '匯出 CSV',
+    exportXlsx: '匯出 XLSX',
+    setRestaurant: '設定餐廳',
+    restaurantModalTitle: '設定今日餐廳',
+    restaurantModalHint: '輸入密碼後，選擇餐廳及截單時間。',
+    restaurantPicker: '選擇餐廳',
+    restaurantPassword: '密碼',
+    enterAdminPassword: '請輸入管理密碼',
+    saveRestaurantSettings: '確認設定',
+    selectRestaurant: '-- 選擇餐廳 --',
+    chooseRestaurantFirst: '請先選擇餐廳',
+    restaurantSet: '已設定今日餐廳',
+    restaurantChanged: '已更改餐廳，舊單已清空',
+    cutoffUpdated: '已更新截單時間',
+    xlsxMissing: 'XLSX 工具未載入',
     notSet: '未設定',
     admin: '新版 Admin',
     main: '舊前台',
@@ -163,6 +192,21 @@ const i18n = {
     contact: '联系：',
     cutoff: '今日截单时间：',
     loadedSummary: (restaurants, restaurant, cutoff, orders) => `载入成功：餐厅 ${restaurants} 间，今日餐厅 ${restaurant}，截单 ${cutoff}，订单 ${orders} 张`,
+    exportCsv: '导出 CSV',
+    exportXlsx: '导出 XLSX',
+    setRestaurant: '设置餐厅',
+    restaurantModalTitle: '设置今日餐厅',
+    restaurantModalHint: '输入密码后，选择餐厅及截单时间。',
+    restaurantPicker: '选择餐厅',
+    restaurantPassword: '密码',
+    enterAdminPassword: '请输入管理密码',
+    saveRestaurantSettings: '确认设置',
+    selectRestaurant: '-- 选择餐厅 --',
+    chooseRestaurantFirst: '请先选择餐厅',
+    restaurantSet: '已设置今日餐厅',
+    restaurantChanged: '已更改餐厅，旧单已清空',
+    cutoffUpdated: '已更新截单时间',
+    xlsxMissing: 'XLSX 工具未载入',
     notSet: '未设置',
     admin: '新版 Admin',
     main: '旧前台',
@@ -232,6 +276,21 @@ const i18n = {
     contact: 'Contact: ',
     cutoff: 'Cutoff time: ',
     loadedSummary: (restaurants, restaurant, cutoff, orders) => `Loaded: ${restaurants} restaurants, today's restaurant ${restaurant}, cutoff ${cutoff}, ${orders} orders`,
+    exportCsv: 'Export CSV',
+    exportXlsx: 'Export XLSX',
+    setRestaurant: 'Set Restaurant',
+    restaurantModalTitle: 'Set Today Restaurant',
+    restaurantModalHint: 'Enter the password, then choose the restaurant and cutoff time.',
+    restaurantPicker: 'Choose Restaurant',
+    restaurantPassword: 'Password',
+    enterAdminPassword: 'Enter admin password',
+    saveRestaurantSettings: 'Save Settings',
+    selectRestaurant: '-- Select Restaurant --',
+    chooseRestaurantFirst: 'Please select a restaurant first',
+    restaurantSet: 'Today restaurant set',
+    restaurantChanged: 'Restaurant changed, old orders cleared',
+    cutoffUpdated: 'Cutoff time updated',
+    xlsxMissing: 'XLSX tool is not loaded',
     notSet: 'Not set',
     admin: 'New Admin',
     main: 'Old Page',
@@ -411,6 +470,17 @@ function updateStaticText() {
   el.restaurantCurrentText.textContent = `${t('currentRestaurant')}${state.currentRestaurant || t('notSet')}`;
   el.cutoffText.textContent = `${t('cutoff')}${state.cutoffTime || '--'}`;
   renderRestaurantContact();
+  el.exportCsvLink.textContent = t('exportCsv');
+  el.exportXlsxBtn.textContent = t('exportXlsx');
+  el.openRestaurantModalBtn.textContent = t('setRestaurant');
+  el.restaurantModalTitle.textContent = t('restaurantModalTitle');
+  el.restaurantModalHint.textContent = t('restaurantModalHint');
+  el.restaurantPickerLabel.textContent = t('restaurantPicker');
+  el.cutoffTimeLabel.textContent = t('cutoff');
+  el.restaurantPasswordLabel.textContent = t('restaurantPassword');
+  el.restaurantPasswordInput.placeholder = t('enterAdminPassword');
+  el.cancelRestaurantBtn.textContent = t('cancel');
+  el.setRestaurantBtn.textContent = t('saveRestaurantSettings');
   el.mainLink.textContent = t('main');
   el.staffTitle.textContent = t('staffTitle');
   el.deptLabel.textContent = t('dept');
@@ -1025,6 +1095,78 @@ function resetStaffForm() {
   el.drinkSelect.value = '';
 }
 
+function openRestaurantModal() {
+  fillSelect(el.restaurantSelect, (state.restaurants || []).map(restaurant => ({
+    value: restaurant,
+    label: state.lang === 'sc' ? toSc(restaurant) : restaurant
+  })), t('selectRestaurant'));
+  el.restaurantSelect.value = state.currentRestaurant || '';
+  el.cutoffTimeInput.value = state.cutoffTime || '13:00';
+  el.restaurantPasswordInput.value = '';
+  el.restaurantModal.classList.remove('hidden');
+  setTimeout(() => el.restaurantSelect.focus(), 0);
+}
+
+function closeRestaurantModal() {
+  el.restaurantModal.classList.add('hidden');
+  el.restaurantPasswordInput.value = '';
+}
+
+async function saveRestaurantSettings() {
+  const restaurant = String(el.restaurantSelect.value || '').trim();
+  const cutoffTime = String(el.cutoffTimeInput.value || '').trim();
+  const password = String(el.restaurantPasswordInput.value || '').trim();
+  if (!restaurant) return showToast(t('chooseRestaurantFirst'));
+  const changingRestaurant = Boolean(state.currentRestaurant && restaurant !== state.currentRestaurant);
+  try {
+    setBusy(true);
+    const payload = await api('/api/restaurant', {
+      method: 'POST',
+      body: JSON.stringify({ restaurant, cutoffTime, password, forceChange: changingRestaurant })
+    });
+    closeRestaurantModal();
+    await load();
+    if (payload.restaurantChanged || payload.cleared) showToast(t('restaurantChanged'));
+    else if (payload.cutoffChanged) showToast(t('cutoffUpdated'));
+    else showToast(t('restaurantSet'));
+  } catch (err) {
+    showToast(err.message);
+    el.restaurantPasswordInput.value = '';
+    el.restaurantPasswordInput.focus();
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function exportXlsx() {
+  if (!window.XLSX) return showToast(t('xlsxMissing'));
+  try {
+    setBusy(true);
+    const payload = await api(`/api/orders?_=${Date.now()}`);
+    const orders = payload.orders || [];
+    const header = ['No', t('dept'), t('name'), t('food'), t('addon'), t('drink'), t('price')];
+    const rows = orders.map((order, index) => [
+      index + 1,
+      order.dept || '',
+      order.name || '',
+      displayOrderFood(order.food || ''),
+      order.addon || '',
+      displayOrderDrink(order.drink || ''),
+      Number(order.price || 0)
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    ws['!autofilter'] = { ref: `A1:G${Math.max(1, rows.length + 1)}` };
+    ws['!cols'] = [{ wch: 6 }, { wch: 14 }, { wch: 18 }, { wch: 36 }, { wch: 22 }, { wch: 18 }, { wch: 10 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+    XLSX.writeFile(wb, `orders-${state.date || new Date().toISOString().slice(0, 10)}.xlsx`);
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function refreshOrdersSilently() {
   if (refreshOrdersSilently.inFlight) return;
   refreshOrdersSilently.inFlight = true;
@@ -1294,6 +1436,13 @@ el.categorySelect.addEventListener('change', renderFoods);
 el.langTc.addEventListener('click', () => setLanguage('tc'));
 el.langSc.addEventListener('click', () => setLanguage('sc'));
 el.langEn.addEventListener('click', () => setLanguage('en'));
+el.openRestaurantModalBtn.addEventListener('click', openRestaurantModal);
+el.cancelRestaurantBtn.addEventListener('click', closeRestaurantModal);
+el.setRestaurantBtn.addEventListener('click', saveRestaurantSettings);
+el.exportXlsxBtn.addEventListener('click', exportXlsx);
+el.restaurantModal.addEventListener('click', event => {
+  if (event.target === el.restaurantModal) closeRestaurantModal();
+});
 bindHiddenTrigger(el.staffTitle, openAdminAccess);
 bindHiddenTrigger(el.foodTitle, openLateOrderAccess, { allowHold: false });
 bindHiddenTrigger(el.ordersTitle, openDrinkChangeAccess, { allowHold: false });

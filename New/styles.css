@@ -55,6 +55,13 @@ textarea {
   margin: 4px 0;
 }
 
+.restaurant-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .hero {
   display: flex;
   align-items: end;
@@ -477,6 +484,12 @@ tfoot td {
   margin-top: 16px;
 }
 
+.modal-fields {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
 .btn-light {
   background: white;
   color: var(--ink);
@@ -575,6 +588,15 @@ tfoot td {
   .hero {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .restaurant-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .restaurant-panel .btn {
+    width: 100%;
   }
 
   .selection {
