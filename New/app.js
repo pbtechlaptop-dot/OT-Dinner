@@ -426,7 +426,7 @@ const i18n = {
     newDrink: 'New drink',
     busy: 'Processing, please wait...',
     changeMessage: (name, oldText, newText) => `<span class="nowrap">${name}</span> will change from<br><span class="old">${oldText}</span><br>to<br><span class="new">${newText}</span>`,
-    announcementTitle: 'Announcement',
+    announcementTitle: 'Notice',
     announcementOk: 'OK',
     announcementDontShow: "Don't show again"
   }

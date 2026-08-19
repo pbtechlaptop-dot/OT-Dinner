@@ -356,7 +356,7 @@ i18n.en.drinkChangeNoOrders = 'No orders today.';
 i18n.en.drinkChangeNoChanges = 'No drink changes to save.';
 i18n.en.drinkChangeSaved = 'Drinks updated';
 i18n.en.newDrink = 'New drink';
-i18n.en.announcementTitle = 'Announcement';
+i18n.en.announcementTitle = 'Notice';
 i18n.en.announcementOk = 'OK';
 i18n.en.announcementDontShow = "Don't show again";
 
