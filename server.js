@@ -1046,13 +1046,19 @@ function normalizeNewSettings(input) {
   const raw = input && typeof input === 'object' ? input : {};
   const priceLimit = Number(raw.priceLimit);
   const announcementRaw = raw.announcement && typeof raw.announcement === 'object' ? raw.announcement : {};
-  const message = normText(announcementRaw.message);
-  const version = normText(announcementRaw.version) || (message ? '1' : '');
+  const legacyMessage = normText(announcementRaw.message);
+  const messageTc = normText(announcementRaw.messageTc || announcementRaw.tc || legacyMessage);
+  const messageSc = normText(announcementRaw.messageSc || announcementRaw.sc);
+  const messageEn = normText(announcementRaw.messageEn || announcementRaw.en);
+  const version = normText(announcementRaw.version) || (messageTc || messageSc || messageEn ? '1' : '');
   return {
     priceLimit: Number.isFinite(priceLimit) && priceLimit >= 0 ? priceLimit : 22,
     announcement: {
       enabled: Boolean(announcementRaw.enabled),
-      message,
+      message: messageTc,
+      messageTc,
+      messageSc,
+      messageEn,
       version
     }
   };
@@ -2407,15 +2413,21 @@ async function handleApi(req, res, urlObj) {
     }
     const currentSettings = await storage.getNewSettings();
     const currentAnnouncement = currentSettings.announcement || {};
-    const announcementMessage = normText(body.announcementMessage);
+    const announcementMessageTc = normText(body.announcementMessageTc || body.announcementMessage);
+    const announcementMessageSc = normText(body.announcementMessageSc);
+    const announcementMessageEn = normText(body.announcementMessageEn);
     const announcementEnabled = Boolean(body.announcementEnabled);
-    const announcementChanged = announcementMessage !== normText(currentAnnouncement.message)
+    const announcementChanged = announcementMessageTc !== normText(currentAnnouncement.messageTc || currentAnnouncement.message)
+      || announcementMessageSc !== normText(currentAnnouncement.messageSc)
+      || announcementMessageEn !== normText(currentAnnouncement.messageEn)
       || announcementEnabled !== Boolean(currentAnnouncement.enabled);
     const settings = await storage.saveNewSettings({
       priceLimit,
       announcement: {
         enabled: announcementEnabled,
-        message: announcementMessage,
+        messageTc: announcementMessageTc,
+        messageSc: announcementMessageSc,
+        messageEn: announcementMessageEn,
         version: announcementChanged ? new Date().toISOString() : currentAnnouncement.version
       }
     });

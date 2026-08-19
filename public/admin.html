@@ -85,7 +85,11 @@
             <input id="announcementEnabled" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
             開啟前台通告
           </label>
-          <textarea id="announcementMessage" rows="4" placeholder="輸入通告內容；儲存後，前台和新前台打開時會彈出顯示。" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+            <textarea id="announcementMessageTc" rows="4" placeholder="通告內容（繁中）" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+            <textarea id="announcementMessageSc" rows="4" placeholder="通告内容（简中）" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+            <textarea id="announcementMessageEn" rows="4" placeholder="Notice message (English)" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+          </div>
           <p id="announcementHint" class="mt-1 text-xs text-slate-500">同事按「不再顯示」後不會再見到同一通告；你更新內容或開關後會重新顯示。</p>
         </div>
       </section>

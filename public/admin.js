@@ -54,7 +54,9 @@ const el = {
   importBtn: document.getElementById('importBtn'),
   newPriceLimit: document.getElementById('newPriceLimit'),
   announcementEnabled: document.getElementById('announcementEnabled'),
-  announcementMessage: document.getElementById('announcementMessage'),
+  announcementMessageTc: document.getElementById('announcementMessageTc'),
+  announcementMessageSc: document.getElementById('announcementMessageSc'),
+  announcementMessageEn: document.getElementById('announcementMessageEn'),
   announcementHint: document.getElementById('announcementHint'),
   newSettingsHint: document.getElementById('newSettingsHint'),
   saveNewSettingsBtn: document.getElementById('saveNewSettingsBtn'),
@@ -137,7 +139,11 @@ function ensureNewSettingsSection() {
         <input id="announcementEnabled" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
         開啟前台通告
       </label>
-      <textarea id="announcementMessage" rows="4" placeholder="輸入通告內容；儲存後，前台和新前台打開時會彈出顯示。" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+      <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <textarea id="announcementMessageTc" rows="4" placeholder="通告內容（繁中）" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+        <textarea id="announcementMessageSc" rows="4" placeholder="通告内容（简中）" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+        <textarea id="announcementMessageEn" rows="4" placeholder="Notice message (English)" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+      </div>
       <p id="announcementHint" class="mt-1 text-xs text-slate-500">同事按「不再顯示」後不會再見到同一通告；你更新內容或開關後會重新顯示。</p>
     </div>`;
   const importSection = document.getElementById('sectionImport');
@@ -149,7 +155,9 @@ function ensureNewSettingsSection() {
   el.sectionNewSettings = section;
   el.newPriceLimit = document.getElementById('newPriceLimit');
   el.announcementEnabled = document.getElementById('announcementEnabled');
-  el.announcementMessage = document.getElementById('announcementMessage');
+  el.announcementMessageTc = document.getElementById('announcementMessageTc');
+  el.announcementMessageSc = document.getElementById('announcementMessageSc');
+  el.announcementMessageEn = document.getElementById('announcementMessageEn');
   el.announcementHint = document.getElementById('announcementHint');
   el.newSettingsHint = document.getElementById('newSettingsHint');
   el.saveNewSettingsBtn = document.getElementById('saveNewSettingsBtn');
@@ -461,7 +469,9 @@ async function loadNewSettings() {
   if (el.newPriceLimit) el.newPriceLimit.value = Number(settings.priceLimit || 22).toFixed(2);
   const announcement = settings.announcement || {};
   if (el.announcementEnabled) el.announcementEnabled.checked = Boolean(announcement.enabled);
-  if (el.announcementMessage) el.announcementMessage.value = String(announcement.message || '');
+  if (el.announcementMessageTc) el.announcementMessageTc.value = String(announcement.messageTc || announcement.message || '');
+  if (el.announcementMessageSc) el.announcementMessageSc.value = String(announcement.messageSc || '');
+  if (el.announcementMessageEn) el.announcementMessageEn.value = String(announcement.messageEn || '');
   if (el.newSettingsHint) el.newSettingsHint.textContent = `目前上限：$${Number(settings.priceLimit || 22).toFixed(2)}`;
   if (el.announcementHint && announcement.version) el.announcementHint.textContent = `目前通告版本：${announcement.version}`;
 }
@@ -477,7 +487,9 @@ async function saveNewSettings() {
       body: JSON.stringify(adminAuthBody({
         priceLimit,
         announcementEnabled: Boolean(el.announcementEnabled && el.announcementEnabled.checked),
-        announcementMessage: String(el.announcementMessage && el.announcementMessage.value || '').trim()
+        announcementMessageTc: String(el.announcementMessageTc && el.announcementMessageTc.value || '').trim(),
+        announcementMessageSc: String(el.announcementMessageSc && el.announcementMessageSc.value || '').trim(),
+        announcementMessageEn: String(el.announcementMessageEn && el.announcementMessageEn.value || '').trim()
       }))
     });
     const settings = payload.settings || { priceLimit };
@@ -485,7 +497,9 @@ async function saveNewSettings() {
     if (el.newPriceLimit) el.newPriceLimit.value = Number(settings.priceLimit || 22).toFixed(2);
     if (el.newSettingsHint) el.newSettingsHint.textContent = `目前上限：$${Number(settings.priceLimit || 22).toFixed(2)}`;
     if (el.announcementEnabled) el.announcementEnabled.checked = Boolean(announcement.enabled);
-    if (el.announcementMessage) el.announcementMessage.value = String(announcement.message || '');
+    if (el.announcementMessageTc) el.announcementMessageTc.value = String(announcement.messageTc || announcement.message || '');
+    if (el.announcementMessageSc) el.announcementMessageSc.value = String(announcement.messageSc || '');
+    if (el.announcementMessageEn) el.announcementMessageEn.value = String(announcement.messageEn || '');
     if (el.announcementHint) el.announcementHint.textContent = announcement.version ? `目前通告版本：${announcement.version}` : '未有通告版本。';
     setStatus(`已儲存新版價錢上限：$${Number(settings.priceLimit || 22).toFixed(2)}`);
     showToast('已儲存新版設定');

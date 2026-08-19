@@ -671,8 +671,15 @@ function closeOrderChangeModal() {
 
 function showAnnouncementIfNeeded(settings) {
   const announcement = settings && settings.announcement ? settings.announcement : null;
-  if (!announcement || !announcement.enabled || !String(announcement.message || '').trim()) return;
-  const version = String(announcement.version || announcement.message).trim();
+  const message = String(
+    state.lang === 'en'
+      ? (announcement && announcement.messageEn || announcement && announcement.messageTc || announcement && announcement.message)
+      : state.lang === 'sc'
+        ? (announcement && announcement.messageSc || announcement && announcement.messageTc || announcement && announcement.message)
+        : (announcement && announcement.messageTc || announcement && announcement.message)
+  || '').trim();
+  if (!announcement || !announcement.enabled || !message) return;
+  const version = String(announcement.version || message).trim();
   if (announcementDismissedVersions.has(version)) return;
   try {
     if (localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) === version) return;
@@ -688,7 +695,7 @@ function showAnnouncementIfNeeded(settings) {
   modal.innerHTML = `
     <div class="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
       <h3 class="text-lg font-bold text-pbnavy">${escapeHtml(t('announcementTitle'))}</h3>
-      <div class="mt-3 whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">${escapeHtml(announcement.message)}</div>
+      <div class="mt-3 whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">${escapeHtml(message)}</div>
       <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button id="announcementHideBtn" type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">${escapeHtml(t('announcementDontShow'))}</button>
         <button id="announcementOkBtn" type="button" class="rounded-md bg-pborange px-4 py-2 text-sm font-semibold text-white transition hover:bg-pborangestrong">${escapeHtml(t('announcementOk'))}</button>

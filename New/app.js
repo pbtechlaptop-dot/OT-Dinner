@@ -1274,8 +1274,15 @@ function closeRestaurantModal() {
 
 function showAnnouncementIfNeeded(settings) {
   const announcement = settings && settings.announcement ? settings.announcement : null;
-  if (!announcement || !announcement.enabled || !String(announcement.message || '').trim()) return;
-  const version = String(announcement.version || announcement.message).trim();
+  const message = String(
+    state.lang === 'en'
+      ? (announcement && announcement.messageEn || announcement && announcement.messageTc || announcement && announcement.message)
+      : state.lang === 'sc'
+        ? (announcement && announcement.messageSc || announcement && announcement.messageTc || announcement && announcement.message)
+        : (announcement && announcement.messageTc || announcement && announcement.message)
+  || '').trim();
+  if (!announcement || !announcement.enabled || !message) return;
+  const version = String(announcement.version || message).trim();
   if (announcementDismissedVersions.has(version)) return;
   try {
     if (localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) === version) return;
@@ -1291,7 +1298,7 @@ function showAnnouncementIfNeeded(settings) {
   modal.innerHTML = `
     <div class="modal-card">
       <h3>${escapeHtml(t('announcementTitle'))}</h3>
-      <div class="announcement-message">${escapeHtml(announcement.message)}</div>
+      <div class="announcement-message">${escapeHtml(message)}</div>
       <div class="modal-actions">
         <button id="announcementHideBtn" class="btn btn-light" type="button">${escapeHtml(t('announcementDontShow'))}</button>
         <button id="announcementOkBtn" class="btn" type="button">${escapeHtml(t('announcementOk'))}</button>
