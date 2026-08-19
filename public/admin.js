@@ -105,6 +105,42 @@ const el = {
   busyText: document.getElementById('busyText')
 };
 
+function ensureNewSettingsSection() {
+  if (el.sectionNewSettings && el.newPriceLimit && el.saveNewSettingsBtn) return;
+  const adminApp = document.getElementById('adminApp');
+  if (!adminApp) return;
+  const section = document.createElement('section');
+  section.id = 'sectionNewSettings';
+  section.className = 'mb-3 rounded-xl border border-slate-200 bg-white p-4';
+  section.innerHTML = `
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <div>
+        <h2 class="text-lg font-bold text-pbnavy">新版設定</h2>
+        <p class="text-sm text-slate-500">只影響 New 版下單頁的多選食物上限，不會影響原本前台下單。</p>
+      </div>
+      <button id="saveNewSettingsBtn" class="rounded-md bg-pborange px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-600">儲存新版設定</button>
+    </div>
+    <div class="grid grid-cols-1 gap-2 md:grid-cols-[220px_1fr]">
+      <label class="grid gap-1 text-sm text-slate-600">
+        每人價錢上限
+        <input id="newPriceLimit" type="number" min="0" step="0.01" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      </label>
+      <p id="newSettingsHint" class="self-end text-sm text-slate-500">登入後會載入目前設定。</p>
+    </div>`;
+  const importSection = document.getElementById('sectionImport');
+  if (importSection && importSection.parentNode) {
+    importSection.parentNode.insertBefore(section, importSection.nextSibling);
+  } else {
+    adminApp.appendChild(section);
+  }
+  el.sectionNewSettings = section;
+  el.newPriceLimit = document.getElementById('newPriceLimit');
+  el.newSettingsHint = document.getElementById('newSettingsHint');
+  el.saveNewSettingsBtn = document.getElementById('saveNewSettingsBtn');
+}
+
+ensureNewSettingsSection();
+
 function setStatus(text, isError = false) {
   el.status.textContent = text;
   el.status.className = `mt-2 text-sm ${isError ? 'text-red-600' : 'text-slate-500'}`;
