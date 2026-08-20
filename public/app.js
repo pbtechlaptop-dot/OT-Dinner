@@ -616,7 +616,12 @@ function buildLookupMaps() {
     (items || []).forEach(raw => {
       const it = normalizeMenuItem(raw);
       if (!it.nameTc) return;
-      state.foodLookup[it.nameTc] = it;
+      [it.nameTc, it.nameSc, it.nameEn, simplifyChoiceName(it.nameTc), simplifyChoiceName(it.nameSc)]
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+        .forEach(key => {
+          state.foodLookup[key] = it;
+        });
     });
   });
 
@@ -1138,8 +1143,54 @@ function renderFood() {
 }
 
 function displayFood(foodKey) {
-  const f = state.foodLookup[foodKey];
-  return f ? getLocalizedFood(f) : foodKey;
+  let text = String(foodKey || '').trim();
+  if (!text) return '';
+  const keys = Object.keys(state.foodLookup || {}).filter(Boolean).sort((a, b) => b.length - a.length);
+  keys.forEach(key => {
+    const f = state.foodLookup[key];
+    const target = f ? getLocalizedFood(f) : '';
+    if (target && target !== key) text = text.split(key).join(target);
+  });
+  return translateInlineFoodText(text);
+}
+
+function simplifyChoiceName(name) {
+  let value = String(name || '').trim();
+  value = value.replace(/\([^)]*\)/g, '').replace(/（[^）]*）/g, '').trim();
+  value = value.replace(/湯?麵$|湯?面$|飯$|河$|米$|米粉$|米綫$|撈麵$|撈面$/g, '').trim();
+  value = value.replace(/^各式/, '').trim();
+  return value;
+}
+
+function translateInlineFoodText(text) {
+  let out = String(text || '');
+  if (state.lang === 'sc') return toSc(out);
+  if (state.lang !== 'en') return out;
+  const replacements = {
+    '（': ' (',
+    '）': ')',
+    '，': ', ',
+    '少鹽': 'less salt',
+    '少盐': 'less salt',
+    '走蔥': 'no spring onion',
+    '走葱': 'no spring onion',
+    '加飯': 'extra rice',
+    '加饭': 'extra rice',
+    '白飯': 'rice',
+    '白饭': 'rice',
+    '飯': 'rice',
+    '饭': 'rice',
+    '加辣': 'spicy',
+    '小辣': 'mild spicy',
+    '少辣': 'less spicy',
+    '中辣': 'medium spicy',
+    '大辣': 'extra spicy',
+    '走辣': 'no spicy'
+  };
+  Object.keys(replacements).sort((a, b) => b.length - a.length).forEach(key => {
+    out = out.split(key).join(replacements[key]);
+  });
+  return out.replace(/\s{2,}/g, ' ').trim();
 }
 
 function parseDrinkChange(drinkKey) {
@@ -1492,11 +1543,27 @@ function buildFoodSummaryLabel(order) {
   return addon ? `${food}（${addon}）` : food;
 }
 
+function parseOrderFoodItems(order) {
+  const addon = stripAddonPriceText(displayAddon(order.addon || ''));
+  const text = String(displayFood(order.food || '')).trim();
+  if (!text) return [];
+  return text.split(/\s+\+\s+/).map(part => {
+    const value = part.trim();
+    if (!value) return null;
+    const match = value.match(/\s+x\s*(\d+)\s*$/i);
+    const qty = match ? Math.max(1, Number(match[1]) || 1) : 1;
+    const food = match ? value.slice(0, match.index).trim() : value;
+    if (!food) return null;
+    const label = addon ? `${food}（${addon}）` : food;
+    return { label, qty };
+  }).filter(Boolean);
+}
+
 function formatFoodSummaryLine(food, entry) {
   const numbers = Array.isArray(entry && entry.numbers) ? entry.numbers.filter(Boolean) : [];
   const count = Number(entry && entry.count) || 0;
   const numberPrefix = numbers.length ? `(${numbers.join(',')}) - ` : '';
-  return `- ${numberPrefix}${food} ${t('xLabel')} ${count}`;
+  return `- ${numberPrefix}${escapeHtml(food)} ${t('xLabel')} ${count}`;
 }
 
 function renderOrders() {
@@ -1532,15 +1599,17 @@ function renderOrders() {
       byDeptDrink[dept][drinkKey] = (byDeptDrink[dept][drinkKey] || 0) + 1;
     }
 
-    const foodKey = buildFoodSummaryLabel(o);
-    if (!foodKey) return;
-    if (!foodCounts[foodKey]) foodCounts[foodKey] = { count: 0, numbers: [] };
-    foodCounts[foodKey].count += 1;
-    foodCounts[foodKey].numbers.push(orderNumber);
-    if (!byDeptFood[dept]) byDeptFood[dept] = {};
-    if (!byDeptFood[dept][foodKey]) byDeptFood[dept][foodKey] = { count: 0, numbers: [] };
-    byDeptFood[dept][foodKey].count += 1;
-    byDeptFood[dept][foodKey].numbers.push(orderNumber);
+    parseOrderFoodItems(o).forEach(({ label, qty }) => {
+      const foodKey = label || buildFoodSummaryLabel(o);
+      if (!foodKey) return;
+      if (!foodCounts[foodKey]) foodCounts[foodKey] = { count: 0, numbers: [] };
+      foodCounts[foodKey].count += qty;
+      if (!foodCounts[foodKey].numbers.includes(orderNumber)) foodCounts[foodKey].numbers.push(orderNumber);
+      if (!byDeptFood[dept]) byDeptFood[dept] = {};
+      if (!byDeptFood[dept][foodKey]) byDeptFood[dept][foodKey] = { count: 0, numbers: [] };
+      byDeptFood[dept][foodKey].count += qty;
+      if (!byDeptFood[dept][foodKey].numbers.includes(orderNumber)) byDeptFood[dept][foodKey].numbers.push(orderNumber);
+    });
   });
 
   const summaryHtml = Object.entries(byDeptDrink)
