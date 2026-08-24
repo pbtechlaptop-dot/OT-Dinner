@@ -1632,6 +1632,11 @@ function formatFoodSummaryLine(food, entry) {
   return `- ${numberPrefix}${escapeHtml(food)} ${t('xLabel')} ${count}`;
 }
 
+function firstSummaryNumber(entry) {
+  const numbers = Array.isArray(entry && entry.numbers) ? entry.numbers : [];
+  return numbers.length ? Number(numbers[0]) || Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
+}
+
 function renderOrders() {
   const orders = [...(state.orders || [])];
   let total = 0;
@@ -1707,6 +1712,8 @@ function renderOrders() {
         const deptTotal = Object.values(foodMap).reduce((sum, entry) => sum + (Number(entry && entry.count) || 0), 0);
         const foodsList = Object.entries(foodMap)
           .sort((a, b) => {
+            const firstNumberDiff = firstSummaryNumber(a[1]) - firstSummaryNumber(b[1]);
+            if (firstNumberDiff) return firstNumberDiff;
             if (b[1].count !== a[1].count) return b[1].count - a[1].count;
             return a[0].localeCompare(b[0], 'zh-Hant');
           })
