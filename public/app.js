@@ -1210,6 +1210,36 @@ function translateInlineFoodText(text) {
   return out.replace(/\s{2,}/g, ' ').trim();
 }
 
+function splitAddonParts(addonText) {
+  return String(addonText || '')
+    .split(/[+＋,，、;；/]/)
+    .map(part => part.trim())
+    .filter(Boolean);
+}
+
+function normalizeAddonForSummary(addonText) {
+  const parts = splitAddonParts(addonText)
+    .map(canonicalAddonPart)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+  return parts.join('+');
+}
+
+function canonicalAddonPart(part) {
+  const value = toTc(String(part || '').trim());
+  const chinese = value.match(/[\u3400-\u9fff]+/g);
+  if (chinese && chinese.length) return chinese.join('');
+  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function localizeAddonForSummary(addonText) {
+  const normalized = normalizeAddonForSummary(addonText);
+  if (!normalized) return '';
+  if (state.lang === 'sc') return toSc(normalized);
+  if (state.lang === 'en') return translateInlineFoodText(normalized);
+  return normalized;
+}
+
 function parseDrinkChange(drinkKey) {
   const parts = String(drinkKey || '').split(' → ').map(part => part.trim()).filter(Boolean);
   if (parts.length >= 2) return { original: parts[0], current: parts[parts.length - 1], changed: true };
@@ -1561,7 +1591,9 @@ function buildFoodSummaryLabel(order) {
 }
 
 function parseOrderFoodItems(order) {
-  const addon = stripAddonPriceText(displayAddon(order.addon || ''));
+  const addonRaw = stripAddonPriceText(displayAddon(order.addon || ''));
+  const addonKey = normalizeAddonForSummary(addonRaw);
+  const addon = localizeAddonForSummary(addonRaw);
   const text = String(displayFood(order.food || '')).trim();
   if (!text) return [];
   return text.split(/\s+\+\s+/).map(part => {
@@ -1572,7 +1604,8 @@ function parseOrderFoodItems(order) {
     const food = match ? value.slice(0, match.index).trim() : value;
     if (!food) return null;
     const label = addon ? `${food}（${addon}）` : food;
-    return { label, qty };
+    const key = addonKey ? `${food}||${addonKey}` : food;
+    return { key, label, qty };
   }).filter(Boolean);
 }
 
@@ -1616,14 +1649,16 @@ function renderOrders() {
       byDeptDrink[dept][drinkKey] = (byDeptDrink[dept][drinkKey] || 0) + 1;
     }
 
-    parseOrderFoodItems(o).forEach(({ label, qty }) => {
-      const foodKey = label || buildFoodSummaryLabel(o);
+    parseOrderFoodItems(o).forEach(({ key, label, qty }) => {
+      const foodKey = key || label || buildFoodSummaryLabel(o);
       if (!foodKey) return;
-      if (!foodCounts[foodKey]) foodCounts[foodKey] = { count: 0, numbers: [] };
+      if (!foodCounts[foodKey]) foodCounts[foodKey] = { label: label || foodKey, count: 0, numbers: [] };
+      foodCounts[foodKey].label = label || foodCounts[foodKey].label;
       foodCounts[foodKey].count += qty;
       if (!foodCounts[foodKey].numbers.includes(orderNumber)) foodCounts[foodKey].numbers.push(orderNumber);
       if (!byDeptFood[dept]) byDeptFood[dept] = {};
-      if (!byDeptFood[dept][foodKey]) byDeptFood[dept][foodKey] = { count: 0, numbers: [] };
+      if (!byDeptFood[dept][foodKey]) byDeptFood[dept][foodKey] = { label: label || foodKey, count: 0, numbers: [] };
+      byDeptFood[dept][foodKey].label = label || byDeptFood[dept][foodKey].label;
       byDeptFood[dept][foodKey].count += qty;
       if (!byDeptFood[dept][foodKey].numbers.includes(orderNumber)) byDeptFood[dept][foodKey].numbers.push(orderNumber);
     });
@@ -1646,7 +1681,7 @@ function renderOrders() {
         if (b[1].count !== a[1].count) return b[1].count - a[1].count;
         return a[0].localeCompare(b[0], 'zh-Hant');
       })
-      .map(([food, entry]) => formatFoodSummaryLine(food, entry))
+      .map(([, entry]) => formatFoodSummaryLine(entry.label, entry))
       .join('<br>');
     el.foodSummary.innerHTML = foodHtml;
   }
@@ -1659,7 +1694,7 @@ function renderOrders() {
             if (b[1].count !== a[1].count) return b[1].count - a[1].count;
             return a[0].localeCompare(b[0], 'zh-Hant');
           })
-          .map(([food, entry]) => formatFoodSummaryLine(food, entry))
+          .map(([, entry]) => formatFoodSummaryLine(entry.label, entry))
           .join('<br>');
         return `<div><strong>${dept}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${deptTotal}</span></span><br>${foodsList}</div>`;
       })

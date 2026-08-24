@@ -794,6 +794,36 @@ function localOptionLabel(label) {
   return state.lang === 'sc' ? toSc(display) : display;
 }
 
+function splitAddonParts(addonText) {
+  return String(addonText || '')
+    .split(/[+＋,，、;；/]/)
+    .map(part => part.trim())
+    .filter(Boolean);
+}
+
+function normalizeAddonForSummary(addonText) {
+  const parts = splitAddonParts(addonText)
+    .map(canonicalAddonPart)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+  return parts.join('+');
+}
+
+function canonicalAddonPart(part) {
+  const value = toTc(String(part || '').trim());
+  const chinese = value.match(/[\u3400-\u9fff]+/g);
+  if (chinese && chinese.length) return chinese.join('');
+  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function localizeAddonForSummary(addonText) {
+  const normalized = normalizeAddonForSummary(addonText);
+  if (!normalized) return '';
+  if (state.lang === 'sc') return toSc(normalized);
+  if (state.lang === 'en') return displayOrderFood(normalized);
+  return normalized;
+}
+
 function allFoods() {
   const list = [];
   Object.entries(state.menu || {}).forEach(([category, items]) => {
@@ -1093,15 +1123,18 @@ function renderOrders() {
       if (!drinkByDept[dept]) drinkByDept[dept] = {};
       drinkByDept[dept][drink] = (drinkByDept[dept][drink] || 0) + 1;
     }
-    parseOrderFoodItems(order).forEach(({ label, qty }) => {
+    parseOrderFoodItems(order).forEach(({ key, label, qty }) => {
       if (!label) return;
-      if (!foodCounts[label]) foodCounts[label] = { count: 0, numbers: [] };
-      foodCounts[label].count += qty;
-      if (!foodCounts[label].numbers.includes(index + 1)) foodCounts[label].numbers.push(index + 1);
+      const foodKey = key || label;
+      if (!foodCounts[foodKey]) foodCounts[foodKey] = { label, count: 0, numbers: [] };
+      foodCounts[foodKey].label = label;
+      foodCounts[foodKey].count += qty;
+      if (!foodCounts[foodKey].numbers.includes(index + 1)) foodCounts[foodKey].numbers.push(index + 1);
       if (!foodByDept[dept]) foodByDept[dept] = {};
-      if (!foodByDept[dept][label]) foodByDept[dept][label] = { count: 0, numbers: [] };
-      foodByDept[dept][label].count += qty;
-      if (!foodByDept[dept][label].numbers.includes(index + 1)) foodByDept[dept][label].numbers.push(index + 1);
+      if (!foodByDept[dept][foodKey]) foodByDept[dept][foodKey] = { label, count: 0, numbers: [] };
+      foodByDept[dept][foodKey].label = label;
+      foodByDept[dept][foodKey].count += qty;
+      if (!foodByDept[dept][foodKey].numbers.includes(index + 1)) foodByDept[dept][foodKey].numbers.push(index + 1);
     });
   });
 
@@ -1113,11 +1146,11 @@ function renderOrders() {
   }).join('<br><br>');
   el.foodSummary.innerHTML = Object.entries(foodCounts)
     .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0], 'zh-Hant'))
-    .map(([food, entry]) => formatFoodSummaryLine(food, entry))
+    .map(([, entry]) => formatFoodSummaryLine(entry.label, entry))
     .join('<br>');
   el.foodSummaryByDept.innerHTML = Object.entries(foodByDept).map(([dept, foods]) => {
     const count = Object.values(foods).reduce((sum, entry) => sum + Number(entry.count || 0), 0);
-    const lines = Object.entries(foods).map(([food, entry]) => formatFoodSummaryLine(food, entry)).join('<br>');
+    const lines = Object.entries(foods).map(([, entry]) => formatFoodSummaryLine(entry.label, entry)).join('<br>');
     return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${count}</span></strong><br>${lines}`;
   }).join('<br><br>');
 }
@@ -1140,7 +1173,9 @@ function currentDrink(drink) {
 
 function parseOrderFoodItems(order) {
   const text = displayOrderFood(order.food || '');
-  const addon = String(order.addon || '').trim();
+  const addonRaw = String(order.addon || '').trim();
+  const addonKey = normalizeAddonForSummary(addonRaw);
+  const addon = localizeAddonForSummary(addonRaw);
   return text.split(/\s+\+\s+/).map(part => {
     const value = part.trim();
     if (!value) return null;
@@ -1148,7 +1183,8 @@ function parseOrderFoodItems(order) {
     const qty = match ? Math.max(1, Number(match[1]) || 1) : 1;
     const food = match ? value.slice(0, match.index).trim() : value;
     const label = addon ? `${food}（${addon}）` : food;
-    return { label, qty };
+    const key = addonKey ? `${food}||${addonKey}` : food;
+    return { key, label, qty };
   }).filter(Boolean);
 }
 
