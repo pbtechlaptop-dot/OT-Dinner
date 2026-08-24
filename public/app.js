@@ -1149,9 +1149,26 @@ function displayFood(foodKey) {
   keys.forEach(key => {
     const f = state.foodLookup[key];
     const target = f ? getLocalizedFood(f) : '';
-    if (target && target !== key) text = text.split(key).join(target);
+    if (target && target !== key) text = replaceFoodToken(text, key, target);
   });
   return translateInlineFoodText(text);
+}
+
+function replaceFoodToken(text, key, target) {
+  let out = '';
+  let cursor = 0;
+  let index = text.indexOf(key, cursor);
+  while (index !== -1) {
+    const before = index > 0 ? text[index - 1] : '';
+    const after = text[index + key.length] || '';
+    const touchesCjk = /[\u3400-\u9fff]/.test(before) || /[\u3400-\u9fff]/.test(after);
+    if (!touchesCjk) {
+      out += text.slice(cursor, index) + target;
+      cursor = index + key.length;
+    }
+    index = text.indexOf(key, index + key.length);
+  }
+  return out + text.slice(cursor);
 }
 
 function simplifyChoiceName(name) {
