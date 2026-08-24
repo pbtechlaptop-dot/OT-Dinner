@@ -1122,12 +1122,14 @@ function currentDrink(drink) {
 
 function parseOrderFoodItems(order) {
   const text = displayOrderFood(order.food || '');
+  const addon = String(order.addon || '').trim();
   return text.split(/\s+\+\s+/).map(part => {
     const value = part.trim();
     if (!value) return null;
     const match = value.match(/\s+x\s*(\d+)\s*$/i);
     const qty = match ? Math.max(1, Number(match[1]) || 1) : 1;
-    const label = match ? value.slice(0, match.index).trim() : value;
+    const food = match ? value.slice(0, match.index).trim() : value;
+    const label = addon ? `${food}（${addon}）` : food;
     return { label, qty };
   }).filter(Boolean);
 }
