@@ -819,9 +819,41 @@ function canonicalAddonPart(part) {
 function localizeAddonForSummary(addonText) {
   const normalized = normalizeAddonForSummary(addonText);
   if (!normalized) return '';
-  if (state.lang === 'sc') return toSc(normalized);
-  if (state.lang === 'en') return displayOrderFood(normalized);
-  return normalized;
+  return normalized.split('+').map(localizeAddonPart).join('+');
+}
+
+function localizeAddonPart(part) {
+  const value = canonicalAddonPart(part);
+  if (!value) return '';
+  if (state.lang === 'sc') return toSc(value);
+  if (state.lang === 'en') return addonEnglishName(value);
+  return value;
+}
+
+function addonEnglishName(value) {
+  const map = {
+    '叉燒': 'BBQ Pork',
+    '燒肉': 'Roast Pork',
+    '燒鴨': 'Roast Duck',
+    '雞': 'Chicken',
+    '雞蛋麵': 'Egg Noodles',
+    '河粉': 'Hor Fun',
+    '瀨粉': 'Lai Fen',
+    '肉': 'Meat',
+    '椒鹽': 'Salt and Pepper',
+    '少鹽': 'Less Salt',
+    '加辣': 'Spicy',
+    '小辣': 'Mild Spicy'
+  };
+  return map[value] || displayOrderFood(value);
+}
+
+function displayAddon(addonText) {
+  const raw = String(addonText || '').trim();
+  if (!raw) return '';
+  const hasCjk = /[\u3400-\u9fff]/.test(raw);
+  if (!hasCjk) return state.lang === 'sc' ? toSc(raw) : raw;
+  return localizeAddonForSummary(raw) || raw;
 }
 
 function allFoods() {
@@ -1106,7 +1138,7 @@ function renderOrders() {
       <td>${escapeHtml(order.dept || '')}</td>
       <td>${escapeHtml(order.name || '')}</td>
       <td>${escapeHtml(displayOrderFood(order.food || ''))}</td>
-      <td>${escapeHtml(order.addon || '')}</td>
+      <td>${escapeHtml(displayAddon(order.addon || ''))}</td>
       <td>${escapeHtml(displayOrderDrink(order.drink || '') || t('noDrink').replace(/-/g, '').trim())}</td>
       <td>${money(order.price)}</td>
     </tr>
@@ -1173,7 +1205,7 @@ function currentDrink(drink) {
 
 function parseOrderFoodItems(order) {
   const text = displayOrderFood(order.food || '');
-  const addonRaw = String(order.addon || '').trim();
+  const addonRaw = displayAddon(order.addon || '');
   const addonKey = normalizeAddonForSummary(addonRaw);
   const addon = localizeAddonForSummary(addonRaw);
   return text.split(/\s+\+\s+/).map(part => {
@@ -1415,7 +1447,7 @@ async function exportXlsx() {
       order.dept || '',
       order.name || '',
       displayOrderFood(order.food || ''),
-      order.addon || '',
+      displayAddon(order.addon || ''),
       displayOrderDrink(order.drink || ''),
       Number(order.price || 0)
     ]);
@@ -1505,7 +1537,8 @@ function sameOrder(a, b) {
 
 function describeOrder(order) {
   const parts = [displayOrderFood(order.food || '')];
-  if (order.addon) parts.push(String(order.addon).trim());
+  const addon = displayAddon(order.addon || '');
+  if (addon) parts.push(addon);
   if (order.drink) parts.push(displayOrderDrink(order.drink || ''));
   parts.push(money(order.price || 0));
   return parts.filter(Boolean).join(' / ');

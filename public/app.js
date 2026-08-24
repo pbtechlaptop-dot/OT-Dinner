@@ -1235,9 +1235,33 @@ function canonicalAddonPart(part) {
 function localizeAddonForSummary(addonText) {
   const normalized = normalizeAddonForSummary(addonText);
   if (!normalized) return '';
-  if (state.lang === 'sc') return toSc(normalized);
-  if (state.lang === 'en') return translateInlineFoodText(normalized);
-  return normalized;
+  return normalized.split('+').map(localizeAddonPart).join('+');
+}
+
+function localizeAddonPart(part) {
+  const value = canonicalAddonPart(part);
+  if (!value) return '';
+  if (state.lang === 'sc') return toSc(value);
+  if (state.lang === 'en') return addonEnglishName(value);
+  return value;
+}
+
+function addonEnglishName(value) {
+  const map = {
+    '叉燒': 'BBQ Pork',
+    '燒肉': 'Roast Pork',
+    '燒鴨': 'Roast Duck',
+    '雞': 'Chicken',
+    '雞蛋麵': 'Egg Noodles',
+    '河粉': 'Hor Fun',
+    '瀨粉': 'Lai Fen',
+    '肉': 'Meat',
+    '椒鹽': 'Salt and Pepper',
+    '少鹽': 'Less Salt',
+    '加辣': 'Spicy',
+    '小辣': 'Mild Spicy'
+  };
+  return map[value] || translateInlineFoodText(value);
 }
 
 function parseDrinkChange(drinkKey) {
@@ -1266,16 +1290,8 @@ function displayAddon(addonText) {
   const raw = String(addonText || '').trim();
   if (!raw) return '';
   const hasCjk = /[\u3400-\u9fff]/.test(raw);
-  if (!hasCjk) return raw;
-  let out = '';
-  for (const ch of raw) {
-    if (/[\u3400-\u9fff]/.test(ch)) out += ch;
-    else if (/[0-9]/.test(ch)) out += ch;
-    else if (/[+,;\\/、]/.test(ch)) out += ch;
-    else if (/\s/.test(ch)) out += ' ';
-  }
-  out = out.replace(/\s+/g, ' ').replace(/\s*([+,;\\/、])\s*/g, '$1').trim();
-  return out || raw;
+  if (!hasCjk) return state.lang === 'sc' ? toSc(raw) : raw;
+  return localizeAddonForSummary(raw) || raw;
 }
 
 function stripAddonPriceText(addonText) {
