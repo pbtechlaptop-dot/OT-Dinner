@@ -772,8 +772,26 @@ function normalizeOptionChoice(choice) {
 }
 
 function formatOptionLabel(label, price) {
-  const displayLabel = state.lang === 'sc' ? toSc(label) : label;
+  const displayLabel = localOptionLabel(label);
   return Number.isFinite(price) && price > 0 ? `${displayLabel} (+${money(price)})` : displayLabel;
+}
+
+function localOptionLabel(label) {
+  const raw = String(label || '').trim();
+  if (!raw) return '';
+  if (state.lang === 'en') {
+    const english = raw
+      .replace(/^[\u3400-\u9fff\s/+&()（）-]+/, '')
+      .replace(/^choice\s+/i, '')
+      .replace(/^[-:/\s]+/, '')
+      .trim();
+    return english || raw;
+  }
+  const slashParts = raw.split('/').map(part => part.trim()).filter(Boolean);
+  const source = slashParts.length > 1 ? slashParts[0] : raw;
+  const chinese = source.match(/[\u3400-\u9fff][\u3400-\u9fff\s/+&()（）-]*/g);
+  const display = chinese && chinese.length ? chinese.join('').trim() : source;
+  return state.lang === 'sc' ? toSc(display) : display;
 }
 
 function allFoods() {
@@ -1198,7 +1216,8 @@ async function submitOrder() {
   }
   const food = entries.map(formatEntryOrderText).join(' + ');
   const addonRaw = String(el.addonInput.value || '').trim();
-  const addon = addonRaw;
+  const optionAddon = buildOrderOptionAddon(entries);
+  const addon = [optionAddon, addonRaw].filter(Boolean).join('；');
   const order = {
     dept,
     name,
@@ -1413,9 +1432,8 @@ function startAutoRefresh() {
 }
 
 function buildEntryFoodText(entry) {
-  const optionText = buildEntryOptionText(entry);
   const foodName = entry && entry.food ? entry.food.name : '';
-  return optionText ? `${foodName}（${optionText}）` : foodName;
+  return foodName;
 }
 
 function formatEntryOrderText(entry) {
@@ -1430,9 +1448,16 @@ function buildEntryOptionText(entry) {
   groups.forEach((group, index) => {
     const selected = Array.isArray(entry.options && entry.options[index]) ? entry.options[index] : [];
     if (!selected.length) return;
-    parts.push(selected.join('+'));
+    parts.push(selected.map(localOptionLabel).join('+'));
   });
   return parts.join(', ');
+}
+
+function buildOrderOptionAddon(entries) {
+  return (entries || [])
+    .map(buildEntryOptionText)
+    .filter(Boolean)
+    .join('；');
 }
 
 function sameOrder(a, b) {
