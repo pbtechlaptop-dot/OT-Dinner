@@ -822,6 +822,19 @@ function localizeAddonForSummary(addonText) {
   return normalized.split('+').map(localizeAddonPart).join('+');
 }
 
+function localizeAddonForDisplay(addonText) {
+  return String(addonText || '')
+    .split(/([+＋,，、;；/])/)
+    .map(part => {
+      if (!part.trim()) return part;
+      if (/^[+＋,，、;；/]$/.test(part)) return part === '＋' ? '+' : part;
+      return localizeAddonPart(part);
+    })
+    .join('')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function localizeAddonPart(part) {
   const value = canonicalAddonPart(part);
   if (!value) return '';
@@ -853,7 +866,7 @@ function displayAddon(addonText) {
   if (!raw) return '';
   const hasCjk = /[\u3400-\u9fff]/.test(raw);
   if (!hasCjk) return state.lang === 'sc' ? toSc(raw) : raw;
-  return localizeAddonForSummary(raw) || raw;
+  return localizeAddonForDisplay(raw) || raw;
 }
 
 function allFoods() {
@@ -1207,7 +1220,7 @@ function parseOrderFoodItems(order) {
   const text = displayOrderFood(order.food || '');
   const addonRaw = displayAddon(order.addon || '');
   const addonKey = normalizeAddonForSummary(addonRaw);
-  const addon = localizeAddonForSummary(addonRaw);
+  const addon = displayAddon(addonRaw);
   return text.split(/\s+\+\s+/).map(part => {
     const value = part.trim();
     if (!value) return null;
