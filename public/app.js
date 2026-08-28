@@ -1293,6 +1293,8 @@ function parseDrinkChange(drinkKey) {
 
 function displayDrink(drinkKey) {
   if (!drinkKey) return t('noDrink');
+  const groupParts = String(drinkKey || '').split(/\s+\+\s+/).map(part => part.trim()).filter(Boolean);
+  if (groupParts.length > 1) return groupParts.map(displayDrink).join(' + ');
   const change = parseDrinkChange(drinkKey);
   if (change.changed) return `${displayDrink(change.original)} → ${displayDrink(change.current)}`;
   const d = state.drinkLookup[drinkKey];
@@ -1301,9 +1303,18 @@ function displayDrink(drinkKey) {
 
 function displayDrinkHtml(drinkKey) {
   if (!drinkKey) return escapeHtml(t('noDrink'));
+  const groupParts = String(drinkKey || '').split(/\s+\+\s+/).map(part => part.trim()).filter(Boolean);
+  if (groupParts.length > 1) return groupParts.map(displayDrinkHtml).join(' + ');
   const change = parseDrinkChange(drinkKey);
   if (!change.changed) return escapeHtml(displayDrink(drinkKey));
   return `<span class="text-slate-500">${escapeHtml(displayDrink(change.original))}</span> <span class="text-slate-400">→</span> <span class="font-semibold text-pborange">${escapeHtml(displayDrink(change.current))}</span>`;
+}
+
+function parseOrderDrinks(order) {
+  return String(order && order.drink || '')
+    .split(/\s+\+\s+/)
+    .map(part => parseDrinkChange(part).current)
+    .filter(Boolean);
 }
 
 function displayAddon(addonText) {
@@ -1693,12 +1704,11 @@ function renderOrders() {
   const byDeptFood = {};
   orders.forEach((o, index) => {
     const orderNumber = index + 1;
-    const drinkKey = parseDrinkChange(o.drink).current;
     const dept = String(o.dept || '').trim() || '-';
-    if (drinkKey) {
+    parseOrderDrinks(o).forEach(drinkKey => {
       if (!byDeptDrink[dept]) byDeptDrink[dept] = {};
       byDeptDrink[dept][drinkKey] = (byDeptDrink[dept][drinkKey] || 0) + 1;
-    }
+    });
 
     parseOrderFoodItems(o).forEach(({ key, label, qty }) => {
       const foodKey = key || label || buildFoodSummaryLabel(o);

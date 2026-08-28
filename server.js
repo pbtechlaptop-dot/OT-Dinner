@@ -2293,7 +2293,7 @@ async function handleApi(req, res, urlObj) {
     const existingOrder = (state.orders || []).find(o => orderIdentityKey(o) === orderIdentityKey(submittedOrder));
     const clean = {
       dept: submittedOrder.dept,
-      name: submittedOrder.name,
+      name: existingOrder ? normText(existingOrder.name) : submittedOrder.name,
       food: normText(body.food),
       addon: normText(body.addon),
       drink: normText(body.drink),

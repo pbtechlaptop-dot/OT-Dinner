@@ -185,6 +185,26 @@ label {
   width: auto;
 }
 
+.group-drinks {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--soft);
+}
+
+.group-drinks-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.group-drink-row {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 input,
 select,
 textarea {

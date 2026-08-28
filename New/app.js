@@ -19,7 +19,8 @@ const state = {
   },
   groupOrder: {
     active: false,
-    members: new Set()
+    members: new Set(),
+    drinks: []
   },
   selected: new Map()
 };
@@ -57,6 +58,9 @@ const el = {
   groupMembersHint: document.getElementById('groupMembersHint'),
   groupMembersList: document.getElementById('groupMembersList'),
   drinkSelect: document.getElementById('drinkSelect'),
+  groupDrinksWrap: document.getElementById('groupDrinksWrap'),
+  groupDrinksHint: document.getElementById('groupDrinksHint'),
+  groupDrinksList: document.getElementById('groupDrinksList'),
   foodTitle: document.getElementById('foodTitle'),
   categorySelect: document.getElementById('categorySelect'),
   foodList: document.getElementById('foodList'),
@@ -155,6 +159,7 @@ const i18n = {
     name: '同事',
     groupOrder: '多人組合下單',
     groupMembersHint: '選擇同一張訂單的人員',
+    groupDrinksHint: '按組合人數選擇飲品',
     chooseGroupMembersToast: '請最少選擇兩位人員',
     drink: '飲品',
     food: '餐點',
@@ -268,6 +273,7 @@ const i18n = {
     name: '人员',
     groupOrder: '多人组合下单',
     groupMembersHint: '选择同一张订单的人员',
+    groupDrinksHint: '按组合人数选择饮品',
     chooseGroupMembersToast: '请最少选择两位人员',
     drink: '饮品',
     food: '餐点',
@@ -380,6 +386,7 @@ const i18n = {
     name: 'Name',
     groupOrder: 'Group order',
     groupMembersHint: 'Select people for the same order',
+    groupDrinksHint: 'Choose drinks for each person in the group',
     chooseGroupMembersToast: 'Please select at least two people',
     drink: 'Drink',
     food: 'Food',
@@ -549,7 +556,10 @@ function displayOrderDrink(value) {
   const text = String(value || '').trim();
   if (!text) return '';
   const map = drinkLookup();
-  return text.split(' → ').map(part => map[part.trim()] || part.trim()).join(' → ');
+  return text
+    .split(/\s+\+\s+/)
+    .map(item => item.split(' → ').map(part => map[part.trim()] || part.trim()).join(' → '))
+    .join(' + ');
 }
 
 function showToast(message) {
@@ -607,6 +617,7 @@ function updateStaticText() {
   el.nameLabel.textContent = t('name');
   el.groupOrderLabel.textContent = t('groupOrder');
   el.groupMembersHint.textContent = t('groupMembersHint');
+  el.groupDrinksHint.textContent = t('groupDrinksHint');
   el.drinkLabel.textContent = t('drink');
   el.foodTitle.textContent = t('foodTitle');
   el.limitLabel.textContent = t('limit');
@@ -1025,14 +1036,23 @@ function memberHasDifferentOrder(dept, member, selectedMembers) {
 function renderGroupMembers() {
   const active = Boolean(el.groupOrderToggle && el.groupOrderToggle.checked);
   state.groupOrder.active = active;
+  if (el.nameSelect) el.nameSelect.disabled = active;
   if (!el.groupMembersWrap || !el.groupMembersList) return;
   el.groupMembersWrap.classList.toggle('hidden', !active);
   if (!active) {
     state.groupOrder.members = new Set();
+    state.groupOrder.drinks = [];
+    renderGroupDrinks();
     return;
   }
   const dept = el.deptSelect.value;
   const names = state.staff[dept] || [];
+  const initialMembers = selectedOrderMembers();
+  names.forEach(name => {
+    if (state.groupOrder.members.has(name) && memberHasDifferentOrder(dept, name, initialMembers)) {
+      state.groupOrder.members.delete(name);
+    }
+  });
   const selectedMembers = selectedOrderMembers();
   el.groupMembersList.innerHTML = names.map(name => {
     const checked = state.groupOrder.members.has(name) ? 'checked' : '';
@@ -1044,11 +1064,50 @@ function renderGroupMembers() {
       </label>
     `;
   }).join('');
+  renderGroupDrinks();
 }
 
 function renderDrinks() {
   const drinks = (state.drinks || []).map(normalizeDrink).filter(drink => drink.tc && !drink.paused);
   fillSelect(el.drinkSelect, drinks.map(drink => ({ value: drink.tc, label: localDrink(drink) })), t('noDrink'));
+  renderGroupDrinks();
+}
+
+function renderGroupDrinks() {
+  const active = Boolean(state.groupOrder.active);
+  if (el.drinkSelect) el.drinkSelect.disabled = active;
+  if (!el.groupDrinksWrap || !el.groupDrinksList) return;
+  const members = selectedOrderMembers();
+  el.groupDrinksWrap.classList.toggle('hidden', !active || !members.length);
+  if (!active || !members.length) {
+    el.groupDrinksList.innerHTML = '';
+    return;
+  }
+  state.groupOrder.drinks = members.map((_, index) => state.groupOrder.drinks[index] || '');
+  const drinks = (state.drinks || []).map(normalizeDrink).filter(drink => drink.tc && !drink.paused);
+  const noDrink = t('noDrink').replace(/-/g, '').trim();
+  el.groupDrinksList.innerHTML = members.map((member, index) => {
+    const selectedValue = state.groupOrder.drinks[index] || '';
+    const options = [`<option value="">${escapeHtml(noDrink)}</option>`]
+      .concat(drinks.map(drink => {
+        const selected = drink.tc === selectedValue ? ' selected' : '';
+        return `<option value="${escapeHtml(drink.tc)}"${selected}>${escapeHtml(localDrink(drink))}</option>`;
+      })).join('');
+    return `
+      <label class="group-drink-row">
+        <span>${escapeHtml(member)}</span>
+        <select data-action="group-drink" data-index="${index}">${options}</select>
+      </label>
+    `;
+  }).join('');
+}
+
+function selectedGroupDrinks() {
+  if (!state.groupOrder.active) return [el.drinkSelect.value].filter(Boolean);
+  return state.groupOrder.drinks
+    .slice(0, selectedOrderMembers().length)
+    .map(drink => String(drink || '').trim())
+    .filter(Boolean);
 }
 
 function renderCategories() {
@@ -1255,12 +1314,11 @@ function renderOrders() {
   const foodByDept = {};
   orders.forEach((order, index) => {
     const dept = String(order.dept || '').trim() || '-';
-    const drink = currentDrink(displayOrderDrink(String(order.drink || '').trim()));
     total += Number(order.price || 0);
-    if (drink) {
+    parseOrderDrinks(order).forEach(drink => {
       if (!drinkByDept[dept]) drinkByDept[dept] = {};
       drinkByDept[dept][drink] = (drinkByDept[dept][drink] || 0) + 1;
-    }
+    });
     parseOrderFoodItems(order).forEach(({ key, label, qty }) => {
       if (!label) return;
       const foodKey = key || label;
@@ -1308,6 +1366,13 @@ function orderSignature(orders) {
 function currentDrink(drink) {
   const parts = String(drink || '').split(' → ').map(part => part.trim()).filter(Boolean);
   return parts.length ? parts[parts.length - 1] : '';
+}
+
+function parseOrderDrinks(order) {
+  return displayOrderDrink(String(order && order.drink || '').trim())
+    .split(/\s+\+\s+/)
+    .map(currentDrink)
+    .filter(Boolean);
 }
 
 function parseOrderFoodItems(order) {
@@ -1402,7 +1467,7 @@ async function submitOrder() {
     groupMembers: members,
     food,
     addon,
-    drink: el.drinkSelect.value,
+    drink: selectedGroupDrinks().join(' + '),
     price: totals.total
   };
   if (state.cutoffPassed && state.lateOrder.active) {
@@ -1451,12 +1516,14 @@ function resetStaffForm() {
   if (el.groupOrderToggle) el.groupOrderToggle.checked = false;
   state.groupOrder.active = false;
   state.groupOrder.members = new Set();
+  state.groupOrder.drinks = [];
   const departments = Object.keys(state.staff || {});
   const single = departments.length === 1 ? departments[0] : '';
   el.deptSelect.value = single || '';
   renderNames();
   el.nameSelect.value = '';
   el.drinkSelect.value = '';
+  renderGroupDrinks();
 }
 
 function openRestaurantModal() {
@@ -1971,7 +2038,9 @@ el.nameSelect.addEventListener('change', renderSelection);
 el.groupOrderToggle.addEventListener('change', () => {
   state.groupOrder.active = el.groupOrderToggle.checked;
   state.groupOrder.members = new Set();
-  if (state.groupOrder.active && el.nameSelect.value) state.groupOrder.members.add(el.nameSelect.value);
+  if (state.groupOrder.active && el.nameSelect.value && !memberHasDifferentOrder(el.deptSelect.value, el.nameSelect.value, [])) {
+    state.groupOrder.members.add(el.nameSelect.value);
+  }
   renderGroupMembers();
   renderSelection();
 });
@@ -1984,6 +2053,13 @@ el.groupMembersList.addEventListener('change', event => {
   else state.groupOrder.members.delete(name);
   renderGroupMembers();
   renderSelection();
+});
+el.groupDrinksList.addEventListener('change', event => {
+  const select = event.target;
+  if (!select || select.dataset.action !== 'group-drink') return;
+  const index = Number(select.dataset.index);
+  if (!Number.isFinite(index) || index < 0) return;
+  state.groupOrder.drinks[index] = select.value;
 });
 el.categorySelect.addEventListener('change', renderFoods);
 el.langTc.addEventListener('click', () => setLanguage('tc'));
