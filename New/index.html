@@ -53,6 +53,14 @@
           <span id="nameLabel">同事</span>
           <select id="nameSelect" required></select>
         </label>
+        <label class="wide group-toggle">
+          <input id="groupOrderToggle" type="checkbox" />
+          <span id="groupOrderLabel">多人組合下單</span>
+        </label>
+        <div id="groupMembersWrap" class="wide group-members hidden">
+          <div id="groupMembersHint" class="group-members-hint">選擇同一張訂單的人員</div>
+          <div id="groupMembersList" class="group-members-list"></div>
+        </div>
         <label class="wide">
           <span id="drinkLabel">飲品</span>
           <select id="drinkSelect"></select>

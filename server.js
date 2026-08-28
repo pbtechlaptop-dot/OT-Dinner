@@ -1923,6 +1923,37 @@ function validateOrder(order) {
   return null;
 }
 
+function orderMemberNames(order) {
+  const members = Array.isArray(order && order.groupMembers) && order.groupMembers.length
+    ? order.groupMembers
+    : String(order && order.name || '').split(/\s+\+\s+/);
+  return [...new Set(members.map(normText).filter(Boolean))];
+}
+
+function orderIdentityKey(order) {
+  const members = orderMemberNames(order).sort((a, b) => a.localeCompare(b));
+  return `${normText(order && order.dept)}\u0000${members.join('\u0000')}`;
+}
+
+function findOrderMemberConflict(orders, nextOrder) {
+  const dept = normText(nextOrder && nextOrder.dept);
+  const nextMembers = new Set(orderMemberNames(nextOrder));
+  const nextIdentity = orderIdentityKey(nextOrder);
+  for (const order of Array.isArray(orders) ? orders : []) {
+    if (normText(order && order.dept) !== dept) continue;
+    if (orderIdentityKey(order) === nextIdentity) continue;
+    const existingMembers = orderMemberNames(order);
+    const duplicated = existingMembers.find(member => nextMembers.has(member));
+    if (duplicated) return duplicated;
+  }
+  return '';
+}
+
+async function getOrderPriceLimit() {
+  const settings = normalizeNewSettings(await storage.getNewSettings());
+  return Number(settings.priceLimit) || 22;
+}
+
 function toCsv(orders) {
   const header = ['No', 'Dept', 'Name', 'Food', 'Addon', 'Drink', 'Price'];
   const lines = [header.join(',')];
@@ -2240,14 +2271,33 @@ async function handleApi(req, res, urlObj) {
     const error = validateOrder(body);
     if (error) return json(res, 400, { error });
 
-    const existingOrder = (state.orders || []).find(o => o.dept === normText(body.dept) && o.name === normText(body.name));
-    const clean = {
+    const groupMembers = orderMemberNames(body);
+    const groupSize = Math.max(1, groupMembers.length);
+    const priceLimit = await getOrderPriceLimit();
+    const maxPrice = priceLimit * groupSize;
+    const price = Number(body.price);
+    if (price > maxPrice) {
+      return json(res, 400, { error: `Order price exceeds limit $${maxPrice.toFixed(2)}` });
+    }
+
+    const submittedOrder = {
+      ...body,
       dept: normText(body.dept),
-      name: normText(body.name),
+      name: groupMembers.join(' + ')
+    };
+    const conflictMember = findOrderMemberConflict(state.orders, submittedOrder);
+    if (conflictMember) {
+      return json(res, 409, { error: `${conflictMember} already has an order today` });
+    }
+
+    const existingOrder = (state.orders || []).find(o => orderIdentityKey(o) === orderIdentityKey(submittedOrder));
+    const clean = {
+      dept: submittedOrder.dept,
+      name: submittedOrder.name,
       food: normText(body.food),
       addon: normText(body.addon),
       drink: normText(body.drink),
-      price: Number(body.price),
+      price,
       orderedAt: existingOrder ? (normalizeOrderTimestamp(existingOrder.orderedAt) || nowIso()) : nowIso(),
       lateOrder: existingOrder ? Boolean(existingOrder.lateOrder) : lateOrder
     };
@@ -2259,7 +2309,7 @@ async function handleApi(req, res, urlObj) {
       return json(res, 200, { ok: true, updated: existed });
     }
 
-    const idx = state.orders.findIndex(o => o.dept === clean.dept && o.name === clean.name);
+    const idx = state.orders.findIndex(o => orderIdentityKey(o) === orderIdentityKey(clean));
     let updated = false;
     if (idx >= 0) {
       state.orders[idx] = { ...state.orders[idx], ...clean };

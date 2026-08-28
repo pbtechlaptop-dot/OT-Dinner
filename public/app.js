@@ -12,6 +12,7 @@ const state = {
   orders: [],
   date: '',
   lang: 'tc',
+  priceLimit: 22,
   foodLookup: {},
   drinkLookup: {},
   lateOrder: {
@@ -107,6 +108,8 @@ const i18n = {
     saveRestaurantSettings: '確認設定',
     cancel: '取消',
     orderBlockedNotice: '下單沒有成功，請聯絡部門主管或 Simon 下單。',
+    orderOverLimit: amount => `餐點價錢超過上限 ${amount}，不能下單。`,
+    memberAlreadyOrdered: '此同事今日已經有訂單，請先刪除原有訂單。',
     orderAdded: '已新增訂單',
     orderUpdated: '已更新訂單',
     chooseImportFile: '請先選擇匯入檔案',
@@ -185,6 +188,8 @@ const i18n = {
     saveRestaurantSettings: '确认设置',
     cancel: '取消',
     orderBlockedNotice: '下单没有成功，请联络部门主管或 Simon 下单。',
+    orderOverLimit: amount => `餐点价钱超过上限 ${amount}，不能下单。`,
+    memberAlreadyOrdered: '此人员今日已经有订单，请先删除原有订单。',
     orderAdded: '已新增订单',
     orderUpdated: '已更新订单',
     chooseImportFile: '请先选择导入文件',
@@ -263,6 +268,8 @@ const i18n = {
     saveRestaurantSettings: 'Save Settings',
     cancel: 'Cancel',
     orderBlockedNotice: 'Order was not placed successfully. Please contact your team leader or Simon to place an order.',
+    orderOverLimit: amount => `Order price exceeds the limit ${amount}.`,
+    memberAlreadyOrdered: 'This person already has an order today. Please delete the existing order first.',
     orderAdded: 'Order added',
     orderUpdated: 'Order updated',
     chooseImportFile: 'Please choose a file first',
@@ -1307,6 +1314,16 @@ function displayAddon(addonText) {
   return localizeAddonForDisplay(raw) || raw;
 }
 
+function localizeApiError(message) {
+  const text = String(message || '').trim();
+  if (/order price exceeds limit/i.test(text)) {
+    const formatter = t('orderOverLimit');
+    return typeof formatter === 'function' ? formatter(text.match(/\$[0-9]+(?:\.[0-9]+)?/)?.[0] || '') : text;
+  }
+  if (/already has an order today/i.test(text)) return t('memberAlreadyOrdered');
+  return text;
+}
+
 function stripAddonPriceText(addonText) {
   const text = String(addonText || '').trim();
   if (!text) return '';
@@ -1818,6 +1835,7 @@ async function loadBootstrap() {
     state.orders = payload.orders || [];
     state.lastOrdersSignature = orderSignature(state.orders);
     state.date = payload.date || '';
+    state.priceLimit = Number(settings && settings.priceLimit) || 22;
 
     el.dateText.textContent = `${t('datePrefix')}${payload.date}`;
     renderRestaurants();
@@ -2165,7 +2183,7 @@ el.setRestaurantBtn.addEventListener('click', async () => {
         el.restaurantPasswordInput.focus();
       }
     }
-    showToast(err.message);
+    showToast(localizeApiError(err.message));
   } finally {
     setBusy(false);
   }
@@ -2182,6 +2200,10 @@ el.orderForm.addEventListener('submit', async event => {
   const optionSummary = collectOptionSelections();
   if (!optionSummary.ok) return showOrderError(optionSummary.error || t('optionRequired'));
   const price = basePrice + (optionSummary.extraPrice || 0);
+  if (price > state.priceLimit) {
+    const message = t('orderOverLimit');
+    return showOrderError(typeof message === 'function' ? message(`$${state.priceLimit.toFixed(2)}`) : 'Order price exceeds limit');
+  }
   el.priceInput.value = price.toFixed(2);
   const addonText = String(el.addonInput.value || '').trim();
   const mergedAddon = optionSummary.text
@@ -2225,7 +2247,7 @@ el.orderForm.addEventListener('submit', async event => {
       updateCutoffUi();
       showOrderError(t('orderBlockedNotice'));
     }
-    showToast(err.message);
+    showToast(localizeApiError(err.message));
   } finally {
     setBusy(false);
   }

@@ -139,6 +139,52 @@ label {
   font-size: 13px;
 }
 
+.group-toggle {
+  display: inline-flex;
+  grid-template-columns: none;
+  align-items: center;
+  width: fit-content;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.group-toggle input {
+  width: auto;
+}
+
+.group-members {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--soft);
+}
+
+.group-members-hint {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.group-members-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.group-member-choice {
+  display: inline-flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.group-member-choice input {
+  width: auto;
+}
+
 input,
 select,
 textarea {

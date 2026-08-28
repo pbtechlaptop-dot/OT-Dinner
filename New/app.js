@@ -17,6 +17,10 @@ const state = {
     username: '',
     password: ''
   },
+  groupOrder: {
+    active: false,
+    members: new Set()
+  },
   selected: new Map()
 };
 
@@ -47,6 +51,11 @@ const el = {
   drinkLabel: document.getElementById('drinkLabel'),
   deptSelect: document.getElementById('deptSelect'),
   nameSelect: document.getElementById('nameSelect'),
+  groupOrderToggle: document.getElementById('groupOrderToggle'),
+  groupOrderLabel: document.getElementById('groupOrderLabel'),
+  groupMembersWrap: document.getElementById('groupMembersWrap'),
+  groupMembersHint: document.getElementById('groupMembersHint'),
+  groupMembersList: document.getElementById('groupMembersList'),
   drinkSelect: document.getElementById('drinkSelect'),
   foodTitle: document.getElementById('foodTitle'),
   categorySelect: document.getElementById('categorySelect'),
@@ -137,12 +146,16 @@ const i18n = {
     setRestaurantFirst: '請先設定今日餐廳',
     orderCutoffPassed: '下單時間已過，請聯絡部門主管或 Simon 下單。',
     tooManyAttempts: '密碼錯誤次數太多，請稍後再試。',
+    memberAlreadyOrdered: '所選人員今日已經有訂單，請先刪除原有訂單。',
     notSet: '未設定',
     admin: '新版 Admin',
     main: '舊前台',
     staffTitle: '2) 同事資料',
     dept: '部門',
     name: '同事',
+    groupOrder: '多人組合下單',
+    groupMembersHint: '選擇同一張訂單的人員',
+    chooseGroupMembersToast: '請最少選擇兩位人員',
     drink: '飲品',
     food: '餐點',
     foodTitle: '3) 選擇食物',
@@ -246,12 +259,16 @@ const i18n = {
     setRestaurantFirst: '请先设置今日餐厅',
     orderCutoffPassed: '下单时间已过，请联络部门主管或 Simon 下单。',
     tooManyAttempts: '密码错误次数太多，请稍后再试。',
+    memberAlreadyOrdered: '所选人员今日已经有订单，请先删除原有订单。',
     notSet: '未设置',
     admin: '新版 Admin',
     main: '旧前台',
     staffTitle: '2) 人员资料',
     dept: '部门',
     name: '人员',
+    groupOrder: '多人组合下单',
+    groupMembersHint: '选择同一张订单的人员',
+    chooseGroupMembersToast: '请最少选择两位人员',
     drink: '饮品',
     food: '餐点',
     foodTitle: '3) 选择食物',
@@ -354,12 +371,16 @@ const i18n = {
     setRestaurantFirst: 'Please set today restaurant first',
     orderCutoffPassed: 'Ordering time has passed. Please contact your team leader or Simon to place an order.',
     tooManyAttempts: 'Too many failed password attempts. Please try again later.',
+    memberAlreadyOrdered: 'One of the selected people already has an order today. Please delete the existing order first.',
     notSet: 'Not set',
     admin: 'New Admin',
     main: 'Old Page',
     staffTitle: '2) Staff',
     dept: 'Department',
     name: 'Name',
+    groupOrder: 'Group order',
+    groupMembersHint: 'Select people for the same order',
+    chooseGroupMembersToast: 'Please select at least two people',
     drink: 'Drink',
     food: 'Food',
     foodTitle: '3) Choose Food',
@@ -545,6 +566,8 @@ function localizeErrorMessage(message) {
   if (/invalid password|invalid admin username or password|invalid late order username or password/i.test(text)) return t('invalidPassword');
   if (/please set today restaurant first/i.test(text)) return t('setRestaurantFirst');
   if (/ordering cutoff has passed/i.test(text)) return t('orderCutoffPassed');
+  if (/order price exceeds limit/i.test(text)) return t('cannotOrderOver', text.match(/\$[0-9]+(?:\.[0-9]+)?/)?.[0] || '');
+  if (/already has an order today/i.test(text)) return t('memberAlreadyOrdered');
   if (/request failed/i.test(text)) return t('requestFailed');
   return text;
 }
@@ -582,6 +605,8 @@ function updateStaticText() {
   el.staffTitle.textContent = t('staffTitle');
   el.deptLabel.textContent = t('dept');
   el.nameLabel.textContent = t('name');
+  el.groupOrderLabel.textContent = t('groupOrder');
+  el.groupMembersHint.textContent = t('groupMembersHint');
   el.drinkLabel.textContent = t('drink');
   el.foodTitle.textContent = t('foodTitle');
   el.limitLabel.textContent = t('limit');
@@ -922,6 +947,10 @@ function getTotals() {
   return { total, qty, kinds: state.selected.size };
 }
 
+function getEffectivePriceLimit() {
+  return state.priceLimit * Math.max(1, selectedOrderMembers().length);
+}
+
 function getEntryOptionExtra(entry) {
   const groups = Array.isArray(entry && entry.food && entry.food.optionGroups) ? entry.food.optionGroups : [];
   return groups.reduce((sum, group, index) => {
@@ -952,6 +981,69 @@ function renderDepartments() {
 function renderNames() {
   const names = state.staff[el.deptSelect.value] || [];
   fillSelect(el.nameSelect, names.map(name => ({ value: name, label: name })), t('chooseName'));
+  state.groupOrder.members = new Set();
+  renderGroupMembers();
+  renderSelection();
+}
+
+function orderMemberNames(order) {
+  return String(order && order.name || '')
+    .split(/\s+\+\s+/)
+    .map(name => name.trim())
+    .filter(Boolean);
+}
+
+function orderIdentityKey(dept, members) {
+  const sortedMembers = [...(members || [])].sort((a, b) => a.localeCompare(b));
+  return `${String(dept || '').trim()}\u0000${sortedMembers.join('\u0000')}`;
+}
+
+function selectedOrderMembers() {
+  if (!state.groupOrder.active) {
+    const name = String(el.nameSelect.value || '').trim();
+    return name ? [name] : [];
+  }
+  const deptNames = state.staff[el.deptSelect.value] || [];
+  return deptNames.filter(name => state.groupOrder.members.has(name));
+}
+
+function findExistingOrderForMembers(dept, members) {
+  const key = orderIdentityKey(dept, members);
+  return (state.orders || []).find(order => orderIdentityKey(order.dept, orderMemberNames(order)) === key);
+}
+
+function memberHasDifferentOrder(dept, member, selectedMembers) {
+  const selectedKey = orderIdentityKey(dept, selectedMembers || []);
+  return (state.orders || []).some(order => {
+    if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
+    const members = orderMemberNames(order);
+    if (orderIdentityKey(order.dept, members) === selectedKey) return false;
+    return members.includes(member);
+  });
+}
+
+function renderGroupMembers() {
+  const active = Boolean(el.groupOrderToggle && el.groupOrderToggle.checked);
+  state.groupOrder.active = active;
+  if (!el.groupMembersWrap || !el.groupMembersList) return;
+  el.groupMembersWrap.classList.toggle('hidden', !active);
+  if (!active) {
+    state.groupOrder.members = new Set();
+    return;
+  }
+  const dept = el.deptSelect.value;
+  const names = state.staff[dept] || [];
+  const selectedMembers = selectedOrderMembers();
+  el.groupMembersList.innerHTML = names.map(name => {
+    const checked = state.groupOrder.members.has(name) ? 'checked' : '';
+    const disabled = memberHasDifferentOrder(dept, name, selectedMembers) ? 'disabled' : '';
+    return `
+      <label class="group-member-choice">
+        <input type="checkbox" data-action="group-member" value="${escapeHtml(name)}" ${checked} ${disabled} />
+        <span>${escapeHtml(name)}</span>
+      </label>
+    `;
+  }).join('');
 }
 
 function renderDrinks() {
@@ -1031,8 +1123,9 @@ function renderSelection() {
 
   const totals = getTotals();
   const optionValidation = validateSelectedOptions();
-  const balance = state.priceLimit - totals.total;
-  el.limitText.textContent = money(state.priceLimit);
+  const effectiveLimit = getEffectivePriceLimit();
+  const balance = effectiveLimit - totals.total;
+  el.limitText.textContent = money(effectiveLimit);
   el.selectedKindsText.textContent = String(totals.kinds);
   el.selectedQtyText.textContent = String(totals.qty);
   el.balanceText.textContent = balance >= 0 ? money(balance) : `${t('overWord')} ${money(Math.abs(balance))}`;
@@ -1042,7 +1135,7 @@ function renderSelection() {
   el.budgetNotice.textContent = balance >= 0
     ? (optionValidation.ok ? t('canAdd', money(balance)) : optionValidation.error)
     : t('overLimit', money(Math.abs(balance)));
-  el.submitBtn.disabled = totals.qty === 0 || totals.total > state.priceLimit || !optionValidation.ok;
+  el.submitBtn.disabled = totals.qty === 0 || totals.total > effectiveLimit || !optionValidation.ok;
 }
 
 function renderEntryOptions(entry) {
@@ -1198,6 +1291,7 @@ function renderOrders() {
     const lines = Object.entries(foods).map(([, entry]) => formatFoodSummaryLine(entry.label, entry)).join('<br>');
     return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${count}</span></strong><br>${lines}`;
   }).join('<br><br>');
+  renderGroupMembers();
 }
 
 function orderSignature(orders) {
@@ -1283,17 +1377,20 @@ async function load() {
 
 async function submitOrder() {
   const dept = el.deptSelect.value;
-  const name = el.nameSelect.value;
+  const members = selectedOrderMembers();
+  const name = members.join(' + ');
   if (!dept) return showToast(t('chooseDeptToast'));
   if (!name) return showToast(t('chooseNameToast'));
+  if (state.groupOrder.active && members.length < 2) return showToast(t('chooseGroupMembersToast'));
   const entries = Array.from(state.selected.values());
   if (!entries.length) return showToast(t('chooseFoodToast'));
 
   const totals = getTotals();
   const optionValidation = validateSelectedOptions();
   if (!optionValidation.ok) return showToast(optionValidation.error);
-  if (totals.total > state.priceLimit) {
-    return showToast(t('cannotOrderOver', money(totals.total - state.priceLimit)));
+  const effectiveLimit = getEffectivePriceLimit();
+  if (totals.total > effectiveLimit) {
+    return showToast(t('cannotOrderOver', money(totals.total - effectiveLimit)));
   }
   const food = entries.map(formatEntryOrderText).join(' + ');
   const addonRaw = String(el.addonInput.value || '').trim();
@@ -1302,6 +1399,7 @@ async function submitOrder() {
   const order = {
     dept,
     name,
+    groupMembers: members,
     food,
     addon,
     drink: el.drinkSelect.value,
@@ -1313,7 +1411,7 @@ async function submitOrder() {
     order.lateOrderPassword = state.lateOrder.password;
   }
 
-  const existing = (state.orders || []).find(item => item.dept === dept && item.name === name);
+  const existing = findExistingOrderForMembers(dept, members);
   if (existing && !sameOrder(existing, order)) {
     const confirmed = await confirmOrderChange(existing, order);
     if (!confirmed) return;
@@ -1328,7 +1426,7 @@ async function submitOrder() {
     if (Array.isArray(payload.orders)) state.orders = payload.orders;
     else state.orders = await api('/api/orders').then(data => data.orders || []);
     state.lastOrdersSignature = orderSignature(state.orders);
-    saveLastStaff(dept, name);
+    if (!state.groupOrder.active) saveLastStaff(dept, name);
     state.selected.clear();
     el.categorySelect.value = '';
     resetStaffForm();
@@ -1350,6 +1448,9 @@ async function submitOrder() {
 }
 
 function resetStaffForm() {
+  if (el.groupOrderToggle) el.groupOrderToggle.checked = false;
+  state.groupOrder.active = false;
+  state.groupOrder.members = new Set();
   const departments = Object.keys(state.staff || {});
   const single = departments.length === 1 ? departments[0] : '';
   el.deptSelect.value = single || '';
@@ -1866,6 +1967,24 @@ async function saveDrinkChanges(username, password, modal) {
 }
 
 el.deptSelect.addEventListener('change', renderNames);
+el.nameSelect.addEventListener('change', renderSelection);
+el.groupOrderToggle.addEventListener('change', () => {
+  state.groupOrder.active = el.groupOrderToggle.checked;
+  state.groupOrder.members = new Set();
+  if (state.groupOrder.active && el.nameSelect.value) state.groupOrder.members.add(el.nameSelect.value);
+  renderGroupMembers();
+  renderSelection();
+});
+el.groupMembersList.addEventListener('change', event => {
+  const input = event.target;
+  if (!input || input.dataset.action !== 'group-member') return;
+  const name = String(input.value || '').trim();
+  if (!name) return;
+  if (input.checked) state.groupOrder.members.add(name);
+  else state.groupOrder.members.delete(name);
+  renderGroupMembers();
+  renderSelection();
+});
 el.categorySelect.addEventListener('change', renderFoods);
 el.langTc.addEventListener('click', () => setLanguage('tc'));
 el.langSc.addEventListener('click', () => setLanguage('sc'));
