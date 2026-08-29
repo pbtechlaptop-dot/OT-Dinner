@@ -1651,19 +1651,37 @@ function parseOrderFoodItems(order) {
   const addonRaw = stripAddonPriceText(displayAddon(order.addon || ''));
   const addonKey = normalizeAddonForSummary(addonRaw);
   const addon = displayAddon(addonRaw);
-  const text = String(displayFood(order.food || '')).trim();
+  const rawText = String(order.food || '').trim();
+  const text = String(displayFood(rawText)).trim();
   if (!text) return [];
-  return text.split(/\s+\+\s+/).map(part => {
+  const rawParts = splitOrderFoodParts(rawText);
+  const displayParts = splitOrderFoodParts(text);
+  const hasOptionFood = rawParts.some((part, index) => foodUsesAddonForSummary(part, displayParts[index] || part));
+  return displayParts.map((part, index) => {
     const value = part.trim();
     if (!value) return null;
     const match = value.match(/\s+x\s*(\d+)\s*$/i);
     const qty = match ? Math.max(1, Number(match[1]) || 1) : 1;
     const food = match ? value.slice(0, match.index).trim() : value;
     if (!food) return null;
-    const label = addon ? `${food}（${addon}）` : food;
-    const key = addonKey ? `${food}||${addonKey}` : food;
+    const useAddon = addon && (!hasOptionFood || foodUsesAddonForSummary(rawParts[index] || value, food));
+    const label = useAddon ? `${food}（${addon}）` : food;
+    const key = useAddon && addonKey ? `${food}||${addonKey}` : food;
     return { key, label, qty };
   }).filter(Boolean);
+}
+
+function splitOrderFoodParts(value) {
+  return String(value || '').split(/\s+\+\s+/).map(part => part.trim()).filter(Boolean);
+}
+
+function foodUsesAddonForSummary(rawFood, displayFoodName) {
+  const clean = value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim();
+  const raw = clean(rawFood);
+  const display = clean(displayFoodName);
+  const match = [raw, display].map(value => state.foodLookup[value]).find(Boolean);
+  if (match && Array.isArray(match.optionGroups) && match.optionGroups.length) return true;
+  return /雙拼|双拼|三拼|combination/i.test(raw) || /雙拼|双拼|三拼|combination/i.test(display);
 }
 
 function formatFoodSummaryLine(food, entry) {
