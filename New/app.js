@@ -198,6 +198,7 @@ const i18n = {
     hasOptions: '有選項',
     options: '選項',
     pairOptions: '雙拼選擇',
+    optionPortion: number => `第 ${number} 份`,
     completeOption: (food, label) => `請完成「${food}」的${label}。`,
     maxOption: (food, label, max) => `「${food}」的${label}最多只可選 ${max} 項。`,
     chooseDeptToast: '請先選擇部門',
@@ -312,6 +313,7 @@ const i18n = {
     hasOptions: '有选项',
     options: '选项',
     pairOptions: '双拼选择',
+    optionPortion: number => `第 ${number} 份`,
     completeOption: (food, label) => `请完成「${food}」的${label}。`,
     maxOption: (food, label, max) => `「${food}」的${label}最多只可选 ${max} 项。`,
     chooseDeptToast: '请先选择部门',
@@ -425,6 +427,7 @@ const i18n = {
     hasOptions: 'Options',
     options: 'Options',
     pairOptions: 'Pair Choices',
+    optionPortion: number => `Portion ${number}`,
     completeOption: (food, label) => `Please complete ${label} for ${food}.`,
     maxOption: (food, label, max) => `${label} for ${food} allows at most ${max}.`,
     chooseDeptToast: 'Please select department',
@@ -830,6 +833,16 @@ function localOptionLabel(label) {
   return state.lang === 'sc' ? toSc(display) : display;
 }
 
+function orderOptionLabel(label) {
+  const raw = String(label || '').trim();
+  if (!raw) return '';
+  const slashParts = raw.split('/').map(part => part.trim()).filter(Boolean);
+  const source = slashParts.length > 1 ? slashParts[0] : raw;
+  const chinese = source.match(/[\u3400-\u9fff][\u3400-\u9fff\s/+&()（）-]*/g);
+  const display = chinese && chinese.length ? chinese.join('').trim() : source;
+  return toTc(display);
+}
+
 function splitAddonParts(addonText) {
   return String(addonText || '')
     .split(/[+＋,，、;；/]/)
@@ -872,11 +885,13 @@ function localizeAddonForDisplay(addonText) {
 }
 
 function localizeAddonPart(part) {
-  const value = canonicalAddonPart(part);
+  const raw = String(part || '').trim();
+  const qtyMatch = raw.match(/\s+x\s*\d+\s*$/i);
+  const suffix = qtyMatch ? raw.slice(qtyMatch.index).trim() : '';
+  const value = canonicalAddonPart(qtyMatch ? raw.slice(0, qtyMatch.index) : raw);
   if (!value) return '';
-  if (state.lang === 'sc') return toSc(value);
-  if (state.lang === 'en') return addonEnglishName(value);
-  return value;
+  const localized = state.lang === 'sc' ? toSc(value) : state.lang === 'en' ? addonEnglishName(value) : value;
+  return suffix ? `${localized} ${suffix}` : localized;
 }
 
 function addonEnglishName(value) {
@@ -952,7 +967,7 @@ function getTotals() {
   let total = 0;
   let qty = 0;
   state.selected.forEach(entry => {
-    total += getEntryUnitPrice(entry) * entry.qty;
+    total += getEntryTotalPrice(entry);
     qty += entry.qty;
   });
   return { total, qty, kinds: state.selected.size };
@@ -962,10 +977,29 @@ function getEffectivePriceLimit() {
   return state.priceLimit * Math.max(1, selectedOrderMembers().length);
 }
 
-function getEntryOptionExtra(entry) {
+function normalizeOptionSet(optionSet) {
+  const normalized = {};
+  Object.entries(optionSet || {}).forEach(([key, value]) => {
+    normalized[key] = Array.isArray(value) ? [...value] : [];
+  });
+  return normalized;
+}
+
+function getEntryOptionSets(entry) {
+  const qty = Math.max(0, Math.floor(Number(entry && entry.qty) || 0));
   const groups = Array.isArray(entry && entry.food && entry.food.optionGroups) ? entry.food.optionGroups : [];
+  if (!groups.length || !qty) return [];
+  const existing = Array.isArray(entry.optionSets) && entry.optionSets.length
+    ? entry.optionSets
+    : (entry.options ? [entry.options] : []);
+  return Array.from({ length: qty }, (_, index) => normalizeOptionSet(existing[index] || {}));
+}
+
+function getEntryOptionExtra(entry, optionSet) {
+  const groups = Array.isArray(entry && entry.food && entry.food.optionGroups) ? entry.food.optionGroups : [];
+  const selectedOptions = optionSet || entry.options || {};
   return groups.reduce((sum, group, index) => {
-    const selected = Array.isArray(entry.options && entry.options[index]) ? entry.options[index] : [];
+    const selected = Array.isArray(selectedOptions[index]) ? selectedOptions[index] : [];
     const choices = (group.choices || []).map(normalizeOptionChoice).filter(Boolean);
     selected.forEach(label => {
       const choice = choices.find(item => item.label === label);
@@ -977,6 +1011,14 @@ function getEntryOptionExtra(entry) {
 
 function getEntryUnitPrice(entry) {
   return Number(entry && entry.food && entry.food.price || 0) + getEntryOptionExtra(entry);
+}
+
+function getEntryTotalPrice(entry) {
+  const base = Number(entry && entry.food && entry.food.price || 0);
+  const qty = Math.max(0, Math.floor(Number(entry && entry.qty) || 0));
+  const optionSets = getEntryOptionSets(entry);
+  if (!optionSets.length) return base * qty;
+  return optionSets.reduce((sum, optionSet) => sum + base + getEntryOptionExtra(entry, optionSet), 0);
 }
 
 function renderDepartments() {
@@ -1165,7 +1207,7 @@ function renderSelection() {
         <div>
           <div class="selected-main">
             <span>${escapeHtml(localFood(food))}</span>
-            <strong>${money(getEntryUnitPrice(state.selected.get(food.key)) * qty)}</strong>
+            <strong>${money(getEntryTotalPrice(state.selected.get(food.key)))}</strong>
           </div>
           <div class="selected-controls">
             <span>${escapeHtml(t('editQty'))}</span>
@@ -1200,13 +1242,17 @@ function renderSelection() {
 function renderEntryOptions(entry) {
   const groups = Array.isArray(entry && entry.food && entry.food.optionGroups) ? entry.food.optionGroups : [];
   if (!groups.length) return '';
-  return `<div class="option-groups">${groups.map((group, groupIndex) => {
+  const optionSets = getEntryOptionSets(entry);
+  return `<div class="option-groups">${optionSets.map((optionSet, portionIndex) => `
+    <div class="option-portion">
+      <div class="option-portion-title">${escapeHtml(t('optionPortion', portionIndex + 1))}</div>
+      ${groups.map((group, groupIndex) => {
     const label = group.inferredPair || group.label === 'pairOptions' ? t('pairOptions') : (group.label || t('options'));
     const choices = (group.choices || []).map(normalizeOptionChoice).filter(Boolean);
     const max = Number.isFinite(group.max) ? group.max : choices.length;
     const min = Number.isFinite(group.min) ? group.min : (max === 1 ? 1 : 0);
     const isSingle = max === 1 && min <= 1;
-    const selected = Array.isArray(entry.options && entry.options[groupIndex]) ? entry.options[groupIndex] : [];
+    const selected = Array.isArray(optionSet[groupIndex]) ? optionSet[groupIndex] : [];
     return `
       <div class="option-group">
         <div class="option-title">${escapeHtml(label)} <span>(${min}${max === min ? '' : `-${max}`})</span></div>
@@ -1217,10 +1263,11 @@ function renderEntryOptions(entry) {
               <label class="option-choice">
                 <input
                   type="${isSingle ? 'radio' : 'checkbox'}"
-                  name="option-${escapeHtml(entry.food.key)}-${groupIndex}"
+                  name="option-${escapeHtml(entry.food.key)}-${portionIndex}-${groupIndex}"
                   value="${escapeHtml(choice.label)}"
                   data-action="option"
                   data-key="${escapeHtml(entry.food.key)}"
+                  data-portion="${portionIndex}"
                   data-group="${groupIndex}"
                   ${checked}
                 />
@@ -1231,25 +1278,30 @@ function renderEntryOptions(entry) {
         </div>
       </div>
     `;
-  }).join('')}</div>`;
+      }).join('')}
+    </div>
+  `).join('')}</div>`;
 }
 
 function validateSelectedOptions() {
   for (const entry of state.selected.values()) {
     const groups = Array.isArray(entry.food.optionGroups) ? entry.food.optionGroups : [];
+    const optionSets = getEntryOptionSets(entry);
     for (let index = 0; index < groups.length; index += 1) {
       const group = groups[index] || {};
       const choices = (group.choices || []).map(normalizeOptionChoice).filter(Boolean);
       const max = Number.isFinite(group.max) ? group.max : choices.length;
       const min = Number.isFinite(group.min) ? group.min : (max === 1 ? 1 : 0);
-      const selected = Array.isArray(entry.options && entry.options[index]) ? entry.options[index] : [];
-      if (selected.length < min) {
-        const label = group.inferredPair || group.label === 'pairOptions' ? t('pairOptions') : (group.label || t('options'));
-        return { ok: false, error: t('completeOption', localFood(entry.food), label) };
-      }
-      if (selected.length > max) {
-        const label = group.inferredPair || group.label === 'pairOptions' ? t('pairOptions') : (group.label || t('options'));
-        return { ok: false, error: t('maxOption', localFood(entry.food), label, max) };
+      for (let portionIndex = 0; portionIndex < optionSets.length; portionIndex += 1) {
+        const selected = Array.isArray(optionSets[portionIndex] && optionSets[portionIndex][index]) ? optionSets[portionIndex][index] : [];
+        if (selected.length < min) {
+          const label = group.inferredPair || group.label === 'pairOptions' ? t('pairOptions') : (group.label || t('options'));
+          return { ok: false, error: t('completeOption', `${localFood(entry.food)} ${t('optionPortion', portionIndex + 1)}`, label) };
+        }
+        if (selected.length > max) {
+          const label = group.inferredPair || group.label === 'pairOptions' ? t('pairOptions') : (group.label || t('options'));
+          return { ok: false, error: t('maxOption', `${localFood(entry.food)} ${t('optionPortion', portionIndex + 1)}`, label, max) };
+        }
       }
     }
   }
@@ -1263,16 +1315,24 @@ function setFoodQty(key, qty) {
   if (nextQty <= 0) state.selected.delete(key);
   else {
     const existing = state.selected.get(key);
-    state.selected.set(key, { food, qty: nextQty, options: existing && existing.options ? existing.options : {} });
+    const entry = { food, qty: nextQty };
+    const optionSets = getEntryOptionSets({ ...(existing || {}), food, qty: nextQty });
+    if (optionSets.length) {
+      entry.optionSets = optionSets;
+      entry.options = optionSets[0] || {};
+    }
+    state.selected.set(key, entry);
   }
   renderFoods();
   renderSelection();
 }
 
-function setFoodOption(key, groupIndex, label, checked, single) {
+function setFoodOption(key, portionIndex, groupIndex, label, checked, single) {
   const entry = state.selected.get(key);
   if (!entry) return;
-  const options = { ...(entry.options || {}) };
+  const optionSets = getEntryOptionSets(entry);
+  const targetIndex = Math.max(0, Math.floor(Number(portionIndex) || 0));
+  const options = normalizeOptionSet(optionSets[targetIndex] || {});
   const current = Array.isArray(options[groupIndex]) ? [...options[groupIndex]] : [];
   if (single) {
     options[groupIndex] = checked ? [label] : [];
@@ -1282,7 +1342,8 @@ function setFoodOption(key, groupIndex, label, checked, single) {
   } else if (!checked) {
     options[groupIndex] = current.filter(item => item !== label);
   }
-  state.selected.set(key, { ...entry, options });
+  optionSets[targetIndex] = options;
+  state.selected.set(key, { ...entry, optionSets, options: optionSets[0] || {} });
   renderSelection();
 }
 
@@ -1383,18 +1444,71 @@ function parseOrderFoodItems(order) {
   const addon = displayAddon(addonRaw);
   const rawParts = splitOrderFoodParts(rawText);
   const displayParts = splitOrderFoodParts(text);
-  const hasOptionFood = rawParts.some((part, index) => foodUsesAddonForSummary(part, displayParts[index] || part));
-  return displayParts.map((part, index) => {
-    const value = part.trim();
-    if (!value) return null;
-    const match = value.match(/\s+x\s*(\d+)\s*$/i);
-    const qty = match ? Math.max(1, Number(match[1]) || 1) : 1;
-    const food = match ? value.slice(0, match.index).trim() : value;
-    const useAddon = addon && (!hasOptionFood || foodUsesAddonForSummary(rawParts[index] || value, food));
-    const label = useAddon ? `${food}（${addon}）` : food;
-    const key = useAddon && addonKey ? `${food}||${addonKey}` : food;
-    return { key, label, qty };
-  }).filter(Boolean);
+  const parsedParts = displayParts.map((part, index) => parseFoodSummaryPart(part, rawParts[index] || part));
+  const optionIndexes = parsedParts
+    .map((part, index) => foodUsesAddonForSummary(part.raw, part.food) ? index : -1)
+    .filter(index => index >= 0);
+  const addonSegments = parseAddonSummarySegments(addonRaw);
+  const hasOptionFood = optionIndexes.length > 0;
+  const rows = [];
+
+  parsedParts.forEach((part, index) => {
+    if (!part.food) return;
+    const isOptionFood = optionIndexes.includes(index);
+    const matchingSegments = isOptionFood
+      ? addonSegments.filter(segment => !segment.food || foodLabelsMatch(segment.food, part.food, rawParts[index] || part.food))
+      : [];
+    if (matchingSegments.length) {
+      matchingSegments.forEach(segment => {
+        const label = `${part.food}（${segment.addon}）`;
+        const key = `${part.food}||${segment.key}`;
+        rows.push({ key, label, qty: segment.qty });
+      });
+      return;
+    }
+    const useAddon = addon && (!hasOptionFood || isOptionFood);
+    const label = useAddon ? `${part.food}（${addon}）` : part.food;
+    const key = useAddon && addonKey ? `${part.food}||${addonKey}` : part.food;
+    rows.push({ key, label, qty: part.qty });
+  });
+  return rows;
+}
+
+function parseFoodSummaryPart(value, rawValue) {
+  const text = String(value || '').trim();
+  if (!text) return { food: '', raw: String(rawValue || '').trim(), qty: 0 };
+  const match = text.match(/\s+x\s*(\d+)\s*$/i);
+  return {
+    food: match ? text.slice(0, match.index).trim() : text,
+    raw: String(rawValue || value || '').trim(),
+    qty: match ? Math.max(1, Number(match[1]) || 1) : 1
+  };
+}
+
+function parseAddonSummarySegments(addonText) {
+  return String(addonText || '')
+    .split(/[;；]+/)
+    .map(segment => {
+      let text = String(segment || '').trim();
+      if (!text) return null;
+      const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
+      const food = prefixMatch ? displayOrderFood(prefixMatch[1].trim()) : '';
+      text = prefixMatch ? prefixMatch[2].trim() : text;
+      const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
+      const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
+      const addon = displayAddon(qtyMatch ? text.slice(0, qtyMatch.index).trim() : text);
+      if (!addon) return null;
+      return { food, addon, qty, key: normalizeAddonForSummary(addon) || addon };
+    })
+    .filter(Boolean);
+}
+
+function foodLabelsMatch(prefix, displayFood, rawFood) {
+  const clean = value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim();
+  const target = clean(prefix);
+  if (!target) return false;
+  const names = [displayFood, rawFood, displayOrderFood(rawFood)].map(clean).filter(Boolean);
+  return names.includes(target);
 }
 
 function splitOrderFoodParts(value) {
@@ -1714,9 +1828,32 @@ function formatEntryOrderText(entry) {
 
 function buildEntryOptionText(entry) {
   const groups = Array.isArray(entry.food.optionGroups) ? entry.food.optionGroups : [];
+  const optionSets = getEntryOptionSets(entry);
+  if (optionSets.length) {
+    const counts = {};
+    optionSets.forEach(optionSet => {
+      const text = buildOptionSetText(entry, optionSet);
+      if (!text) return;
+      counts[text] = (counts[text] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([text, count]) => count > 1 ? `${text} x${count}` : text)
+      .join('；');
+  }
   const parts = [];
   groups.forEach((group, index) => {
     const selected = Array.isArray(entry.options && entry.options[index]) ? entry.options[index] : [];
+    if (!selected.length) return;
+    parts.push(selected.map(orderOptionLabel).join('+'));
+  });
+  return parts.join(', ');
+}
+
+function buildOptionSetText(entry, optionSet) {
+  const groups = Array.isArray(entry.food.optionGroups) ? entry.food.optionGroups : [];
+  const parts = [];
+  groups.forEach((group, index) => {
+    const selected = Array.isArray(optionSet && optionSet[index]) ? optionSet[index] : [];
     if (!selected.length) return;
     parts.push(selected.map(localOptionLabel).join('+'));
   });
@@ -1724,9 +1861,12 @@ function buildEntryOptionText(entry) {
 }
 
 function buildOrderOptionAddon(entries) {
-  return (entries || [])
-    .map(buildEntryOptionText)
-    .filter(Boolean)
+  const optionEntries = (entries || [])
+    .map(entry => ({ entry, text: buildEntryOptionText(entry) }))
+    .filter(item => item.text);
+  const needsFoodPrefix = optionEntries.length > 1;
+  return optionEntries
+    .map(({ entry, text }) => needsFoodPrefix ? `${entry.food.name}: ${text}` : text)
     .join('；');
 }
 
@@ -2116,7 +2256,7 @@ el.foodList.addEventListener('change', event => {
 el.selectionList.addEventListener('change', event => {
   const input = event.target;
   if (input.dataset.action === 'option') {
-    setFoodOption(input.dataset.key, input.dataset.group, input.value, input.checked, input.type === 'radio');
+    setFoodOption(input.dataset.key, input.dataset.portion, input.dataset.group, input.value, input.checked, input.type === 'radio');
     return;
   }
   if (input.dataset.action === 'selected-qty') {

@@ -412,9 +412,20 @@ textarea:focus {
   margin-top: 8px;
 }
 
-.option-group {
+.option-portion {
   border-top: 1px solid var(--line);
   padding-top: 8px;
+}
+
+.option-portion-title {
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.option-group {
+  padding-top: 4px;
 }
 
 .option-title {

@@ -1259,11 +1259,13 @@ function localizeAddonForDisplay(addonText) {
 }
 
 function localizeAddonPart(part) {
-  const value = canonicalAddonPart(part);
+  const raw = String(part || '').trim();
+  const qtyMatch = raw.match(/\s+x\s*\d+\s*$/i);
+  const suffix = qtyMatch ? raw.slice(qtyMatch.index).trim() : '';
+  const value = canonicalAddonPart(qtyMatch ? raw.slice(0, qtyMatch.index) : raw);
   if (!value) return '';
-  if (state.lang === 'sc') return toSc(value);
-  if (state.lang === 'en') return addonEnglishName(value);
-  return value;
+  const localized = state.lang === 'sc' ? toSc(value) : state.lang === 'en' ? addonEnglishName(value) : value;
+  return suffix ? `${localized} ${suffix}` : localized;
 }
 
 function addonEnglishName(value) {
@@ -1656,19 +1658,71 @@ function parseOrderFoodItems(order) {
   if (!text) return [];
   const rawParts = splitOrderFoodParts(rawText);
   const displayParts = splitOrderFoodParts(text);
-  const hasOptionFood = rawParts.some((part, index) => foodUsesAddonForSummary(part, displayParts[index] || part));
-  return displayParts.map((part, index) => {
-    const value = part.trim();
-    if (!value) return null;
-    const match = value.match(/\s+x\s*(\d+)\s*$/i);
-    const qty = match ? Math.max(1, Number(match[1]) || 1) : 1;
-    const food = match ? value.slice(0, match.index).trim() : value;
-    if (!food) return null;
-    const useAddon = addon && (!hasOptionFood || foodUsesAddonForSummary(rawParts[index] || value, food));
-    const label = useAddon ? `${food}（${addon}）` : food;
-    const key = useAddon && addonKey ? `${food}||${addonKey}` : food;
-    return { key, label, qty };
-  }).filter(Boolean);
+  const parsedParts = displayParts.map((part, index) => parseFoodSummaryPart(part, rawParts[index] || part));
+  const optionIndexes = parsedParts
+    .map((part, index) => foodUsesAddonForSummary(part.raw, part.food) ? index : -1)
+    .filter(index => index >= 0);
+  const addonSegments = parseAddonSummarySegments(addonRaw);
+  const hasOptionFood = optionIndexes.length > 0;
+  const rows = [];
+
+  parsedParts.forEach((part, index) => {
+    if (!part.food) return;
+    const isOptionFood = optionIndexes.includes(index);
+    const matchingSegments = isOptionFood
+      ? addonSegments.filter(segment => !segment.food || foodLabelsMatch(segment.food, part.food, rawParts[index] || part.food))
+      : [];
+    if (matchingSegments.length) {
+      matchingSegments.forEach(segment => {
+        const label = `${part.food}（${segment.addon}）`;
+        const key = `${part.food}||${segment.key}`;
+        rows.push({ key, label, qty: segment.qty });
+      });
+      return;
+    }
+    const useAddon = addon && (!hasOptionFood || isOptionFood);
+    const label = useAddon ? `${part.food}（${addon}）` : part.food;
+    const key = useAddon && addonKey ? `${part.food}||${addonKey}` : part.food;
+    rows.push({ key, label, qty: part.qty });
+  });
+  return rows;
+}
+
+function parseFoodSummaryPart(value, rawValue) {
+  const text = String(value || '').trim();
+  if (!text) return { food: '', raw: String(rawValue || '').trim(), qty: 0 };
+  const match = text.match(/\s+x\s*(\d+)\s*$/i);
+  return {
+    food: match ? text.slice(0, match.index).trim() : text,
+    raw: String(rawValue || value || '').trim(),
+    qty: match ? Math.max(1, Number(match[1]) || 1) : 1
+  };
+}
+
+function parseAddonSummarySegments(addonText) {
+  return String(addonText || '')
+    .split(/[;；]+/)
+    .map(segment => {
+      let text = String(segment || '').trim();
+      if (!text) return null;
+      const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
+      const food = prefixMatch ? displayFood(prefixMatch[1].trim()) : '';
+      text = prefixMatch ? prefixMatch[2].trim() : text;
+      const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
+      const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
+      const addon = stripAddonPriceText(displayAddon(qtyMatch ? text.slice(0, qtyMatch.index).trim() : text));
+      if (!addon) return null;
+      return { food, addon, qty, key: normalizeAddonForSummary(addon) || addon };
+    })
+    .filter(Boolean);
+}
+
+function foodLabelsMatch(prefix, displayFoodName, rawFood) {
+  const clean = value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim();
+  const target = clean(prefix);
+  if (!target) return false;
+  const names = [displayFoodName, rawFood, displayFood(rawFood)].map(clean).filter(Boolean);
+  return names.includes(target);
 }
 
 function splitOrderFoodParts(value) {
