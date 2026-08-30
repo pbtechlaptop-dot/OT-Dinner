@@ -1153,7 +1153,13 @@ function selectedGroupDrinks() {
 }
 
 function renderCategories() {
-  const categories = Object.keys(state.menu || {});
+  const categories = Object.keys(state.menu || {}).filter(category => {
+    const items = Array.isArray(state.menu[category]) ? state.menu[category] : [];
+    return items.some(item => {
+      const food = normalizeFood(item, category);
+      return food.name && !food.paused;
+    });
+  });
   fillSelect(el.categorySelect, [
     { value: '__all__', label: t('allCategories') },
     ...categories.map(category => ({ value: category, label: localCategory(category) }))

@@ -1129,7 +1129,13 @@ function renderDrinks() {
 }
 
 function renderCategories() {
-  const categories = Object.keys(state.menu || {});
+  const categories = Object.keys(state.menu || {}).filter(cat => {
+    const items = (state.menu && state.menu[cat]) ? state.menu[cat] : [];
+    return items.some(raw => {
+      const f = normalizeMenuItem(raw);
+      return f.nameTc && !f.paused;
+    });
+  });
   fillSelect(el.categorySelect, categories.map(c => ({ value: c, label: c })), t('selectCat'));
   if (categories.length) el.categorySelect.value = categories[0];
   fillSelect(el.foodSelect, [], t('chooseCatFirst'));

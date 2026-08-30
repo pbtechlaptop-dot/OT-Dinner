@@ -85,6 +85,8 @@ const el = {
   addCategoryBtn: document.getElementById('addCategoryBtn'),
   renameCategory: document.getElementById('renameCategory'),
   renameCategoryBtn: document.getElementById('renameCategoryBtn'),
+  toggleCategoryBtn: document.getElementById('toggleCategoryBtn'),
+  deleteCategoryBtn: document.getElementById('deleteCategoryBtn'),
   menuImportFile: document.getElementById('menuImportFile'),
   menuImportBtn: document.getElementById('menuImportBtn'),
   menuImportUpdateExisting: document.getElementById('menuImportUpdateExisting'),
@@ -912,6 +914,7 @@ function currentMenuCategory() {
 function updateCategoryRenameControls() {
   const enabled = Boolean(currentMenuRestaurant() && currentMenuCategory());
   const importEnabled = Boolean(currentMenuRestaurant());
+  const hidden = enabled && isCurrentCategoryHidden();
   if (el.renameCategory) {
     el.renameCategory.disabled = !enabled;
     if (!enabled) el.renameCategory.value = '';
@@ -921,12 +924,36 @@ function updateCategoryRenameControls() {
     el.renameCategoryBtn.classList.toggle('opacity-60', !enabled);
     el.renameCategoryBtn.classList.toggle('cursor-not-allowed', !enabled);
   }
+  if (el.toggleCategoryBtn) {
+    el.toggleCategoryBtn.disabled = !enabled;
+    el.toggleCategoryBtn.textContent = hidden ? '恢復分類' : '隱藏分類';
+    el.toggleCategoryBtn.classList.toggle('opacity-60', !enabled);
+    el.toggleCategoryBtn.classList.toggle('cursor-not-allowed', !enabled);
+  }
+  if (el.deleteCategoryBtn) {
+    el.deleteCategoryBtn.disabled = !enabled;
+    el.deleteCategoryBtn.classList.toggle('opacity-60', !enabled);
+    el.deleteCategoryBtn.classList.toggle('cursor-not-allowed', !enabled);
+  }
   [el.menuImportFile, el.menuImportBtn, el.menuImportUpdateExisting].forEach(node => {
     if (!node) return;
     node.disabled = !importEnabled;
     node.classList.toggle('opacity-60', !importEnabled);
     node.classList.toggle('cursor-not-allowed', !importEnabled);
   });
+}
+
+function currentCategoryItems() {
+  const rest = currentMenuRestaurant();
+  const cat = currentMenuCategory();
+  return rest && cat && state.seed.menus && state.seed.menus[rest] && Array.isArray(state.seed.menus[rest][cat])
+    ? state.seed.menus[rest][cat]
+    : [];
+}
+
+function isCurrentCategoryHidden() {
+  const items = currentCategoryItems();
+  return items.length > 0 && items.every(item => Boolean(item && item.paused));
 }
 
 function renderMenuCategories() {
@@ -947,7 +974,11 @@ function renderMenuCategories() {
   if (!state.seed.menus[rest]) state.seed.menus[rest] = {};
   const cats = Object.keys(state.seed.menus[rest]);
   el.menuCategorySelect.innerHTML = cats.length
-    ? cats.map(c => `<option value="${c}">${c}</option>`).join('')
+    ? cats.map(c => {
+      const items = Array.isArray(state.seed.menus[rest][c]) ? state.seed.menus[rest][c] : [];
+      const hidden = items.length > 0 && items.every(item => Boolean(item && item.paused));
+      return `<option value="${c}">${hidden ? '[已隱藏] ' : ''}${c}</option>`;
+    }).join('')
     : '<option value="">-- 無分類 --</option>';
   if (selected && cats.includes(selected)) el.menuCategorySelect.value = selected;
   updateCategoryRenameControls();
@@ -1947,6 +1978,51 @@ el.renameCategoryBtn.onclick = () => {
   markDirty(`已更改分類：${oldCat} → ${newCat}`);
   setStatus('分類已在畫面上更改，請按「儲存此區」寫入資料庫。');
 };
+
+if (el.toggleCategoryBtn) {
+  el.toggleCategoryBtn.onclick = () => {
+    if (!requireAuth()) return;
+    const rest = currentMenuRestaurant();
+    const cat = currentMenuCategory();
+    if (!rest) return setStatus('請先選擇餐廳。', true);
+    if (!cat) return setStatus('請先選擇分類。', true);
+    const items = currentCategoryItems();
+    if (!items.length) return setStatus('此分類未有餐點，可以直接刪除分類。', true);
+    const shouldRestore = isCurrentCategoryHidden();
+    const label = shouldRestore ? '恢復' : '隱藏';
+    if (!window.confirm(`確定${label}「${cat}」分類？此分類內 ${items.length} 個餐點會一起${shouldRestore ? '恢復供應' : '暫停供應'}。確認後仍要按「儲存此區」才會寫入資料庫。`)) return;
+    items.forEach(item => {
+      if (item) item.paused = !shouldRestore;
+    });
+    renderMenuCategories();
+    el.menuCategorySelect.value = cat;
+    renderMenuItems();
+    markDirty(`已${label}分類：${cat}`);
+    setStatus(`分類已${label}，請按「儲存此區」寫入資料庫。`);
+  };
+}
+
+if (el.deleteCategoryBtn) {
+  el.deleteCategoryBtn.onclick = () => {
+    if (!requireAuth()) return;
+    const rest = currentMenuRestaurant();
+    const cat = currentMenuCategory();
+    if (!rest) return setStatus('請先選擇餐廳。', true);
+    if (!cat) return setStatus('請先選擇分類。', true);
+    if (!state.seed.menus[rest] || !Object.prototype.hasOwnProperty.call(state.seed.menus[rest], cat)) {
+      return setStatus('找不到目前分類。', true);
+    }
+    const items = currentCategoryItems();
+    if (!window.confirm(`確定刪除「${cat}」分類？此分類內 ${items.length} 個餐點會一併刪除。確認後仍要按「儲存此區」才會寫入資料庫。`)) return;
+    delete state.seed.menus[rest][cat];
+    if (state.menuEdit && state.menuEdit.rest === rest && state.menuEdit.cat === cat) resetMenuEdit();
+    if (el.renameCategory) el.renameCategory.value = '';
+    renderMenuCategories();
+    renderMenuItems();
+    markDirty(`已刪除分類：${cat}`);
+    setStatus('分類已在畫面上刪除，請按「儲存此區」寫入資料庫。');
+  };
+}
 
 el.addMenuBtn.onclick = () => {
   if (!requireAuth()) return;

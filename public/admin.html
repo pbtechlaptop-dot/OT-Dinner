@@ -166,9 +166,11 @@
         </div>
         <div class="mb-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p class="mb-2 text-xs text-amber-800">更改分類會把目前餐廳內此分類的所有餐點一起移到新分類。確認無誤後，請再按「儲存此區」寫入資料庫。</p>
-          <div class="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto_auto]">
             <input id="renameCategory" placeholder="更改目前分類名稱" class="rounded-md border border-slate-300 px-3 py-2" />
             <button id="renameCategoryBtn" class="rounded-md bg-amber-500 px-3 py-2 font-semibold text-white hover:bg-amber-600">更改分類</button>
+            <button id="toggleCategoryBtn" class="rounded-md bg-slate-700 px-3 py-2 font-semibold text-white hover:bg-slate-800">隱藏分類</button>
+            <button id="deleteCategoryBtn" class="rounded-md bg-red-600 px-3 py-2 font-semibold text-white hover:bg-red-700">刪除分類</button>
           </div>
         </div>
 
