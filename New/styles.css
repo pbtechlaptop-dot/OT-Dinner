@@ -297,6 +297,7 @@ textarea:focus {
 
 .food-list {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 8px;
   max-height: 580px;
   overflow: auto;
@@ -779,6 +780,10 @@ tfoot td {
   }
 
   .food-item {
+    grid-template-columns: 1fr;
+  }
+
+  .food-list {
     grid-template-columns: 1fr;
   }
 
