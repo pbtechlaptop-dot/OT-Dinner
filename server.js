@@ -2053,12 +2053,19 @@ function getAppIdFromRequest(urlObj, body) {
 
 function serveStatic(req, reqPath, res) {
   const isLadyRubyPage = reqPath === '/lady-ruby' || reqPath === '/lady-ruby/';
+  const isLadyRubyNewPage = reqPath === '/lady-ruby/new' || reqPath === '/lady-ruby/new/' || reqPath.startsWith('/lady-ruby/new/');
   const isNewPage = reqPath === '/new' || reqPath === '/new/' || reqPath.startsWith('/new/');
   let baseDir = PUBLIC_DIR;
   let safePath = reqPath === '/'
     ? '/index.html'
     : ((reqPath === '/admin' || reqPath === '/admin/') ? '/admin.html' : reqPath);
   if (isLadyRubyPage) safePath = '/lady-ruby.html';
+  if (isLadyRubyNewPage) {
+    baseDir = NEW_PUBLIC_DIR;
+    safePath = (reqPath === '/lady-ruby/new' || reqPath === '/lady-ruby/new/')
+      ? '/lady-ruby.html'
+      : reqPath.replace(/^\/lady-ruby\/new/, '') || '/lady-ruby.html';
+  }
   if (isNewPage) {
     baseDir = NEW_PUBLIC_DIR;
     safePath = (reqPath === '/new' || reqPath === '/new/')

@@ -1,4 +1,5 @@
 const state = {
+  appId: document.body && document.body.dataset && document.body.dataset.appId ? document.body.dataset.appId : 'main',
   lang: 'tc',
   priceLimit: 22,
   staff: {},
@@ -120,6 +121,7 @@ const el = {
 const i18n = {
   tc: {
     appTitle: '加班 Order 飯系統 - New',
+    appTitleLadyRuby: '加班 Order 飯系統 - Lady Ruby New',
     date: '日期：',
     restaurant: '今日餐廳：',
     restaurantTitle: '1) 今日餐廳',
@@ -235,6 +237,7 @@ const i18n = {
   },
   sc: {
     appTitle: '加班订餐系统 - New',
+    appTitleLadyRuby: '加班订餐系统 - Lady Ruby New',
     date: '日期：',
     restaurant: '今日餐厅：',
     restaurantTitle: '1) 今日餐厅',
@@ -349,6 +352,7 @@ const i18n = {
   },
   en: {
     appTitle: 'Overtime Meal Order - New',
+    appTitleLadyRuby: 'Overtime Meal Order - Lady Ruby New',
     date: 'Date: ',
     restaurant: 'Restaurant: ',
     restaurantTitle: '1) Restaurant',
@@ -593,8 +597,9 @@ function setBusy(isBusy, text) {
 
 function updateStaticText() {
   document.documentElement.lang = state.lang === 'en' ? 'en' : (state.lang === 'sc' ? 'zh-Hans' : 'zh-Hant');
-  document.title = t('appTitle');
-  el.appTitle.textContent = t('appTitle');
+  const title = state.appId === 'lady-ruby' ? t('appTitleLadyRuby') : t('appTitle');
+  document.title = title;
+  el.appTitle.textContent = title;
   el.dateText.textContent = `${t('date')}${state.date || '--'}`;
   el.restaurantText.textContent = `${t('restaurant')}${state.currentRestaurant || t('notSet')}`;
   el.restaurantTitle.textContent = t('restaurantTitle');
@@ -604,6 +609,7 @@ function updateStaticText() {
   renderRestaurantContact();
   updateCutoffNotice();
   el.exportCsvLink.textContent = t('exportCsv');
+  el.exportCsvLink.href = withAppParam('/api/export/csv');
   el.exportXlsxBtn.textContent = t('exportXlsx');
   el.openRestaurantModalBtn.textContent = t('setRestaurant');
   el.restaurantModalTitle.textContent = t('restaurantModalTitle');
@@ -615,6 +621,7 @@ function updateStaticText() {
   el.cancelRestaurantBtn.textContent = t('cancel');
   el.setRestaurantBtn.textContent = t('saveRestaurantSettings');
   el.mainLink.textContent = t('main');
+  el.mainLink.href = state.appId === 'lady-ruby' ? '/lady-ruby/' : '/';
   el.staffTitle.textContent = t('staffTitle');
   el.deptLabel.textContent = t('dept');
   el.nameLabel.textContent = t('name');
@@ -701,16 +708,21 @@ function setLanguage(lang) {
   renderOrders();
 }
 
+function withAppParam(path) {
+  const app = encodeURIComponent(state.appId || 'main');
+  return `${path}${path.includes('?') ? '&' : '?'}app=${app}`;
+}
+
 async function api(path, options = {}) {
   const requestOptions = { headers: { 'Content-Type': 'application/json' }, ...options };
   if (requestOptions.body && typeof requestOptions.body === 'string') {
     try {
       const body = JSON.parse(requestOptions.body);
-      if (!body.app) requestOptions.body = JSON.stringify({ ...body, app: 'main' });
+      if (!body.app) requestOptions.body = JSON.stringify({ ...body, app: state.appId || 'main' });
     } catch {
     }
   }
-  const response = await fetch(path, requestOptions);
+  const response = await fetch(withAppParam(path), requestOptions);
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(localizeErrorMessage(payload.error || 'Request failed'));
