@@ -74,6 +74,7 @@ const i18n = {
     datePrefix: '日期：',
     currentRestaurant: '目前：',
     restaurantContact: '聯絡：',
+    mapAddress: '地圖',
     notSet: '未設定',
     noOrders: '未有訂單',
     noDrink: '無',
@@ -154,6 +155,7 @@ const i18n = {
     datePrefix: '日期：',
     currentRestaurant: '目前：',
     restaurantContact: '联系：',
+    mapAddress: '地图',
     notSet: '未设置',
     noOrders: '暂无订单',
     noDrink: '无',
@@ -234,6 +236,7 @@ const i18n = {
     datePrefix: 'Date: ',
     currentRestaurant: 'Current: ',
     restaurantContact: 'Contact: ',
+    mapAddress: 'Map address',
     notSet: 'Not set',
     noOrders: 'No orders yet',
     noDrink: 'No drink',
@@ -498,7 +501,8 @@ function linkifyText(value) {
     try {
       const parsed = new URL(href);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        html += `<a href="${escapeHtml(parsed.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(urlText)}</a>`;
+        const label = isMapUrl(parsed) ? t('mapAddress') : urlText;
+        html += `<a href="${escapeHtml(parsed.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
       } else {
         html += escapeHtml(urlText);
       }
@@ -510,6 +514,16 @@ function linkifyText(value) {
   }
   html += escapeHtml(text.slice(lastIndex));
   return html;
+}
+
+function isMapUrl(url) {
+  const host = url.hostname.toLowerCase();
+  const path = url.pathname.toLowerCase();
+  return host.includes('google.') && path.includes('/maps')
+    || host === 'maps.app.goo.gl'
+    || host === 'goo.gl' && path.startsWith('/maps')
+    || host.includes('maps.google.')
+    || path.includes('/maps/');
 }
 
 function getCutoffInputValue() {

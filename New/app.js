@@ -127,6 +127,7 @@ const i18n = {
     restaurantTitle: '1) 今日餐廳',
     currentRestaurant: '目前：',
     contact: '聯絡：',
+    mapAddress: '地圖',
     cutoff: '今日截單時間：',
     restaurantActionHint: '如需要改餐廳或截單時間，按設定餐廳並輸入密碼。',
     cutoffActiveNotice: '請於截單前完成下單，如已過時請聯絡部門主管或 Simon。',
@@ -243,6 +244,7 @@ const i18n = {
     restaurantTitle: '1) 今日餐厅',
     currentRestaurant: '目前：',
     contact: '联系：',
+    mapAddress: '地图',
     cutoff: '今日截单时间：',
     restaurantActionHint: '如需要改餐厅或截单时间，按设置餐厅并输入密码。',
     cutoffActiveNotice: '请于截单前完成下单，如已过时请联络部门主管或 Simon。',
@@ -358,6 +360,7 @@ const i18n = {
     restaurantTitle: '1) Restaurant',
     currentRestaurant: 'Current: ',
     contact: 'Contact: ',
+    mapAddress: 'Map address',
     cutoff: 'Cutoff time: ',
     restaurantActionHint: 'To change the restaurant or cutoff time, click Set Restaurant and enter the password.',
     cutoffActiveNotice: 'Please place your order before the cutoff time. After that, contact your team leader or Simon.',
@@ -1593,7 +1596,8 @@ function linkifyText(value) {
     try {
       const parsed = new URL(href);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        html += `<a href="${escapeHtml(parsed.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(urlText)}</a>`;
+        const label = isMapUrl(parsed) ? t('mapAddress') : urlText;
+        html += `<a href="${escapeHtml(parsed.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
       } else {
         html += escapeHtml(urlText);
       }
@@ -1605,6 +1609,16 @@ function linkifyText(value) {
   }
   html += escapeHtml(text.slice(lastIndex));
   return html;
+}
+
+function isMapUrl(url) {
+  const host = url.hostname.toLowerCase();
+  const path = url.pathname.toLowerCase();
+  return host.includes('google.') && path.includes('/maps')
+    || host === 'maps.app.goo.gl'
+    || host === 'goo.gl' && path.startsWith('/maps')
+    || host.includes('maps.google.')
+    || path.includes('/maps/');
 }
 
 async function load() {
