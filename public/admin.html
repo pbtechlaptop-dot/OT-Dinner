@@ -172,6 +172,18 @@
           </div>
         </div>
 
+        <div class="mb-2 rounded-lg border border-sky-200 bg-sky-50 p-3">
+          <p class="mb-2 text-xs text-sky-800">匯入菜單只會加入目前選擇的餐廳，不會新增另一間同名餐廳。匯入後請檢查分類及餐點，再按「儲存此區」。</p>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+            <input id="menuImportFile" type="file" accept=".xlsx,.xls,.csv,.json" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200" />
+            <button id="menuImportBtn" class="rounded-md bg-pbnavy px-3 py-2 text-sm font-semibold text-white hover:bg-blue-900">匯入到此餐廳</button>
+          </div>
+          <label class="mt-2 flex items-center gap-2 text-xs text-slate-600">
+            <input id="menuImportUpdateExisting" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
+            同名餐點用匯入資料更新
+          </label>
+        </div>
+
         <div class="overflow-x-auto rounded border border-slate-200">
           <table class="min-w-full text-sm" id="menuTable"></table>
         </div>
@@ -238,7 +250,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.min.js"></script>
-  <script src="/admin.js?v=20260819-1"></script>
+  <script src="/admin.js?v=20260831-1"></script>
   <script src="/pwa.js?v=20260616-1"></script>
 </body>
 </html>
