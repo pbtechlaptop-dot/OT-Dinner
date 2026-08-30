@@ -1062,15 +1062,35 @@ function selectedOrderMembers() {
 
 function findExistingOrderForMembers(dept, members) {
   const key = orderIdentityKey(dept, members);
-  return (state.orders || []).find(order => orderIdentityKey(order.dept, orderMemberNames(order)) === key);
+  const selectedMembers = [...(members || [])].map(name => String(name || '').trim()).filter(Boolean);
+  const exact = (state.orders || []).find(order => orderIdentityKey(order.dept, orderMemberNames(order)) === key);
+  if (exact) return exact;
+  if (selectedMembers.length < 2) return null;
+  return (state.orders || []).find(order => {
+    if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
+    const existingMembers = orderMemberNames(order);
+    return existingMembers.length > selectedMembers.length
+      && selectedMembers.every(member => existingMembers.includes(member));
+  });
 }
 
 function memberHasDifferentOrder(dept, member, selectedMembers) {
-  const selectedKey = orderIdentityKey(dept, selectedMembers || []);
+  const selectedList = [...(selectedMembers || [])].map(name => String(name || '').trim()).filter(Boolean);
+  const selectedKey = orderIdentityKey(dept, selectedList);
+  const replacementGroup = selectedList.length ? (state.orders || []).find(order => {
+    if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
+    const members = orderMemberNames(order);
+    return members.length > selectedList.length && selectedList.every(selected => members.includes(selected));
+  }) : null;
+  if (replacementGroup && !orderMemberNames(replacementGroup).includes(member)) return true;
   return (state.orders || []).some(order => {
     if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
     const members = orderMemberNames(order);
     if (orderIdentityKey(order.dept, members) === selectedKey) return false;
+    if (members.length > 1 && members.includes(member)) {
+      if (!selectedList.length) return false;
+      if (selectedList.every(selected => members.includes(selected))) return false;
+    }
     return members.includes(member);
   });
 }
@@ -1618,7 +1638,7 @@ async function submitOrder() {
   }
 
   const existing = findExistingOrderForMembers(dept, members);
-  if (existing && !sameOrder(existing, order)) {
+  if (existing && (orderIdentityKey(existing.dept, orderMemberNames(existing)) !== orderIdentityKey(dept, members) || !sameOrder(existing, order))) {
     const confirmed = await confirmOrderChange(existing, order);
     if (!confirmed) return;
   }
