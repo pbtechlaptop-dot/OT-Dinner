@@ -660,15 +660,15 @@ function renderRestaurantContact() {
   const contactMap = state.restaurantContacts && typeof state.restaurantContacts === 'object' ? state.restaurantContacts : {};
   const contact = state.currentRestaurant ? contactMap[state.currentRestaurant] : null;
   const parts = [];
-  if (contact && contact.phone) parts.push(contact.phone);
-  if (contact && contact.email) parts.push(contact.email);
-  if (contact && contact.note) parts.push(contact.note);
+  if (contact && contact.phone) parts.push(escapeHtml(contact.phone));
+  if (contact && contact.email) parts.push(escapeHtml(contact.email));
+  if (contact && contact.note) parts.push(linkifyText(contact.note));
   if (!parts.length) {
     el.restaurantContactText.classList.add('hidden');
     el.restaurantContactText.textContent = '';
     return;
   }
-  el.restaurantContactText.textContent = `${t('contact')}${parts.join(' / ')}`;
+  el.restaurantContactText.innerHTML = `${escapeHtml(t('contact'))}${parts.join(' / ')}`;
   el.restaurantContactText.classList.remove('hidden');
 }
 
@@ -1578,6 +1578,33 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function linkifyText(value) {
+  const text = String(value || '');
+  const urlPattern = /\b((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
+  let lastIndex = 0;
+  let html = '';
+  for (const match of text.matchAll(urlPattern)) {
+    const urlText = match[0].replace(/[),.;!?]+$/g, '');
+    const trailing = match[0].slice(urlText.length);
+    html += escapeHtml(text.slice(lastIndex, match.index));
+    const href = urlText.startsWith('www.') ? `https://${urlText}` : urlText;
+    try {
+      const parsed = new URL(href);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        html += `<a href="${escapeHtml(parsed.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(urlText)}</a>`;
+      } else {
+        html += escapeHtml(urlText);
+      }
+    } catch {
+      html += escapeHtml(urlText);
+    }
+    html += escapeHtml(trailing);
+    lastIndex = match.index + match[0].length;
+  }
+  html += escapeHtml(text.slice(lastIndex));
+  return html;
 }
 
 async function load() {
