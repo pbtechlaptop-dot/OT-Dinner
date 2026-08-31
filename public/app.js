@@ -1798,7 +1798,7 @@ async function refreshOrdersSilently() {
   refreshOrdersSilently.inFlight = true;
   try {
     const payload = await api(`/api/orders?_=${Date.now()}`);
-    const nextRestaurant = payload.currentRestaurant || null;
+    const nextRestaurant = payload.currentRestaurant || state.currentRestaurant || null;
     const nextCutoffTime = payload.cutoffTime || state.defaultCutoffTime;
     const nextCutoffPassed = Boolean(payload.cutoffPassed);
     const restaurantChanged = nextRestaurant !== state.currentRestaurant;
@@ -2605,7 +2605,7 @@ el.setRestaurantBtn.addEventListener('click', async () => {
       body: JSON.stringify({ restaurant, cutoffTime, password, forceChange: changingRestaurant })
     });
     await loadMenu(restaurant);
-    state.currentRestaurant = payload.currentRestaurant;
+    state.currentRestaurant = payload.currentRestaurant || restaurant;
     state.cutoffTime = payload.cutoffTime || state.defaultCutoffTime;
     state.cutoffPassed = Boolean(payload.cutoffPassed);
     el.currentRestaurantText.textContent = `${t('currentRestaurant')}${restaurant}`;

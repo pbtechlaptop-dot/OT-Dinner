@@ -2118,7 +2118,16 @@ async function saveRestaurantSettings() {
       body: JSON.stringify({ restaurant, cutoffTime, password, forceChange: changingRestaurant })
     });
     closeRestaurantModal();
-    await load();
+    state.currentRestaurant = payload.currentRestaurant || restaurant;
+    state.cutoffTime = payload.cutoffTime || cutoffTime || state.cutoffTime;
+    state.cutoffPassed = Boolean(payload.cutoffPassed);
+    if (payload.cleared) state.orders = [];
+    const menuPayload = await api(`/api/menu?restaurant=${encodeURIComponent(state.currentRestaurant)}`);
+    state.menu = menuPayload.menu || {};
+    renderCategories();
+    renderSelection();
+    renderOrders();
+    updateStaticText();
     if (payload.restaurantChanged || payload.cleared) showToast(t('restaurantChanged'));
     else if (payload.cutoffChanged) showToast(t('cutoffUpdated'));
     else showToast(t('restaurantSet'));
