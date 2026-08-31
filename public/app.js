@@ -2604,10 +2604,12 @@ el.setRestaurantBtn.addEventListener('click', async () => {
       method: 'POST',
       body: JSON.stringify({ restaurant, cutoffTime, password, forceChange: changingRestaurant })
     });
-    await loadMenu(restaurant);
     state.currentRestaurant = payload.currentRestaurant || restaurant;
     state.cutoffTime = payload.cutoffTime || state.defaultCutoffTime;
     state.cutoffPassed = Boolean(payload.cutoffPassed);
+    state.menu = payload.currentMenu || {};
+    buildLookupMaps();
+    renderCategories();
     el.currentRestaurantText.textContent = `${t('currentRestaurant')}${restaurant}`;
     if (payload.cleared) state.orders = [];
     renderRestaurants();

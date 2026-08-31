@@ -2285,6 +2285,7 @@ async function handleApi(req, res, urlObj) {
       currentRestaurant: state.restaurant,
       cutoffTime: state.cutoffTime,
       cutoffPassed: isCutoffPassed(state.cutoffTime),
+      currentMenu: seed.menus[state.restaurant] || {},
       cleared,
       restaurantChanged,
       cutoffChanged

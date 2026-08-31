@@ -2122,8 +2122,7 @@ async function saveRestaurantSettings() {
     state.cutoffTime = payload.cutoffTime || cutoffTime || state.cutoffTime;
     state.cutoffPassed = Boolean(payload.cutoffPassed);
     if (payload.cleared) state.orders = [];
-    const menuPayload = await api(`/api/menu?restaurant=${encodeURIComponent(state.currentRestaurant)}`);
-    state.menu = menuPayload.menu || {};
+    state.menu = payload.currentMenu || {};
     renderCategories();
     renderSelection();
     renderOrders();
