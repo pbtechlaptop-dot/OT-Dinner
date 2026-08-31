@@ -855,10 +855,10 @@ function normalizeSeed(input) {
     }
   });
 
-    const restaurantSet = new Set(normalized.restaurants);
   Object.keys(menus).forEach(rest => {
     const cleanRest = normText(rest);
-    if (!cleanRest || !restaurantSet.has(cleanRest)) return;
+    const menuRestaurant = restaurantNameForMenu(normalized.restaurants, cleanRest);
+    if (!menuRestaurant) return;
     const cats = menus[rest] && typeof menus[rest] === 'object' ? menus[rest] : {};
     Object.keys(cats).forEach(cat => {
       const cleanCat = normText(cat);
@@ -866,8 +866,8 @@ function normalizeSeed(input) {
       const items = Array.isArray(cats[cat]) ? cats[cat] : [];
       const cleanItems = items.map(normalizeMenuItem).filter(Boolean);
       if (!cleanItems.length) return;
-      if (!normalized.menus[cleanRest]) normalized.menus[cleanRest] = {};
-      normalized.menus[cleanRest][cleanCat] = cleanItems;
+      if (!normalized.menus[menuRestaurant]) normalized.menus[menuRestaurant] = {};
+      normalized.menus[menuRestaurant][cleanCat] = cleanItems;
     });
   });
 
@@ -1065,9 +1065,32 @@ function normalizeNewSettings(input) {
 }
 
 function restaurantLookupKey(value) {
-  return normText(value)
+  let text = normText(value)
     .toLowerCase()
+    .replace(/廚/g, '厨')
+    .replace(/記/g, '记')
+    .replace(/園/g, '园')
+    .replace(/華/g, '华')
+    .replace(/龍/g, '龙')
+    .replace(/興/g, '兴')
+    .replace(/東/g, '东')
+    .replace(/國/g, '国')
+    .replace(/萬/g, '万')
+    .replace(/廣/g, '广')
+    .replace(/樂/g, '乐')
+    .replace(/灣/g, '湾')
+    .replace(/麵/g, '面')
+    .replace(/臺/g, '台')
     .replace(/[\s/／\\,，、()（）\-_.]/g, '');
+  return text;
+}
+
+function restaurantNameForMenu(restaurants, restaurant) {
+  const cleanRestaurant = normText(restaurant);
+  if (!cleanRestaurant) return '';
+  if ((restaurants || []).includes(cleanRestaurant)) return cleanRestaurant;
+  const target = restaurantLookupKey(cleanRestaurant);
+  return (restaurants || []).find(name => restaurantLookupKey(name) === target) || '';
 }
 
 function hasRestaurant(seed, restaurant) {
