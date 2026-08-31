@@ -1717,7 +1717,7 @@ function parseOrderFoodItems(order) {
     if (!part.food) return;
     const isOptionFood = optionIndexes.includes(index);
     const matchingSegments = isOptionFood
-      ? addonSegments.filter(segment => !segment.food || foodLabelsMatch(segment.food, part.food, rawParts[index] || part.food))
+      ? matchingAddonSegmentsForFood(addonSegments, part.food, rawParts[index] || part.food, optionIndexes.length)
       : [];
     if (matchingSegments.length) {
       matchingSegments.forEach(segment => {
@@ -1727,7 +1727,7 @@ function parseOrderFoodItems(order) {
       });
       return;
     }
-    const useAddon = addon && (!hasOptionFood || isOptionFood);
+    const useAddon = addon && (!hasOptionFood || isOptionFood && !addonSegments.length);
     const label = useAddon ? `${part.food}（${addon}）` : part.food;
     const key = useAddon && addonKey ? `${part.food}||${addonKey}` : part.food;
     rows.push({ key, label, qty: part.qty });
@@ -1762,6 +1762,56 @@ function parseAddonSummarySegments(addonText) {
       return { food, addon, qty, key: normalizeAddonForSummary(addon) || addon };
     })
     .filter(Boolean);
+}
+
+function matchingAddonSegmentsForFood(segments, displayFoodName, rawFood, optionFoodCount) {
+  const direct = segments.filter(segment => segment.food && foodLabelsMatch(segment.food, displayFoodName, rawFood));
+  if (direct.length) return direct;
+  const inferred = segments
+    .filter(segment => !segment.food)
+    .map(segment => inferAddonSegmentForFood(segment, displayFoodName, rawFood))
+    .filter(Boolean);
+  if (inferred.length) return inferred;
+  return optionFoodCount === 1 ? segments.filter(segment => !segment.food) : [];
+}
+
+function inferAddonSegmentForFood(segment, displayFoodName, rawFood) {
+  const source = String(segment && segment.addon || '').trim();
+  const prefixes = [displayFoodName, rawFood, displayFood(rawFood)]
+    .map(value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  for (const prefix of prefixes) {
+    const addon = stripFoodPrefixFromAddon(source, prefix);
+    if (!addon) continue;
+    const normalizedAddon = stripAddonPriceText(displayAddon(addon));
+    return { ...segment, food: displayFoodName, addon: normalizedAddon, key: normalizeAddonForSummary(normalizedAddon) || normalizedAddon };
+  }
+  return null;
+}
+
+function stripFoodPrefixFromAddon(text, prefix) {
+  const raw = String(text || '').trim();
+  const target = compactSummaryPrefix(prefix);
+  if (!raw || !target) return '';
+  let consumed = '';
+  for (let index = 0; index < raw.length; index += 1) {
+    const compact = compactSummaryPrefix(raw[index]);
+    if (!compact) continue;
+    consumed += compact;
+    if (!target.startsWith(consumed)) return '';
+    if (consumed === target) {
+      return raw.slice(index + 1).replace(/^[:：\s/、,，]+/, '').trim();
+    }
+  }
+  return '';
+}
+
+function compactSummaryPrefix(value) {
+  return String(value || '')
+    .replace(/\s+x\s*\d+\s*$/i, '')
+    .toLowerCase()
+    .replace(/[\s/\\,，、()（）]/g, '');
 }
 
 function foodLabelsMatch(prefix, displayFoodName, rawFood) {
