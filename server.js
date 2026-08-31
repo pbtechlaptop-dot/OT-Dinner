@@ -1956,7 +1956,7 @@ function findOrderForSubmission(orders, nextOrder) {
   const nextIdentity = orderIdentityKey(nextOrder);
   const exact = list.find(order => orderIdentityKey(order) === nextIdentity);
   if (exact) return exact;
-  if (!nextMembers.length) return null;
+  if (!nextMembers.length || nextMembers.length < 2 && !nextOrder.allowGroupSplit) return null;
   const dept = normText(nextOrder && nextOrder.dept);
   return list.find(order => {
     if (normText(order && order.dept) !== dept) return false;
@@ -2324,7 +2324,8 @@ async function handleApi(req, res, urlObj) {
     const submittedOrder = {
       ...body,
       dept: normText(body.dept),
-      name: groupMembers.join(' + ')
+      name: groupMembers.join(' + '),
+      allowGroupSplit: Boolean(body.allowGroupSplit)
     };
     const conflictMember = findOrderMemberConflict(state.orders, submittedOrder);
     if (conflictMember) {

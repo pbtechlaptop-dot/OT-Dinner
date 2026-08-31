@@ -1086,12 +1086,12 @@ function selectedOrderMembers() {
   return deptNames.filter(name => state.groupOrder.members.has(name));
 }
 
-function findExistingOrderForMembers(dept, members) {
+function findExistingOrderForMembers(dept, members, options = {}) {
   const key = orderIdentityKey(dept, members);
   const selectedMembers = [...(members || [])].map(name => String(name || '').trim()).filter(Boolean);
   const exact = (state.orders || []).find(order => orderIdentityKey(order.dept, orderMemberNames(order)) === key);
   if (exact) return exact;
-  if (!selectedMembers.length) return null;
+  if (!options.allowGroupSplit || !selectedMembers.length) return null;
   return (state.orders || []).find(order => {
     if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
     const existingMembers = orderMemberNames(order);
@@ -1685,7 +1685,10 @@ async function submitOrder() {
   const name = members.join(' + ');
   if (!dept) return showToast(t('chooseDeptToast'));
   if (!name) return showToast(t('chooseNameToast'));
-  if (state.groupOrder.active && members.length < 2 && !findExistingOrderForMembers(dept, members)) return showToast(t('chooseGroupMembersToast'));
+  const existingGroupSplitOrder = state.groupOrder.active
+    ? findExistingOrderForMembers(dept, members, { allowGroupSplit: true })
+    : null;
+  if (state.groupOrder.active && members.length < 2 && !existingGroupSplitOrder) return showToast(t('chooseGroupMembersToast'));
   const entries = Array.from(state.selected.values());
   if (!entries.length) return showToast(t('chooseFoodToast'));
 
@@ -1707,7 +1710,8 @@ async function submitOrder() {
     food,
     addon,
     drink: selectedGroupDrinks().join(' + '),
-    price: totals.total
+    price: totals.total,
+    allowGroupSplit: Boolean(state.groupOrder.active)
   };
   if (state.cutoffPassed && state.lateOrder.active) {
     order.lateOrder = true;
@@ -1715,7 +1719,7 @@ async function submitOrder() {
     order.lateOrderPassword = state.lateOrder.password;
   }
 
-  const existing = findExistingOrderForMembers(dept, members);
+  const existing = findExistingOrderForMembers(dept, members, { allowGroupSplit: Boolean(state.groupOrder.active) });
   if (existing && (orderIdentityKey(existing.dept, orderMemberNames(existing)) !== orderIdentityKey(dept, members) || !sameOrder(existing, order))) {
     const confirmed = await confirmOrderChange(existing, order);
     if (!confirmed) return;
