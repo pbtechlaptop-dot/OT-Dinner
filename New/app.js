@@ -983,6 +983,12 @@ function addonChineseName(value) {
     'small rice': '小',
     'big rice': '大',
     'large rice': '大',
+    'plain': '清炒',
+    'plain stir fried': '清炒',
+    'plain stir-fried': '清炒',
+    'stir fried': '清炒',
+    'stir-fried': '清炒',
+    'garlic': '蒜蓉',
     'bbq pork': '叉燒',
     'honey bbq pork': '叉燒',
     'pork crispy': '燒肉',
@@ -1049,6 +1055,9 @@ function addonEnglishName(value) {
     '饭': 'Rice',
     '蒜蓉': 'Garlic',
     '蒜茸': 'Garlic',
+    '清炒': 'Plain',
+    '清炒時蔬': 'Plain',
+    '清炒时蔬': 'Plain',
     '肉': 'Meat',
     '椒鹽': 'Salt and Pepper',
     '少鹽': 'Less Salt',
@@ -1084,7 +1093,7 @@ function displayOrderAddon(order) {
     }
     return segment.addon;
   }).filter(Boolean);
-  return values.join('；');
+  return values.join(state.lang === 'en' ? '; ' : '；');
 }
 
 function allFoods() {
