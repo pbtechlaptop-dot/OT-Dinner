@@ -1446,6 +1446,27 @@ function displayAddon(addonText) {
   return localizeAddonForDisplay(raw) || raw;
 }
 
+function displayOrderAddon(order) {
+  const raw = String(order && order.addon || '').trim();
+  if (!raw) return '';
+  const rawParts = splitOrderFoodParts(String(order.food || ''));
+  const displayParts = splitOrderFoodParts(displayFood(String(order.food || '')));
+  const parsedParts = displayParts.map((part, index) => parseFoodSummaryPart(part, rawParts[index] || part));
+  const optionParts = parsedParts.filter(part => foodUsesAddonForSummary(part.raw, part.food));
+  if (!optionParts.length) return displayAddon(raw);
+  const segments = parseAddonSummarySegments(raw);
+  if (!segments.length) return displayAddon(raw);
+  const values = segments.map(segment => {
+    if (segment.food) return segment.addon;
+    for (const part of optionParts) {
+      const inferred = inferAddonSegmentForFood(segment, part.food, part.raw);
+      if (inferred) return inferred.addon;
+    }
+    return segment.addon;
+  }).filter(Boolean);
+  return values.join('；');
+}
+
 function localizeApiError(message) {
   const text = String(message || '').trim();
   if (/order price exceeds limit/i.test(text)) {
@@ -1471,7 +1492,7 @@ function stripAddonPriceText(addonText) {
 function describeOrderForChange(order) {
   if (!order) return '';
   const parts = [displayFood(order.food)];
-  const addon = displayAddon(order.addon || '');
+  const addon = displayOrderAddon(order);
   if (addon) parts.push(addon);
   if (order.drink) parts.push(displayDrink(order.drink));
   return parts.join(' / ');
@@ -1883,7 +1904,7 @@ function compactSummaryPrefix(value) {
   return String(value || '')
     .replace(/\s+x\s*\d+\s*$/i, '')
     .toLowerCase()
-    .replace(/[\s/\\,，、()（）]/g, '');
+    .replace(/[\s/／\\,，、()（）]/g, '');
 }
 
 function foodLabelsMatch(prefix, displayFoodName, rawFood) {
@@ -1935,7 +1956,7 @@ function renderOrders() {
   el.ordersBody.innerHTML = orders.map((o, i) => {
     const p = Number(o.price || 0);
     total += p;
-    const addon = stripAddonPriceText(displayAddon(o.addon || ''));
+    const addon = stripAddonPriceText(displayOrderAddon(o));
     return `<tr><td>${i + 1}</td><td>${o.dept}</td><td>${o.name}</td><td>${displayFood(o.food)}</td><td>${addon}</td><td>${displayDrinkHtml(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
   }).join('');
   el.totalPrice.textContent = total.toFixed(2);
@@ -2348,7 +2369,7 @@ async function exportXlsx() {
     o.dept || '',
     o.name || '',
     displayFood(o.food || ''),
-    stripAddonPriceText(displayAddon(o.addon || '')),
+    stripAddonPriceText(displayOrderAddon(o)),
     displayDrink(o.drink || ''),
     Number(o.price || 0)
   ]);

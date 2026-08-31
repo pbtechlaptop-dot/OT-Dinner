@@ -1010,6 +1010,27 @@ function displayAddon(addonText) {
   return localizeAddonForDisplay(raw) || raw;
 }
 
+function displayOrderAddon(order) {
+  const raw = String(order && order.addon || '').trim();
+  if (!raw) return '';
+  const rawParts = splitOrderFoodParts(String(order.food || ''));
+  const displayParts = splitOrderFoodParts(displayOrderFood(String(order.food || '')));
+  const parsedParts = displayParts.map((part, index) => parseFoodSummaryPart(part, rawParts[index] || part));
+  const optionParts = parsedParts.filter(part => foodUsesAddonForSummary(part.raw, part.food));
+  if (!optionParts.length) return displayAddon(raw);
+  const segments = parseAddonSummarySegments(raw);
+  if (!segments.length) return displayAddon(raw);
+  const values = segments.map(segment => {
+    if (segment.food) return segment.addon;
+    for (const part of optionParts) {
+      const inferred = inferAddonSegmentForFood(segment, part.food, part.raw);
+      if (inferred) return inferred.addon;
+    }
+    return segment.addon;
+  }).filter(Boolean);
+  return values.join('；');
+}
+
 function allFoods() {
   const list = [];
   Object.entries(state.menu || {}).forEach(([category, items]) => {
@@ -1494,7 +1515,7 @@ function renderOrders() {
       <td>${escapeHtml(order.dept || '')}</td>
       <td>${escapeHtml(order.name || '')}</td>
       <td>${escapeHtml(displayOrderFood(order.food || ''))}</td>
-      <td>${escapeHtml(displayAddon(order.addon || ''))}</td>
+      <td>${escapeHtml(displayOrderAddon(order))}</td>
       <td>${escapeHtml(displayOrderDrink(order.drink || '') || t('noDrink').replace(/-/g, '').trim())}</td>
       <td>${money(order.price)}</td>
     </tr>
@@ -1680,7 +1701,7 @@ function compactSummaryPrefix(value) {
   return String(value || '')
     .replace(/\s+x\s*\d+\s*$/i, '')
     .toLowerCase()
-    .replace(/[\s/\\,，、()（）]/g, '');
+    .replace(/[\s/／\\,，、()（）]/g, '');
 }
 
 function foodLabelsMatch(prefix, displayFood, rawFood) {
@@ -1985,7 +2006,7 @@ async function exportXlsx() {
       order.dept || '',
       order.name || '',
       displayOrderFood(order.food || ''),
-      displayAddon(order.addon || ''),
+      displayOrderAddon(order),
       displayOrderDrink(order.drink || ''),
       Number(order.price || 0)
     ]);
