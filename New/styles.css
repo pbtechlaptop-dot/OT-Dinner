@@ -290,7 +290,7 @@ textarea:focus {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(220px, 360px);
+  grid-template-columns: minmax(220px, 360px) minmax(170px, 220px);
   gap: 10px;
   margin-bottom: 10px;
 }

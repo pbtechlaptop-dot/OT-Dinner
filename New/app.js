@@ -64,6 +64,7 @@ const el = {
   groupDrinksList: document.getElementById('groupDrinksList'),
   foodTitle: document.getElementById('foodTitle'),
   categorySelect: document.getElementById('categorySelect'),
+  priceSortSelect: document.getElementById('priceSortSelect'),
   foodList: document.getElementById('foodList'),
   limitLabel: document.getElementById('limitLabel'),
   kindsLabel: document.getElementById('kindsLabel'),
@@ -196,6 +197,9 @@ const i18n = {
     noDrink: '-- 無 --',
     allCats: '選擇分類',
     allCategories: '全部分類',
+    sortOriginal: '原本排序',
+    sortPriceAsc: '價錢小至大',
+    sortPriceDesc: '價錢大至小',
     chooseCategoryFirst: '請先選擇分類。',
     noFoods: '未有餐點。',
     hasOptions: '有選項',
@@ -313,6 +317,9 @@ const i18n = {
     noDrink: '-- 无 --',
     allCats: '选择分类',
     allCategories: '全部分类',
+    sortOriginal: '原本排序',
+    sortPriceAsc: '价钱小至大',
+    sortPriceDesc: '价钱大至小',
     chooseCategoryFirst: '请先选择分类。',
     noFoods: '未有餐点。',
     hasOptions: '有选项',
@@ -429,6 +436,9 @@ const i18n = {
     noDrink: '-- None --',
     allCats: 'Select Category',
     allCategories: 'All Categories',
+    sortOriginal: 'Original order',
+    sortPriceAsc: 'Price low to high',
+    sortPriceDesc: 'Price high to low',
     chooseCategoryFirst: 'Please select a category first.',
     noFoods: 'No food available.',
     hasOptions: 'Options',
@@ -656,6 +666,7 @@ function updateStaticText() {
   el.cancelChangeBtn.textContent = t('cancel');
   el.confirmChangeBtn.textContent = t('confirm');
   if (!state.selected.size) el.budgetNotice.textContent = t('initialBudget');
+  renderPriceSortOptions();
   updateDiagSummary();
 }
 
@@ -1204,6 +1215,17 @@ function renderCategories() {
   renderFoods();
 }
 
+function renderPriceSortOptions() {
+  if (!el.priceSortSelect) return;
+  const current = el.priceSortSelect.value || 'original';
+  fillSelect(el.priceSortSelect, [
+    { value: 'original', label: t('sortOriginal') },
+    { value: 'asc', label: t('sortPriceAsc') },
+    { value: 'desc', label: t('sortPriceDesc') }
+  ], '');
+  el.priceSortSelect.value = current;
+}
+
 function renderFoods() {
   const category = el.categorySelect.value;
   if (el.categorySelect.selectedIndex <= 0 || !category) {
@@ -1213,6 +1235,9 @@ function renderFoods() {
   const foods = allFoods().filter(food => {
     return category === '__all__' || food.category === category;
   });
+  const sortMode = el.priceSortSelect ? el.priceSortSelect.value : 'original';
+  if (sortMode === 'asc') foods.sort((a, b) => Number(a.price || 0) - Number(b.price || 0) || localFood(a).localeCompare(localFood(b), 'zh-Hant'));
+  if (sortMode === 'desc') foods.sort((a, b) => Number(b.price || 0) - Number(a.price || 0) || localFood(a).localeCompare(localFood(b), 'zh-Hant'));
 
   if (!foods.length) {
     el.foodList.innerHTML = `<p class="hint">${escapeHtml(t('noFoods'))}</p>`;
@@ -2302,6 +2327,7 @@ el.groupDrinksList.addEventListener('change', event => {
   state.groupOrder.drinks[index] = select.value;
 });
 el.categorySelect.addEventListener('change', renderFoods);
+if (el.priceSortSelect) el.priceSortSelect.addEventListener('change', renderFoods);
 el.langTc.addEventListener('click', () => setLanguage('tc'));
 el.langSc.addEventListener('click', () => setLanguage('sc'));
 el.langEn.addEventListener('click', () => setLanguage('en'));
