@@ -986,6 +986,10 @@ function canonicalTextKey(value) {
 
 function addonEnglishName(value) {
   const map = {
+    '大白飯': 'Large rice',
+    '大白饭': 'Large rice',
+    '細白飯': 'Small rice',
+    '细白饭': 'Small rice',
     '叉燒': 'BBQ Pork',
     '燒肉': 'Roast Pork',
     '燒鴨': 'Roast Duck',
@@ -993,6 +997,12 @@ function addonEnglishName(value) {
     '雞蛋麵': 'Egg Noodles',
     '河粉': 'Hor Fun',
     '瀨粉': 'Lai Fen',
+    '白飯': 'Rice',
+    '白饭': 'Rice',
+    '飯': 'Rice',
+    '饭': 'Rice',
+    '蒜蓉': 'Garlic',
+    '蒜茸': 'Garlic',
     '肉': 'Meat',
     '椒鹽': 'Salt and Pepper',
     '少鹽': 'Less Salt',
