@@ -646,6 +646,7 @@ function fillSelect(select, items, placeholder) {
     const opt = document.createElement('option');
     opt.value = item.value;
     opt.textContent = item.label;
+    if (item.disabled) opt.disabled = true;
     if (item.price !== undefined) opt.dataset.price = String(item.price);
     if (item.optionGroups !== undefined) {
       try {
@@ -656,6 +657,34 @@ function fillSelect(select, items, placeholder) {
     }
     select.appendChild(opt);
   });
+}
+
+function orderMemberNames(order) {
+  return String(order && order.name || '')
+    .split(/\s+\+\s+/)
+    .map(name => name.trim())
+    .filter(Boolean);
+}
+
+function memberIsInGroupOrder(dept, member) {
+  const target = String(member || '').trim();
+  if (!target) return false;
+  return (state.orders || []).some(order => {
+    if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
+    const members = orderMemberNames(order);
+    return members.length > 1 && members.includes(target);
+  });
+}
+
+function renderNamesForDepartment(dept) {
+  const current = el.nameSelect.value;
+  fillSelect(el.nameSelect, (state.staff[dept] || []).map(name => ({
+    value: name,
+    label: name,
+    disabled: memberIsInGroupOrder(dept, name)
+  })), t('selectName'));
+  const currentOption = Array.from(el.nameSelect.options || []).find(option => option.value === current);
+  if (currentOption && !currentOption.disabled) el.nameSelect.value = current;
 }
 
 function buildLookupMaps() {
@@ -1157,7 +1186,7 @@ function renderDepartments() {
   if (singleDepartment) el.deptSelect.value = singleDepartment;
   fillSelect(el.nameSelect, [], t('chooseDeptFirst'));
   if (singleDepartment) {
-    fillSelect(el.nameSelect, (state.staff[singleDepartment] || []).map(name => ({ value: name, label: name })), t('selectName'));
+    renderNamesForDepartment(singleDepartment);
   }
 }
 
@@ -1787,6 +1816,7 @@ async function refreshOrdersSilently() {
       state.orders = incoming;
       state.lastOrdersSignature = sig;
       renderOrders();
+      if (el.deptSelect.value) renderNamesForDepartment(el.deptSelect.value);
     }
   } catch {
   } finally {
@@ -2494,7 +2524,7 @@ function resetOrderForm() {
   el.deptSelect.disabled = Boolean(singleDepartment);
   el.deptSelect.value = singleDepartment || '';
   if (singleDepartment) {
-    fillSelect(el.nameSelect, (state.staff[singleDepartment] || []).map(n => ({ value: n, label: n })), t('selectName'));
+    renderNamesForDepartment(singleDepartment);
   } else {
     fillSelect(el.nameSelect, [], t('chooseDeptFirst'));
   }
@@ -2538,7 +2568,7 @@ async function exportXlsx() {
 
 el.deptSelect.addEventListener('change', () => {
   const dept = el.deptSelect.value;
-  fillSelect(el.nameSelect, (state.staff[dept] || []).map(n => ({ value: n, label: n })), t('selectName'));
+  renderNamesForDepartment(dept);
 });
 
 el.categorySelect.addEventListener('change', renderFood);
@@ -2633,6 +2663,7 @@ el.orderForm.addEventListener('submit', async event => {
     : addonText;
 
   const order = { dept: el.deptSelect.value, name: el.nameSelect.value, food: el.foodSelect.value, price, addon: mergedAddon, drink: el.drinkSelect.value };
+  if (memberIsInGroupOrder(order.dept, order.name)) return showToast(t('memberAlreadyOrdered'));
   if (state.cutoffPassed && state.lateOrder.active) {
     order.lateOrderUsername = state.lateOrder.username;
     order.lateOrderPassword = state.lateOrder.password;
