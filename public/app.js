@@ -1922,22 +1922,30 @@ function parseFoodSummaryPart(value, rawValue) {
 }
 
 function parseAddonSummarySegments(addonText) {
-  return String(addonText || '')
-    .split(/[;；]+/)
-    .map(segment => {
-      let text = String(segment || '').trim();
-      if (!text) return null;
-      const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
-      const food = prefixMatch ? displayFood(prefixMatch[1].trim()) : '';
-      text = prefixMatch ? prefixMatch[2].trim() : text;
-      const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
-      const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
-      const rawAddon = qtyMatch ? text.slice(0, qtyMatch.index).trim() : text;
-      const addon = stripAddonPriceText(displayAddon(rawAddon));
-      if (!addon) return null;
-      return { food, addon, rawAddon, qty, key: normalizeAddonForSummary(addon) || addon };
-    })
-    .filter(Boolean);
+  const rows = [];
+  let scopedFood = '';
+  String(addonText || '').split(/[;；]+/).forEach(segment => {
+    let text = String(segment || '').trim();
+    if (!text) return;
+    const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
+    const explicitFood = prefixMatch ? displayFood(prefixMatch[1].trim()) : '';
+    text = prefixMatch ? prefixMatch[2].trim() : text;
+    const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
+    const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
+    const rawAddon = qtyMatch ? text.slice(0, qtyMatch.index).trim() : text;
+    const addon = stripAddonPriceText(displayAddon(rawAddon));
+    if (!addon) return;
+    const row = { food: explicitFood, addon, rawAddon, qty, key: normalizeAddonForSummary(addon) || addon };
+    if (explicitFood) {
+      scopedFood = explicitFood;
+    } else if (scopedFood && segmentBelongsToFoodChoice(row, scopedFood, scopedFood)) {
+      row.food = scopedFood;
+    } else {
+      scopedFood = '';
+    }
+    rows.push(row);
+  });
+  return rows;
 }
 
 function matchingAddonSegmentsForFood(segments, displayFoodName, rawFood, optionFoodCount) {

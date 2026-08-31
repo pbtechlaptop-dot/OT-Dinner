@@ -1201,6 +1201,9 @@ function renderDepartments() {
 function renderNames() {
   const names = state.staff[el.deptSelect.value] || [];
   fillSelect(el.nameSelect, names.map(name => ({ value: name, label: name })), t('chooseName'));
+  Array.from(el.nameSelect.options || []).forEach(option => {
+    if (option.value && memberIsInGroupOrder(el.deptSelect.value, option.value)) option.disabled = true;
+  });
   state.groupOrder.members = new Set();
   renderGroupMembers();
   renderSelection();
@@ -1241,6 +1244,16 @@ function findExistingOrderForMembers(dept, members, options = {}) {
   });
 }
 
+function memberIsInGroupOrder(dept, member) {
+  const target = String(member || '').trim();
+  if (!target) return false;
+  return (state.orders || []).some(order => {
+    if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
+    const members = orderMemberNames(order);
+    return members.length > 1 && members.includes(target);
+  });
+}
+
 function memberHasDifferentOrder(dept, member, selectedMembers) {
   const selectedList = [...(selectedMembers || [])].map(name => String(name || '').trim()).filter(Boolean);
   const selectedKey = orderIdentityKey(dept, selectedList);
@@ -1255,7 +1268,7 @@ function memberHasDifferentOrder(dept, member, selectedMembers) {
     const members = orderMemberNames(order);
     if (orderIdentityKey(order.dept, members) === selectedKey) return false;
     if (members.length > 1 && members.includes(member)) {
-      if (!selectedList.length) return false;
+      if (!selectedList.length) return true;
       if (selectedList.every(selected => members.includes(selected))) return false;
     }
     return members.includes(member);
@@ -1693,22 +1706,30 @@ function parseFoodSummaryPart(value, rawValue) {
 }
 
 function parseAddonSummarySegments(addonText) {
-  return String(addonText || '')
-    .split(/[;；]+/)
-    .map(segment => {
-      let text = String(segment || '').trim();
-      if (!text) return null;
-      const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
-      const food = prefixMatch ? displayOrderFood(prefixMatch[1].trim()) : '';
-      text = prefixMatch ? prefixMatch[2].trim() : text;
-      const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
-      const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
-      const rawAddon = qtyMatch ? text.slice(0, qtyMatch.index).trim() : text;
-      const addon = displayAddon(rawAddon);
-      if (!addon) return null;
-      return { food, addon, rawAddon, qty, key: normalizeAddonForSummary(addon) || addon };
-    })
-    .filter(Boolean);
+  const rows = [];
+  let scopedFood = '';
+  String(addonText || '').split(/[;；]+/).forEach(segment => {
+    let text = String(segment || '').trim();
+    if (!text) return;
+    const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
+    const explicitFood = prefixMatch ? displayOrderFood(prefixMatch[1].trim()) : '';
+    text = prefixMatch ? prefixMatch[2].trim() : text;
+    const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
+    const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
+    const rawAddon = qtyMatch ? text.slice(0, qtyMatch.index).trim() : text;
+    const addon = displayAddon(rawAddon);
+    if (!addon) return;
+    const row = { food: explicitFood, addon, rawAddon, qty, key: normalizeAddonForSummary(addon) || addon };
+    if (explicitFood) {
+      scopedFood = explicitFood;
+    } else if (scopedFood && segmentBelongsToFoodChoice(row, scopedFood, scopedFood)) {
+      row.food = scopedFood;
+    } else {
+      scopedFood = '';
+    }
+    rows.push(row);
+  });
+  return rows;
 }
 
 function matchingAddonSegmentsForFood(segments, displayFood, rawFood, optionFoodCount) {
