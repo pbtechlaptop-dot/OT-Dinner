@@ -1882,9 +1882,10 @@ function parseAddonSummarySegments(addonText) {
       text = prefixMatch ? prefixMatch[2].trim() : text;
       const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
       const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
-      const addon = stripAddonPriceText(displayAddon(qtyMatch ? text.slice(0, qtyMatch.index).trim() : text));
+      const rawAddon = qtyMatch ? text.slice(0, qtyMatch.index).trim() : text;
+      const addon = stripAddonPriceText(displayAddon(rawAddon));
       if (!addon) return null;
-      return { food, addon, qty, key: normalizeAddonForSummary(addon) || addon };
+      return { food, addon, rawAddon, qty, key: normalizeAddonForSummary(addon) || addon };
     })
     .filter(Boolean);
 }
@@ -1901,7 +1902,7 @@ function matchingAddonSegmentsForFood(segments, displayFoodName, rawFood, option
 }
 
 function inferAddonSegmentForFood(segment, displayFoodName, rawFood) {
-  const source = String(segment && segment.addon || '').trim();
+  const source = String(segment && (segment.rawAddon || segment.addon) || '').trim();
   const prefixes = [displayFoodName, rawFood, displayFood(rawFood)]
     .map(value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim())
     .filter(Boolean)
@@ -1926,7 +1927,10 @@ function stripFoodPrefixFromAddon(text, prefix) {
     consumed += compact;
     if (!target.startsWith(consumed)) return '';
     if (consumed === target) {
-      return raw.slice(index + 1).replace(/^[:：\s/、,，]+/, '').trim();
+      return raw.slice(index + 1)
+        .replace(/^[:：\s/／、,，(（]+/, '')
+        .replace(/[)）]+$/, '')
+        .trim();
     }
   }
   return '';
