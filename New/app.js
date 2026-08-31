@@ -959,6 +959,12 @@ function extractEnglishOptionLabel(label) {
 
 function addonChineseName(value) {
   const map = {
+    'small': '小',
+    'big': '大',
+    'large': '大',
+    'small rice': '小',
+    'big rice': '大',
+    'large rice': '大',
     'bbq pork': '叉燒',
     'honey bbq pork': '叉燒',
     'pork crispy': '燒肉',
@@ -986,10 +992,16 @@ function canonicalTextKey(value) {
 
 function addonEnglishName(value) {
   const map = {
-    '大白飯': 'Large rice',
-    '大白饭': 'Large rice',
+    '大白飯': 'Big rice',
+    '大白饭': 'Big rice',
+    '大米飯': 'Big rice',
+    '大米饭': 'Big rice',
     '細白飯': 'Small rice',
     '细白饭': 'Small rice',
+    '細米飯': 'Small rice',
+    '细米饭': 'Small rice',
+    '大': 'Big',
+    '小': 'Small',
     '叉燒': 'BBQ Pork',
     '燒肉': 'Roast Pork',
     '燒鴨': 'Roast Duck',
