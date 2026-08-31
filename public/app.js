@@ -1283,7 +1283,17 @@ function canonicalAddonPart(part) {
   const value = toTc(String(part || '').trim());
   const chinese = value.match(/[\u3400-\u9fff]+/g);
   if (chinese && chinese.length) return chinese.join('');
+  const known = addonChineseName(value);
+  if (known) return toTc(known);
   return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function storedOptionChineseLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const matches = raw.match(/[\u3400-\u9fff]+/g);
+  if (matches && matches.length) return matches.join('');
+  return raw;
 }
 
 function localizeAddonForSummary(addonText) {
@@ -1311,8 +1321,70 @@ function localizeAddonPart(part) {
   const suffix = qtyMatch ? raw.slice(qtyMatch.index).trim() : '';
   const value = canonicalAddonPart(qtyMatch ? raw.slice(0, qtyMatch.index) : raw);
   if (!value) return '';
-  const localized = state.lang === 'sc' ? toSc(value) : state.lang === 'en' ? addonEnglishName(value) : value;
+  const localized = localizeAddonName(value);
   return suffix ? `${localized} ${suffix}` : localized;
+}
+
+function localizeAddonName(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (state.lang === 'en') return addonEnglishName(raw);
+  const chinese = addonChineseName(raw) || optionChineseName(raw) || raw;
+  return state.lang === 'sc' ? toSc(chinese) : toTc(chinese);
+}
+
+function optionChineseName(value) {
+  const key = canonicalTextKey(value);
+  if (!key) return '';
+  const map = {};
+  Object.values(state.foodLookup || {}).forEach(food => {
+    (food.optionGroups || []).forEach(group => {
+      (group.choices || []).map(normalizeOptionChoice).filter(Boolean).forEach(choice => {
+        const tc = storedOptionChineseLabel(choice.label);
+        if (!tc || !/[\u3400-\u9fff]/.test(tc)) return;
+        [choice.label, formatOptionLabel(choice.label, 0), extractEnglishOptionLabel(choice.label), tc].forEach(label => {
+          const labelKey = canonicalTextKey(label);
+          if (labelKey) map[labelKey] = tc;
+        });
+      });
+    });
+  });
+  return map[key] || '';
+}
+
+function extractEnglishOptionLabel(label) {
+  return String(label || '')
+    .replace(/^[\u3400-\u9fff\s/+&()（）-]+/, '')
+    .replace(/^choice\s+/i, '')
+    .replace(/^[-:/\s]+/, '')
+    .trim();
+}
+
+function addonChineseName(value) {
+  const map = {
+    'bbq pork': '叉燒',
+    'honey bbq pork': '叉燒',
+    'pork crispy': '燒肉',
+    'crispy pork': '燒肉',
+    'roast pork': '燒肉',
+    'crispy roast pork': '燒肉',
+    'roast duck': '燒鴨',
+    'duck': '燒鴨',
+    'chicken': '雞',
+    'egg noodles': '雞蛋麵',
+    'choice egg noodles': '雞蛋麵',
+    'hor fun': '河粉',
+    'lai fen': '瀨粉'
+  };
+  return map[canonicalTextKey(value)] || '';
+}
+
+function canonicalTextKey(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[()（）]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function addonEnglishName(value) {
@@ -1370,7 +1442,7 @@ function displayAddon(addonText) {
   const raw = String(addonText || '').trim();
   if (!raw) return '';
   const hasCjk = /[\u3400-\u9fff]/.test(raw);
-  if (!hasCjk) return state.lang === 'sc' ? toSc(raw) : raw;
+  if (!hasCjk && state.lang === 'en') return raw;
   return localizeAddonForDisplay(raw) || raw;
 }
 
