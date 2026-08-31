@@ -1064,12 +1064,33 @@ function normalizeNewSettings(input) {
   };
 }
 
+function restaurantLookupKey(value) {
+  return normText(value)
+    .toLowerCase()
+    .replace(/[\s/／\\,，、()（）\-_.]/g, '');
+}
+
+function hasRestaurant(seed, restaurant) {
+  const target = restaurantLookupKey(restaurant);
+  if (!target) return false;
+  return (seed.restaurants || []).some(name => restaurantLookupKey(name) === target);
+}
+
+function menuForRestaurant(seed, restaurant) {
+  const cleanRestaurant = normText(restaurant);
+  if (!cleanRestaurant) return null;
+  if (seed.menus && seed.menus[cleanRestaurant]) return seed.menus[cleanRestaurant];
+  const target = restaurantLookupKey(cleanRestaurant);
+  const matchedKey = Object.keys(seed.menus || {}).find(name => restaurantLookupKey(name) === target);
+  return matchedKey ? seed.menus[matchedKey] : null;
+}
+
 async function ensureStateHasValidRestaurant(appId, seedInput, stateInput) {
   const seed = normalizeSeed(seedInput);
   const state = normalizeState(stateInput);
   const restaurant = normText(state.restaurant);
   if (!restaurant) return state;
-  if (seed.menus && seed.menus[restaurant]) return state;
+  if (hasRestaurant(seed, restaurant)) return state;
   const nextState = { ...state, restaurant: null };
   await storage.saveState(appId, nextState);
   return nextState;
@@ -2201,7 +2222,7 @@ async function handleApi(req, res, urlObj) {
       cutoffTime: state.cutoffTime,
       cutoffPassed: isCutoffPassed(state.cutoffTime),
       orders: state.orders,
-      currentMenu: state.restaurant ? (seed.menus[state.restaurant] || {}) : {},
+      currentMenu: state.restaurant ? (menuForRestaurant(seed, state.restaurant) || {}) : {},
       app: appId
     });
   }
@@ -2224,7 +2245,7 @@ async function handleApi(req, res, urlObj) {
     const state = await ensureStateHasValidRestaurant(appId, seed, rawState);
     const restaurant = urlObj.searchParams.get('restaurant') || state.restaurant;
     if (!restaurant) return json(res, 400, { error: 'Restaurant is required' });
-    const menu = seed.menus[restaurant];
+    const menu = menuForRestaurant(seed, restaurant);
     if (!menu) return json(res, 404, { error: 'Menu not found for selected restaurant' });
     return json(res, 200, { restaurant, menu });
   }
@@ -2285,7 +2306,7 @@ async function handleApi(req, res, urlObj) {
       currentRestaurant: state.restaurant,
       cutoffTime: state.cutoffTime,
       cutoffPassed: isCutoffPassed(state.cutoffTime),
-      currentMenu: seed.menus[state.restaurant] || {},
+      currentMenu: menuForRestaurant(seed, state.restaurant) || {},
       cleared,
       restaurantChanged,
       cutoffChanged
