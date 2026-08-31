@@ -1249,6 +1249,22 @@ function translateInlineFoodText(text) {
     '细白饭': 'small rice',
     '細米飯': 'small rice',
     '细米饭': 'small rice',
+    '米飯小': 'small',
+    '米饭小': 'small',
+    '白飯小': 'small',
+    '白饭小': 'small',
+    '米小': 'small',
+    '飯小': 'small',
+    '饭小': 'small',
+    '米飯大': 'big',
+    '米饭大': 'big',
+    '白飯大': 'big',
+    '白饭大': 'big',
+    '米大': 'big',
+    '飯大': 'big',
+    '饭大': 'big',
+    '米飯': 'rice',
+    '米饭': 'rice',
     '蒜蓉': 'garlic',
     '蒜茸': 'garlic',
     '少鹽': 'less salt',
@@ -1291,10 +1307,10 @@ function normalizeAddonForSummary(addonText) {
 
 function canonicalAddonPart(part) {
   const value = toTc(String(part || '').trim());
-  const chinese = value.match(/[\u3400-\u9fff]+/g);
-  if (chinese && chinese.length) return chinese.join('');
   const known = addonChineseName(value);
   if (known) return toTc(known);
+  const chinese = value.match(/[\u3400-\u9fff]+/g);
+  if (chinese && chinese.length) return chinese.join('');
   return value.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
@@ -1372,6 +1388,24 @@ function extractEnglishOptionLabel(label) {
 
 function addonChineseName(value) {
   const map = {
+    '米飯小': '小',
+    '米饭小': '小',
+    '白飯小': '小',
+    '白饭小': '小',
+    '米小': '小',
+    '飯小': '小',
+    '饭小': '小',
+    'rice小': '小',
+    '米rice小': '小',
+    '米飯大': '大',
+    '米饭大': '大',
+    '白飯大': '大',
+    '白饭大': '大',
+    '米大': '大',
+    '飯大': '大',
+    '饭大': '大',
+    'rice大': '大',
+    '米rice大': '大',
     'small': '小',
     'big': '大',
     'large': '大',
@@ -1405,6 +1439,22 @@ function canonicalTextKey(value) {
 
 function addonEnglishName(value) {
   const map = {
+    '米飯小': 'Small',
+    '米饭小': 'Small',
+    '白飯小': 'Small',
+    '白饭小': 'Small',
+    '米小': 'Small',
+    '飯小': 'Small',
+    '饭小': 'Small',
+    '米飯大': 'Big',
+    '米饭大': 'Big',
+    '白飯大': 'Big',
+    '白饭大': 'Big',
+    '米大': 'Big',
+    '飯大': 'Big',
+    '饭大': 'Big',
+    '米飯': 'Rice',
+    '米饭': 'Rice',
     '大白飯': 'Big rice',
     '大白饭': 'Big rice',
     '大米飯': 'Big rice',
@@ -1822,9 +1872,9 @@ function buildFoodSummaryLabel(order) {
 }
 
 function parseOrderFoodItems(order) {
-  const addonRaw = stripAddonPriceText(displayAddon(order.addon || ''));
+  const addonRaw = stripAddonPriceText(String(order.addon || '').trim());
+  const addon = stripAddonPriceText(displayAddon(addonRaw));
   const addonKey = normalizeAddonForSummary(addonRaw);
-  const addon = displayAddon(addonRaw);
   const rawText = String(order.food || '').trim();
   const text = String(displayFood(rawText)).trim();
   if (!text) return [];
