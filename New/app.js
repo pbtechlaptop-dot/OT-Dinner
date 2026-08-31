@@ -1728,11 +1728,14 @@ function matchingAddonSegmentsForFood(segments, displayFood, rawFood, optionFood
 
 function segmentBelongsToFoodChoice(segment, displayFood, rawFood) {
   const food = summaryFoodMatch(rawFood, displayFood);
-  if (!food || !Array.isArray(food.optionGroups) || !food.optionGroups.length) return false;
   const segmentKeys = [segment && segment.rawAddon, segment && segment.addon]
     .map(canonicalAddonPart)
     .filter(Boolean);
   if (!segmentKeys.length) return false;
+  if (isRiceFoodName(rawFood) || isRiceFoodName(displayFood)) {
+    if (segmentKeys.some(key => key === '小' || key === '大')) return true;
+  }
+  if (!food || !Array.isArray(food.optionGroups) || !food.optionGroups.length) return false;
   const foodNames = [food.name, food.nameSc, food.nameEn, displayFood, rawFood].filter(Boolean);
   const choiceKeys = [];
   food.optionGroups.forEach(group => {
@@ -1749,6 +1752,11 @@ function segmentBelongsToFoodChoice(segment, displayFood, rawFood) {
     });
   });
   return segmentKeys.some(key => choiceKeys.includes(key));
+}
+
+function isRiceFoodName(value) {
+  const key = compactSummaryPrefix(value);
+  return key === '米飯' || key === '米饭' || key === '白飯' || key === '白饭' || key === 'rice';
 }
 
 function summaryFoodMatch(rawFood, displayFood) {
