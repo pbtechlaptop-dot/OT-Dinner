@@ -1553,6 +1553,21 @@ async function upsertOrderSupabase(appId, date, order) {
   if (result.error) throw new Error(`Supabase upsert order failed: ${result.error.message}`);
 }
 
+async function deleteOrderSupabase(appId, date, order) {
+  if (!order) return;
+  let result = await supabase
+    .from(TABLES.orders)
+    .delete()
+    .eq('date', date)
+    .eq('app_id', appId)
+    .eq('dept', normText(order.dept))
+    .eq('name', normText(order.name));
+  if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
+    throw new Error(ordersSchemaMigrationMessage());
+  }
+  if (result.error) throw new Error(`Supabase delete order failed: ${result.error.message}`);
+}
+
 async function updateOrderDrinkSupabase(appId, date, dept, name, drink) {
   let query = supabase
     .from(TABLES.orders)
@@ -1935,13 +1950,32 @@ function orderIdentityKey(order) {
   return `${normText(order && order.dept)}\u0000${members.join('\u0000')}`;
 }
 
+function findOrderForSubmission(orders, nextOrder) {
+  const list = Array.isArray(orders) ? orders : [];
+  const nextMembers = orderMemberNames(nextOrder);
+  const nextIdentity = orderIdentityKey(nextOrder);
+  const exact = list.find(order => orderIdentityKey(order) === nextIdentity);
+  if (exact) return exact;
+  if (!nextMembers.length || nextMembers.length < 2 && !nextOrder.allowGroupSplit) return null;
+  const dept = normText(nextOrder && nextOrder.dept);
+  return list.find(order => {
+    if (normText(order && order.dept) !== dept) return false;
+    const existingMembers = orderMemberNames(order);
+    return existingMembers.length > nextMembers.length
+      && nextMembers.every(member => existingMembers.includes(member));
+  }) || null;
+}
+
 function findOrderMemberConflict(orders, nextOrder) {
   const dept = normText(nextOrder && nextOrder.dept);
   const nextMembers = new Set(orderMemberNames(nextOrder));
   const nextIdentity = orderIdentityKey(nextOrder);
+  const replacementOrder = findOrderForSubmission(orders, nextOrder);
+  const replacementIdentity = replacementOrder ? orderIdentityKey(replacementOrder) : '';
   for (const order of Array.isArray(orders) ? orders : []) {
     if (normText(order && order.dept) !== dept) continue;
     if (orderIdentityKey(order) === nextIdentity) continue;
+    if (replacementIdentity && orderIdentityKey(order) === replacementIdentity) continue;
     const existingMembers = orderMemberNames(order);
     const duplicated = existingMembers.find(member => nextMembers.has(member));
     if (duplicated) return duplicated;
@@ -2019,12 +2053,19 @@ function getAppIdFromRequest(urlObj, body) {
 
 function serveStatic(req, reqPath, res) {
   const isLadyRubyPage = reqPath === '/lady-ruby' || reqPath === '/lady-ruby/';
+  const isLadyRubyNewPage = reqPath === '/lady-ruby/new' || reqPath === '/lady-ruby/new/' || reqPath.startsWith('/lady-ruby/new/');
   const isNewPage = reqPath === '/new' || reqPath === '/new/' || reqPath.startsWith('/new/');
   let baseDir = PUBLIC_DIR;
   let safePath = reqPath === '/'
     ? '/index.html'
     : ((reqPath === '/admin' || reqPath === '/admin/') ? '/admin.html' : reqPath);
   if (isLadyRubyPage) safePath = '/lady-ruby.html';
+  if (isLadyRubyNewPage) {
+    baseDir = NEW_PUBLIC_DIR;
+    safePath = (reqPath === '/lady-ruby/new' || reqPath === '/lady-ruby/new/')
+      ? '/lady-ruby.html'
+      : reqPath.replace(/^\/lady-ruby\/new/, '') || '/lady-ruby.html';
+  }
   if (isNewPage) {
     baseDir = NEW_PUBLIC_DIR;
     safePath = (reqPath === '/new' || reqPath === '/new/')
@@ -2283,17 +2324,19 @@ async function handleApi(req, res, urlObj) {
     const submittedOrder = {
       ...body,
       dept: normText(body.dept),
-      name: groupMembers.join(' + ')
+      name: groupMembers.join(' + '),
+      allowGroupSplit: Boolean(body.allowGroupSplit)
     };
     const conflictMember = findOrderMemberConflict(state.orders, submittedOrder);
     if (conflictMember) {
       return json(res, 409, { error: `${conflictMember} already has an order today` });
     }
 
-    const existingOrder = (state.orders || []).find(o => orderIdentityKey(o) === orderIdentityKey(submittedOrder));
+    const existingOrder = findOrderForSubmission(state.orders, submittedOrder);
+    const replacingGroup = Boolean(existingOrder && orderIdentityKey(existingOrder) !== orderIdentityKey(submittedOrder));
     const clean = {
       dept: submittedOrder.dept,
-      name: existingOrder ? normText(existingOrder.name) : submittedOrder.name,
+      name: submittedOrder.name,
       food: normText(body.food),
       addon: normText(body.addon),
       drink: normText(body.drink),
@@ -2305,11 +2348,13 @@ async function handleApi(req, res, urlObj) {
     const existed = Boolean(existingOrder);
 
     if (USE_SUPABASE) {
+      if (replacingGroup) await deleteOrderSupabase(appId, state.date, existingOrder);
       await upsertOrderSupabase(appId, state.date, clean);
       return json(res, 200, { ok: true, updated: existed });
     }
 
-    const idx = state.orders.findIndex(o => orderIdentityKey(o) === orderIdentityKey(clean));
+    const existingIdentity = existingOrder ? orderIdentityKey(existingOrder) : orderIdentityKey(clean);
+    const idx = state.orders.findIndex(o => orderIdentityKey(o) === existingIdentity);
     let updated = false;
     if (idx >= 0) {
       state.orders[idx] = { ...state.orders[idx], ...clean };

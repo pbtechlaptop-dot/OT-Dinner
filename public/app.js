@@ -74,6 +74,7 @@ const i18n = {
     datePrefix: '日期：',
     currentRestaurant: '目前：',
     restaurantContact: '聯絡：',
+    mapAddress: '地圖',
     notSet: '未設定',
     noOrders: '未有訂單',
     noDrink: '無',
@@ -154,6 +155,7 @@ const i18n = {
     datePrefix: '日期：',
     currentRestaurant: '目前：',
     restaurantContact: '联系：',
+    mapAddress: '地图',
     notSet: '未设置',
     noOrders: '暂无订单',
     noDrink: '无',
@@ -234,6 +236,7 @@ const i18n = {
     datePrefix: 'Date: ',
     currentRestaurant: 'Current: ',
     restaurantContact: 'Contact: ',
+    mapAddress: 'Map address',
     notSet: 'Not set',
     noOrders: 'No orders yet',
     noDrink: 'No drink',
@@ -485,6 +488,44 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function linkifyText(value) {
+  const text = String(value || '');
+  const urlPattern = /\b((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
+  let lastIndex = 0;
+  let html = '';
+  for (const match of text.matchAll(urlPattern)) {
+    const urlText = match[0].replace(/[),.;!?]+$/g, '');
+    const trailing = match[0].slice(urlText.length);
+    html += escapeHtml(text.slice(lastIndex, match.index));
+    const href = urlText.startsWith('www.') ? `https://${urlText}` : urlText;
+    try {
+      const parsed = new URL(href);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        const label = isMapUrl(parsed) ? t('mapAddress') : urlText;
+        html += `<a href="${escapeHtml(parsed.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+      } else {
+        html += escapeHtml(urlText);
+      }
+    } catch {
+      html += escapeHtml(urlText);
+    }
+    html += escapeHtml(trailing);
+    lastIndex = match.index + match[0].length;
+  }
+  html += escapeHtml(text.slice(lastIndex));
+  return html;
+}
+
+function isMapUrl(url) {
+  const host = url.hostname.toLowerCase();
+  const path = url.pathname.toLowerCase();
+  return host.includes('google.') && path.includes('/maps')
+    || host === 'maps.app.goo.gl'
+    || host === 'goo.gl' && path.startsWith('/maps')
+    || host.includes('maps.google.')
+    || path.includes('/maps/');
+}
+
 function getCutoffInputValue() {
   return String(el.cutoffTimeInput?.value || '').trim() || state.cutoffTime || state.defaultCutoffTime;
 }
@@ -605,6 +646,7 @@ function fillSelect(select, items, placeholder) {
     const opt = document.createElement('option');
     opt.value = item.value;
     opt.textContent = item.label;
+    if (item.disabled) opt.disabled = true;
     if (item.price !== undefined) opt.dataset.price = String(item.price);
     if (item.optionGroups !== undefined) {
       try {
@@ -615,6 +657,34 @@ function fillSelect(select, items, placeholder) {
     }
     select.appendChild(opt);
   });
+}
+
+function orderMemberNames(order) {
+  return String(order && order.name || '')
+    .split(/\s+\+\s+/)
+    .map(name => name.trim())
+    .filter(Boolean);
+}
+
+function memberIsInGroupOrder(dept, member) {
+  const target = String(member || '').trim();
+  if (!target) return false;
+  return (state.orders || []).some(order => {
+    if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
+    const members = orderMemberNames(order);
+    return members.length > 1 && members.includes(target);
+  });
+}
+
+function renderNamesForDepartment(dept) {
+  const current = el.nameSelect.value;
+  fillSelect(el.nameSelect, (state.staff[dept] || []).map(name => ({
+    value: name,
+    label: name,
+    disabled: memberIsInGroupOrder(dept, name)
+  })), t('selectName'));
+  const currentOption = Array.from(el.nameSelect.options || []).find(option => option.value === current);
+  if (currentOption && !currentOption.disabled) el.nameSelect.value = current;
 }
 
 function buildLookupMaps() {
@@ -1096,15 +1166,15 @@ function renderCurrentRestaurantContact() {
   const contactMap = state.restaurantContacts && typeof state.restaurantContacts === 'object' ? state.restaurantContacts : {};
   const contact = state.currentRestaurant ? contactMap[state.currentRestaurant] : null;
   const parts = [];
-  if (contact && contact.phone) parts.push(contact.phone);
-  if (contact && contact.email) parts.push(contact.email);
-  if (contact && contact.note) parts.push(contact.note);
+  if (contact && contact.phone) parts.push(escapeHtml(contact.phone));
+  if (contact && contact.email) parts.push(escapeHtml(contact.email));
+  if (contact && contact.note) parts.push(linkifyText(contact.note));
   if (!parts.length) {
     el.currentRestaurantContactText.classList.add('hidden');
     el.currentRestaurantContactText.textContent = '';
     return;
   }
-  el.currentRestaurantContactText.textContent = `${t('restaurantContact')}${parts.join(' / ')}`;
+  el.currentRestaurantContactText.innerHTML = `${escapeHtml(t('restaurantContact'))}${parts.join(' / ')}`;
   el.currentRestaurantContactText.classList.remove('hidden');
 }
 
@@ -1116,7 +1186,7 @@ function renderDepartments() {
   if (singleDepartment) el.deptSelect.value = singleDepartment;
   fillSelect(el.nameSelect, [], t('chooseDeptFirst'));
   if (singleDepartment) {
-    fillSelect(el.nameSelect, (state.staff[singleDepartment] || []).map(name => ({ value: name, label: name })), t('selectName'));
+    renderNamesForDepartment(singleDepartment);
   }
 }
 
@@ -1129,7 +1199,13 @@ function renderDrinks() {
 }
 
 function renderCategories() {
-  const categories = Object.keys(state.menu || {});
+  const categories = Object.keys(state.menu || {}).filter(cat => {
+    const items = (state.menu && state.menu[cat]) ? state.menu[cat] : [];
+    return items.some(raw => {
+      const f = normalizeMenuItem(raw);
+      return f.nameTc && !f.paused;
+    });
+  });
   fillSelect(el.categorySelect, categories.map(c => ({ value: c, label: c })), t('selectCat'));
   if (categories.length) el.categorySelect.value = categories[0];
   fillSelect(el.foodSelect, [], t('chooseCatFirst'));
@@ -1194,6 +1270,35 @@ function translateInlineFoodText(text) {
     '（': ' (',
     '）': ')',
     '，': ', ',
+    '大白飯': 'big rice',
+    '大白饭': 'big rice',
+    '大米飯': 'big rice',
+    '大米饭': 'big rice',
+    '細白飯': 'small rice',
+    '细白饭': 'small rice',
+    '細米飯': 'small rice',
+    '细米饭': 'small rice',
+    '米飯小': 'small',
+    '米饭小': 'small',
+    '白飯小': 'small',
+    '白饭小': 'small',
+    '米小': 'small',
+    '飯小': 'small',
+    '饭小': 'small',
+    '米飯大': 'big',
+    '米饭大': 'big',
+    '白飯大': 'big',
+    '白饭大': 'big',
+    '米大': 'big',
+    '飯大': 'big',
+    '饭大': 'big',
+    '米飯': 'rice',
+    '米饭': 'rice',
+    '清炒時蔬': 'plain',
+    '清炒时蔬': 'plain',
+    '清炒': 'plain',
+    '蒜蓉': 'garlic',
+    '蒜茸': 'garlic',
     '少鹽': 'less salt',
     '少盐': 'less salt',
     '走蔥': 'no spring onion',
@@ -1234,9 +1339,19 @@ function normalizeAddonForSummary(addonText) {
 
 function canonicalAddonPart(part) {
   const value = toTc(String(part || '').trim());
+  const known = addonChineseName(value);
+  if (known) return toTc(known);
   const chinese = value.match(/[\u3400-\u9fff]+/g);
   if (chinese && chinese.length) return chinese.join('');
   return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function storedOptionChineseLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const matches = raw.match(/[\u3400-\u9fff]+/g);
+  if (matches && matches.length) return matches.join('');
+  return raw;
 }
 
 function localizeAddonForSummary(addonText) {
@@ -1264,12 +1379,130 @@ function localizeAddonPart(part) {
   const suffix = qtyMatch ? raw.slice(qtyMatch.index).trim() : '';
   const value = canonicalAddonPart(qtyMatch ? raw.slice(0, qtyMatch.index) : raw);
   if (!value) return '';
-  const localized = state.lang === 'sc' ? toSc(value) : state.lang === 'en' ? addonEnglishName(value) : value;
+  const localized = localizeAddonName(value);
   return suffix ? `${localized} ${suffix}` : localized;
+}
+
+function localizeAddonName(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (state.lang === 'en') return addonEnglishName(raw);
+  const chinese = addonChineseName(raw) || optionChineseName(raw) || raw;
+  return state.lang === 'sc' ? toSc(chinese) : toTc(chinese);
+}
+
+function optionChineseName(value) {
+  const key = canonicalTextKey(value);
+  if (!key) return '';
+  const map = {};
+  Object.values(state.foodLookup || {}).forEach(food => {
+    (food.optionGroups || []).forEach(group => {
+      (group.choices || []).map(normalizeOptionChoice).filter(Boolean).forEach(choice => {
+        const tc = storedOptionChineseLabel(choice.label);
+        if (!tc || !/[\u3400-\u9fff]/.test(tc)) return;
+        [choice.label, formatOptionLabel(choice.label, 0), extractEnglishOptionLabel(choice.label), tc].forEach(label => {
+          const labelKey = canonicalTextKey(label);
+          if (labelKey) map[labelKey] = tc;
+        });
+      });
+    });
+  });
+  return map[key] || '';
+}
+
+function extractEnglishOptionLabel(label) {
+  return String(label || '')
+    .replace(/^[\u3400-\u9fff\s/+&()（）-]+/, '')
+    .replace(/^choice\s+/i, '')
+    .replace(/^[-:/\s]+/, '')
+    .trim();
+}
+
+function addonChineseName(value) {
+  const map = {
+    '米飯小': '小',
+    '米饭小': '小',
+    '白飯小': '小',
+    '白饭小': '小',
+    '米小': '小',
+    '飯小': '小',
+    '饭小': '小',
+    'rice小': '小',
+    '米rice小': '小',
+    '米飯大': '大',
+    '米饭大': '大',
+    '白飯大': '大',
+    '白饭大': '大',
+    '米大': '大',
+    '飯大': '大',
+    '饭大': '大',
+    'rice大': '大',
+    '米rice大': '大',
+    'small': '小',
+    'big': '大',
+    'large': '大',
+    'small rice': '小',
+    'big rice': '大',
+    'large rice': '大',
+    'plain': '清炒',
+    'plain stir fried': '清炒',
+    'plain stir-fried': '清炒',
+    'stir fried': '清炒',
+    'stir-fried': '清炒',
+    'garlic': '蒜蓉',
+    'bbq pork': '叉燒',
+    'honey bbq pork': '叉燒',
+    'pork crispy': '燒肉',
+    'crispy pork': '燒肉',
+    'roast pork': '燒肉',
+    'crispy roast pork': '燒肉',
+    'roast duck': '燒鴨',
+    'duck': '燒鴨',
+    'chicken': '雞',
+    'egg noodles': '雞蛋麵',
+    'choice egg noodles': '雞蛋麵',
+    'hor fun': '河粉',
+    'lai fen': '瀨粉'
+  };
+  return map[canonicalTextKey(value)] || '';
+}
+
+function canonicalTextKey(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[()（）]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function addonEnglishName(value) {
   const map = {
+    '米飯小': 'Small',
+    '米饭小': 'Small',
+    '白飯小': 'Small',
+    '白饭小': 'Small',
+    '米小': 'Small',
+    '飯小': 'Small',
+    '饭小': 'Small',
+    '米飯大': 'Big',
+    '米饭大': 'Big',
+    '白飯大': 'Big',
+    '白饭大': 'Big',
+    '米大': 'Big',
+    '飯大': 'Big',
+    '饭大': 'Big',
+    '米飯': 'Rice',
+    '米饭': 'Rice',
+    '大白飯': 'Big rice',
+    '大白饭': 'Big rice',
+    '大米飯': 'Big rice',
+    '大米饭': 'Big rice',
+    '細白飯': 'Small rice',
+    '细白饭': 'Small rice',
+    '細米飯': 'Small rice',
+    '细米饭': 'Small rice',
+    '大': 'Big',
+    '小': 'Small',
     '叉燒': 'BBQ Pork',
     '燒肉': 'Roast Pork',
     '燒鴨': 'Roast Duck',
@@ -1277,6 +1510,15 @@ function addonEnglishName(value) {
     '雞蛋麵': 'Egg Noodles',
     '河粉': 'Hor Fun',
     '瀨粉': 'Lai Fen',
+    '白飯': 'Rice',
+    '白饭': 'Rice',
+    '飯': 'Rice',
+    '饭': 'Rice',
+    '蒜蓉': 'Garlic',
+    '蒜茸': 'Garlic',
+    '清炒': 'Plain',
+    '清炒時蔬': 'Plain',
+    '清炒时蔬': 'Plain',
     '肉': 'Meat',
     '椒鹽': 'Salt and Pepper',
     '少鹽': 'Less Salt',
@@ -1323,8 +1565,29 @@ function displayAddon(addonText) {
   const raw = String(addonText || '').trim();
   if (!raw) return '';
   const hasCjk = /[\u3400-\u9fff]/.test(raw);
-  if (!hasCjk) return state.lang === 'sc' ? toSc(raw) : raw;
+  if (!hasCjk && state.lang === 'en') return raw;
   return localizeAddonForDisplay(raw) || raw;
+}
+
+function displayOrderAddon(order) {
+  const raw = String(order && order.addon || '').trim();
+  if (!raw) return '';
+  const rawParts = splitOrderFoodParts(String(order.food || ''));
+  const displayParts = splitOrderFoodParts(displayFood(String(order.food || '')));
+  const parsedParts = displayParts.map((part, index) => parseFoodSummaryPart(part, rawParts[index] || part));
+  const optionParts = parsedParts.filter(part => part.food);
+  if (!optionParts.length) return displayAddon(raw);
+  const segments = parseAddonSummarySegments(raw);
+  if (!segments.length) return displayAddon(raw);
+  const values = segments.map(segment => {
+    if (segment.food) return segment.addon;
+    for (const part of optionParts) {
+      const inferred = inferAddonSegmentForFood(segment, part.food, part.raw);
+      if (inferred) return inferred.addon;
+    }
+    return segment.addon;
+  }).filter(Boolean);
+  return values.join(state.lang === 'en' ? '; ' : '；');
 }
 
 function localizeApiError(message) {
@@ -1352,7 +1615,7 @@ function stripAddonPriceText(addonText) {
 function describeOrderForChange(order) {
   if (!order) return '';
   const parts = [displayFood(order.food)];
-  const addon = displayAddon(order.addon || '');
+  const addon = displayOrderAddon(order);
   if (addon) parts.push(addon);
   if (order.drink) parts.push(displayDrink(order.drink));
   return parts.join(' / ');
@@ -1553,6 +1816,7 @@ async function refreshOrdersSilently() {
       state.orders = incoming;
       state.lastOrdersSignature = sig;
       renderOrders();
+      if (el.deptSelect.value) renderNamesForDepartment(el.deptSelect.value);
     }
   } catch {
   } finally {
@@ -1650,9 +1914,9 @@ function buildFoodSummaryLabel(order) {
 }
 
 function parseOrderFoodItems(order) {
-  const addonRaw = stripAddonPriceText(displayAddon(order.addon || ''));
+  const addonRaw = stripAddonPriceText(String(order.addon || '').trim());
+  const addon = stripAddonPriceText(displayAddon(addonRaw));
   const addonKey = normalizeAddonForSummary(addonRaw);
-  const addon = displayAddon(addonRaw);
   const rawText = String(order.food || '').trim();
   const text = String(displayFood(rawText)).trim();
   if (!text) return [];
@@ -1669,8 +1933,8 @@ function parseOrderFoodItems(order) {
   parsedParts.forEach((part, index) => {
     if (!part.food) return;
     const isOptionFood = optionIndexes.includes(index);
-    const matchingSegments = isOptionFood
-      ? addonSegments.filter(segment => !segment.food || foodLabelsMatch(segment.food, part.food, rawParts[index] || part.food))
+    const matchingSegments = addonSegments.length
+      ? matchingAddonSegmentsForFood(addonSegments, part.food, rawParts[index] || part.food, isOptionFood ? optionIndexes.length : 0)
       : [];
     if (matchingSegments.length) {
       matchingSegments.forEach(segment => {
@@ -1680,7 +1944,7 @@ function parseOrderFoodItems(order) {
       });
       return;
     }
-    const useAddon = addon && (!hasOptionFood || isOptionFood);
+    const useAddon = addon && !addonSegments.length && (!hasOptionFood || isOptionFood);
     const label = useAddon ? `${part.food}（${addon}）` : part.food;
     const key = useAddon && addonKey ? `${part.food}||${addonKey}` : part.food;
     rows.push({ key, label, qty: part.qty });
@@ -1700,21 +1964,127 @@ function parseFoodSummaryPart(value, rawValue) {
 }
 
 function parseAddonSummarySegments(addonText) {
-  return String(addonText || '')
-    .split(/[;；]+/)
-    .map(segment => {
-      let text = String(segment || '').trim();
-      if (!text) return null;
-      const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
-      const food = prefixMatch ? displayFood(prefixMatch[1].trim()) : '';
-      text = prefixMatch ? prefixMatch[2].trim() : text;
-      const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
-      const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
-      const addon = stripAddonPriceText(displayAddon(qtyMatch ? text.slice(0, qtyMatch.index).trim() : text));
-      if (!addon) return null;
-      return { food, addon, qty, key: normalizeAddonForSummary(addon) || addon };
-    })
+  const rows = [];
+  let scopedFood = '';
+  String(addonText || '').split(/[;；]+/).forEach(segment => {
+    let text = String(segment || '').trim();
+    if (!text) return;
+    const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
+    const explicitFood = prefixMatch ? displayFood(prefixMatch[1].trim()) : '';
+    text = prefixMatch ? prefixMatch[2].trim() : text;
+    const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
+    const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
+    const rawAddon = qtyMatch ? text.slice(0, qtyMatch.index).trim() : text;
+    const addon = stripAddonPriceText(displayAddon(rawAddon));
+    if (!addon) return;
+    const row = { food: explicitFood, addon, rawAddon, qty, key: normalizeAddonForSummary(addon) || addon };
+    if (explicitFood) {
+      scopedFood = explicitFood;
+    } else if (scopedFood && segmentBelongsToFoodChoice(row, scopedFood, scopedFood)) {
+      row.food = scopedFood;
+    } else {
+      scopedFood = '';
+    }
+    rows.push(row);
+  });
+  return rows;
+}
+
+function matchingAddonSegmentsForFood(segments, displayFoodName, rawFood, optionFoodCount) {
+  const direct = segments.filter(segment => segment.food && foodLabelsMatch(segment.food, displayFoodName, rawFood));
+  if (direct.length) return direct;
+  const inferred = segments
+    .filter(segment => !segment.food)
+    .map(segment => inferAddonSegmentForFood(segment, displayFoodName, rawFood))
     .filter(Boolean);
+  const inferredKeys = new Set(inferred.map(segment => String(segment.rawAddon || segment.addon || '').trim()));
+  const choiceMatched = segments
+    .filter(segment => !segment.food && !inferredKeys.has(String(segment.rawAddon || segment.addon || '').trim()))
+    .filter(segment => segmentBelongsToFoodChoice(segment, displayFoodName, rawFood));
+  if (inferred.length || choiceMatched.length) return [...inferred, ...choiceMatched];
+  return optionFoodCount === 1 ? segments.filter(segment => !segment.food) : [];
+}
+
+function segmentBelongsToFoodChoice(segment, displayFoodName, rawFood) {
+  const food = summaryFoodMatch(rawFood, displayFoodName);
+  const segmentKeys = [segment && segment.rawAddon, segment && segment.addon]
+    .map(canonicalAddonPart)
+    .filter(Boolean);
+  if (!segmentKeys.length) return false;
+  if (isRiceFoodName(rawFood) || isRiceFoodName(displayFoodName)) {
+    if (segmentKeys.some(key => key === '小' || key === '大')) return true;
+  }
+  if (!food || !Array.isArray(food.optionGroups) || !food.optionGroups.length) return false;
+  const foodNames = [food.nameTc, food.nameSc, food.nameEn, displayFoodName, rawFood].filter(Boolean);
+  const choiceKeys = [];
+  food.optionGroups.forEach(group => {
+    (group.choices || []).map(normalizeOptionChoice).filter(Boolean).forEach(choice => {
+      [choice.label, storedOptionChineseLabel(choice.label), formatOptionLabel(choice.label, 0), extractEnglishOptionLabel(choice.label)].forEach(label => {
+        const direct = canonicalAddonPart(label);
+        if (direct) choiceKeys.push(direct);
+        foodNames.forEach(name => {
+          const stripped = stripFoodPrefixFromAddon(label, name);
+          const key = canonicalAddonPart(stripped);
+          if (key) choiceKeys.push(key);
+        });
+      });
+    });
+  });
+  return segmentKeys.some(key => choiceKeys.includes(key));
+}
+
+function isRiceFoodName(value) {
+  const key = compactSummaryPrefix(value);
+  return key === '米飯' || key === '米饭' || key === '白飯' || key === '白饭' || key === 'rice';
+}
+
+function summaryFoodMatch(rawFood, displayFoodName) {
+  const clean = value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim();
+  const raw = clean(rawFood);
+  const display = clean(displayFoodName);
+  return [raw, display].map(value => state.foodLookup[value]).find(Boolean) || null;
+}
+
+function inferAddonSegmentForFood(segment, displayFoodName, rawFood) {
+  const source = String(segment && (segment.rawAddon || segment.addon) || '').trim();
+  const prefixes = [displayFoodName, rawFood, displayFood(rawFood)]
+    .map(value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  for (const prefix of prefixes) {
+    const addon = stripFoodPrefixFromAddon(source, prefix);
+    if (!addon) continue;
+    const normalizedAddon = stripAddonPriceText(displayAddon(addon));
+    return { ...segment, food: displayFoodName, addon: normalizedAddon, key: normalizeAddonForSummary(normalizedAddon) || normalizedAddon };
+  }
+  return null;
+}
+
+function stripFoodPrefixFromAddon(text, prefix) {
+  const raw = String(text || '').trim();
+  const target = compactSummaryPrefix(prefix);
+  if (!raw || !target) return '';
+  let consumed = '';
+  for (let index = 0; index < raw.length; index += 1) {
+    const compact = compactSummaryPrefix(raw[index]);
+    if (!compact) continue;
+    consumed += compact;
+    if (!target.startsWith(consumed)) return '';
+    if (consumed === target) {
+      return raw.slice(index + 1)
+        .replace(/^[:：\s/／、,，(（]+/, '')
+        .replace(/[)）]+$/, '')
+        .trim();
+    }
+  }
+  return '';
+}
+
+function compactSummaryPrefix(value) {
+  return String(value || '')
+    .replace(/\s+x\s*\d+\s*$/i, '')
+    .toLowerCase()
+    .replace(/[\s/／\\,，、()（）]/g, '');
 }
 
 function foodLabelsMatch(prefix, displayFoodName, rawFood) {
@@ -1766,7 +2136,7 @@ function renderOrders() {
   el.ordersBody.innerHTML = orders.map((o, i) => {
     const p = Number(o.price || 0);
     total += p;
-    const addon = stripAddonPriceText(displayAddon(o.addon || ''));
+    const addon = stripAddonPriceText(displayOrderAddon(o));
     return `<tr><td>${i + 1}</td><td>${o.dept}</td><td>${o.name}</td><td>${displayFood(o.food)}</td><td>${addon}</td><td>${displayDrinkHtml(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
   }).join('');
   el.totalPrice.textContent = total.toFixed(2);
@@ -2154,7 +2524,7 @@ function resetOrderForm() {
   el.deptSelect.disabled = Boolean(singleDepartment);
   el.deptSelect.value = singleDepartment || '';
   if (singleDepartment) {
-    fillSelect(el.nameSelect, (state.staff[singleDepartment] || []).map(n => ({ value: n, label: n })), t('selectName'));
+    renderNamesForDepartment(singleDepartment);
   } else {
     fillSelect(el.nameSelect, [], t('chooseDeptFirst'));
   }
@@ -2179,7 +2549,7 @@ async function exportXlsx() {
     o.dept || '',
     o.name || '',
     displayFood(o.food || ''),
-    stripAddonPriceText(displayAddon(o.addon || '')),
+    stripAddonPriceText(displayOrderAddon(o)),
     displayDrink(o.drink || ''),
     Number(o.price || 0)
   ]);
@@ -2198,7 +2568,7 @@ async function exportXlsx() {
 
 el.deptSelect.addEventListener('change', () => {
   const dept = el.deptSelect.value;
-  fillSelect(el.nameSelect, (state.staff[dept] || []).map(n => ({ value: n, label: n })), t('selectName'));
+  renderNamesForDepartment(dept);
 });
 
 el.categorySelect.addEventListener('change', renderFood);
@@ -2293,6 +2663,7 @@ el.orderForm.addEventListener('submit', async event => {
     : addonText;
 
   const order = { dept: el.deptSelect.value, name: el.nameSelect.value, food: el.foodSelect.value, price, addon: mergedAddon, drink: el.drinkSelect.value };
+  if (memberIsInGroupOrder(order.dept, order.name)) return showToast(t('memberAlreadyOrdered'));
   if (state.cutoffPassed && state.lateOrder.active) {
     order.lateOrderUsername = state.lateOrder.username;
     order.lateOrderPassword = state.lateOrder.password;

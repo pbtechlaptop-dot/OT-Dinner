@@ -1,4 +1,5 @@
 const state = {
+  appId: document.body && document.body.dataset && document.body.dataset.appId ? document.body.dataset.appId : 'main',
   lang: 'tc',
   priceLimit: 22,
   staff: {},
@@ -63,6 +64,7 @@ const el = {
   groupDrinksList: document.getElementById('groupDrinksList'),
   foodTitle: document.getElementById('foodTitle'),
   categorySelect: document.getElementById('categorySelect'),
+  priceSortSelect: document.getElementById('priceSortSelect'),
   foodList: document.getElementById('foodList'),
   limitLabel: document.getElementById('limitLabel'),
   kindsLabel: document.getElementById('kindsLabel'),
@@ -120,11 +122,13 @@ const el = {
 const i18n = {
   tc: {
     appTitle: '加班 Order 飯系統 - New',
+    appTitleLadyRuby: '加班 Order 飯系統 - Lady Ruby New',
     date: '日期：',
     restaurant: '今日餐廳：',
     restaurantTitle: '1) 今日餐廳',
     currentRestaurant: '目前：',
     contact: '聯絡：',
+    mapAddress: '地圖',
     cutoff: '今日截單時間：',
     restaurantActionHint: '如需要改餐廳或截單時間，按設定餐廳並輸入密碼。',
     cutoffActiveNotice: '請於截單前完成下單，如已過時請聯絡部門主管或 Simon。',
@@ -193,6 +197,9 @@ const i18n = {
     noDrink: '-- 無 --',
     allCats: '選擇分類',
     allCategories: '全部分類',
+    sortOriginal: '原本排序',
+    sortPriceAsc: '價錢小至大',
+    sortPriceDesc: '價錢大至小',
     chooseCategoryFirst: '請先選擇分類。',
     noFoods: '未有餐點。',
     hasOptions: '有選項',
@@ -235,11 +242,13 @@ const i18n = {
   },
   sc: {
     appTitle: '加班订餐系统 - New',
+    appTitleLadyRuby: '加班订餐系统 - Lady Ruby New',
     date: '日期：',
     restaurant: '今日餐厅：',
     restaurantTitle: '1) 今日餐厅',
     currentRestaurant: '目前：',
     contact: '联系：',
+    mapAddress: '地图',
     cutoff: '今日截单时间：',
     restaurantActionHint: '如需要改餐厅或截单时间，按设置餐厅并输入密码。',
     cutoffActiveNotice: '请于截单前完成下单，如已过时请联络部门主管或 Simon。',
@@ -308,6 +317,9 @@ const i18n = {
     noDrink: '-- 无 --',
     allCats: '选择分类',
     allCategories: '全部分类',
+    sortOriginal: '原本排序',
+    sortPriceAsc: '价钱小至大',
+    sortPriceDesc: '价钱大至小',
     chooseCategoryFirst: '请先选择分类。',
     noFoods: '未有餐点。',
     hasOptions: '有选项',
@@ -349,11 +361,13 @@ const i18n = {
   },
   en: {
     appTitle: 'Overtime Meal Order - New',
+    appTitleLadyRuby: 'Overtime Meal Order - Lady Ruby New',
     date: 'Date: ',
     restaurant: 'Restaurant: ',
     restaurantTitle: '1) Restaurant',
     currentRestaurant: 'Current: ',
     contact: 'Contact: ',
+    mapAddress: 'Map address',
     cutoff: 'Cutoff time: ',
     restaurantActionHint: 'To change the restaurant or cutoff time, click Set Restaurant and enter the password.',
     cutoffActiveNotice: 'Please place your order before the cutoff time. After that, contact your team leader or Simon.',
@@ -422,6 +436,9 @@ const i18n = {
     noDrink: '-- None --',
     allCats: 'Select Category',
     allCategories: 'All Categories',
+    sortOriginal: 'Original order',
+    sortPriceAsc: 'Price low to high',
+    sortPriceDesc: 'Price high to low',
     chooseCategoryFirst: 'Please select a category first.',
     noFoods: 'No food available.',
     hasOptions: 'Options',
@@ -593,8 +610,9 @@ function setBusy(isBusy, text) {
 
 function updateStaticText() {
   document.documentElement.lang = state.lang === 'en' ? 'en' : (state.lang === 'sc' ? 'zh-Hans' : 'zh-Hant');
-  document.title = t('appTitle');
-  el.appTitle.textContent = t('appTitle');
+  const title = state.appId === 'lady-ruby' ? t('appTitleLadyRuby') : t('appTitle');
+  document.title = title;
+  el.appTitle.textContent = title;
   el.dateText.textContent = `${t('date')}${state.date || '--'}`;
   el.restaurantText.textContent = `${t('restaurant')}${state.currentRestaurant || t('notSet')}`;
   el.restaurantTitle.textContent = t('restaurantTitle');
@@ -604,6 +622,7 @@ function updateStaticText() {
   renderRestaurantContact();
   updateCutoffNotice();
   el.exportCsvLink.textContent = t('exportCsv');
+  el.exportCsvLink.href = withAppParam('/api/export/csv');
   el.exportXlsxBtn.textContent = t('exportXlsx');
   el.openRestaurantModalBtn.textContent = t('setRestaurant');
   el.restaurantModalTitle.textContent = t('restaurantModalTitle');
@@ -615,6 +634,7 @@ function updateStaticText() {
   el.cancelRestaurantBtn.textContent = t('cancel');
   el.setRestaurantBtn.textContent = t('saveRestaurantSettings');
   el.mainLink.textContent = t('main');
+  el.mainLink.href = state.appId === 'lady-ruby' ? '/lady-ruby/' : '/';
   el.staffTitle.textContent = t('staffTitle');
   el.deptLabel.textContent = t('dept');
   el.nameLabel.textContent = t('name');
@@ -646,6 +666,7 @@ function updateStaticText() {
   el.cancelChangeBtn.textContent = t('cancel');
   el.confirmChangeBtn.textContent = t('confirm');
   if (!state.selected.size) el.budgetNotice.textContent = t('initialBudget');
+  renderPriceSortOptions();
   updateDiagSummary();
 }
 
@@ -653,15 +674,15 @@ function renderRestaurantContact() {
   const contactMap = state.restaurantContacts && typeof state.restaurantContacts === 'object' ? state.restaurantContacts : {};
   const contact = state.currentRestaurant ? contactMap[state.currentRestaurant] : null;
   const parts = [];
-  if (contact && contact.phone) parts.push(contact.phone);
-  if (contact && contact.email) parts.push(contact.email);
-  if (contact && contact.note) parts.push(contact.note);
+  if (contact && contact.phone) parts.push(escapeHtml(contact.phone));
+  if (contact && contact.email) parts.push(escapeHtml(contact.email));
+  if (contact && contact.note) parts.push(linkifyText(contact.note));
   if (!parts.length) {
     el.restaurantContactText.classList.add('hidden');
     el.restaurantContactText.textContent = '';
     return;
   }
-  el.restaurantContactText.textContent = `${t('contact')}${parts.join(' / ')}`;
+  el.restaurantContactText.innerHTML = `${escapeHtml(t('contact'))}${parts.join(' / ')}`;
   el.restaurantContactText.classList.remove('hidden');
 }
 
@@ -701,16 +722,21 @@ function setLanguage(lang) {
   renderOrders();
 }
 
+function withAppParam(path) {
+  const app = encodeURIComponent(state.appId || 'main');
+  return `${path}${path.includes('?') ? '&' : '?'}app=${app}`;
+}
+
 async function api(path, options = {}) {
   const requestOptions = { headers: { 'Content-Type': 'application/json' }, ...options };
   if (requestOptions.body && typeof requestOptions.body === 'string') {
     try {
       const body = JSON.parse(requestOptions.body);
-      if (!body.app) requestOptions.body = JSON.stringify({ ...body, app: 'main' });
+      if (!body.app) requestOptions.body = JSON.stringify({ ...body, app: state.appId || 'main' });
     } catch {
     }
   }
-  const response = await fetch(path, requestOptions);
+  const response = await fetch(withAppParam(path), requestOptions);
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(localizeErrorMessage(payload.error || 'Request failed'));
@@ -860,6 +886,8 @@ function normalizeAddonForSummary(addonText) {
 
 function canonicalAddonPart(part) {
   const value = toTc(String(part || '').trim());
+  const known = addonChineseName(value);
+  if (known) return toTc(known);
   const chinese = value.match(/[\u3400-\u9fff]+/g);
   if (chinese && chinese.length) return chinese.join('');
   return value.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -890,12 +918,130 @@ function localizeAddonPart(part) {
   const suffix = qtyMatch ? raw.slice(qtyMatch.index).trim() : '';
   const value = canonicalAddonPart(qtyMatch ? raw.slice(0, qtyMatch.index) : raw);
   if (!value) return '';
-  const localized = state.lang === 'sc' ? toSc(value) : state.lang === 'en' ? addonEnglishName(value) : value;
+  const localized = localizeAddonName(value);
   return suffix ? `${localized} ${suffix}` : localized;
+}
+
+function localizeAddonName(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (state.lang === 'en') return addonEnglishName(raw);
+  const chinese = addonChineseName(raw) || optionChineseName(raw) || raw;
+  return state.lang === 'sc' ? toSc(chinese) : toTc(chinese);
+}
+
+function optionChineseName(value) {
+  const key = canonicalTextKey(value);
+  if (!key) return '';
+  const map = {};
+  allFoods().forEach(food => {
+    (food.optionGroups || []).forEach(group => {
+      (group.choices || []).map(normalizeOptionChoice).filter(Boolean).forEach(choice => {
+        const tc = orderOptionLabel(choice.label);
+        if (!tc || !/[\u3400-\u9fff]/.test(tc)) return;
+        [choice.label, localOptionLabel(choice.label), extractEnglishOptionLabel(choice.label), tc].forEach(label => {
+          const labelKey = canonicalTextKey(label);
+          if (labelKey) map[labelKey] = tc;
+        });
+      });
+    });
+  });
+  return map[key] || '';
+}
+
+function extractEnglishOptionLabel(label) {
+  return String(label || '')
+    .replace(/^[\u3400-\u9fff\s/+&()（）-]+/, '')
+    .replace(/^choice\s+/i, '')
+    .replace(/^[-:/\s]+/, '')
+    .trim();
+}
+
+function addonChineseName(value) {
+  const map = {
+    '米飯小': '小',
+    '米饭小': '小',
+    '白飯小': '小',
+    '白饭小': '小',
+    '米小': '小',
+    '飯小': '小',
+    '饭小': '小',
+    'rice小': '小',
+    '米rice小': '小',
+    '米飯大': '大',
+    '米饭大': '大',
+    '白飯大': '大',
+    '白饭大': '大',
+    '米大': '大',
+    '飯大': '大',
+    '饭大': '大',
+    'rice大': '大',
+    '米rice大': '大',
+    'small': '小',
+    'big': '大',
+    'large': '大',
+    'small rice': '小',
+    'big rice': '大',
+    'large rice': '大',
+    'plain': '清炒',
+    'plain stir fried': '清炒',
+    'plain stir-fried': '清炒',
+    'stir fried': '清炒',
+    'stir-fried': '清炒',
+    'garlic': '蒜蓉',
+    'bbq pork': '叉燒',
+    'honey bbq pork': '叉燒',
+    'pork crispy': '燒肉',
+    'crispy pork': '燒肉',
+    'roast pork': '燒肉',
+    'crispy roast pork': '燒肉',
+    'roast duck': '燒鴨',
+    'duck': '燒鴨',
+    'chicken': '雞',
+    'egg noodles': '雞蛋麵',
+    'choice egg noodles': '雞蛋麵',
+    'hor fun': '河粉',
+    'lai fen': '瀨粉'
+  };
+  return map[canonicalTextKey(value)] || '';
+}
+
+function canonicalTextKey(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[()（）]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function addonEnglishName(value) {
   const map = {
+    '米飯小': 'Small',
+    '米饭小': 'Small',
+    '白飯小': 'Small',
+    '白饭小': 'Small',
+    '米小': 'Small',
+    '飯小': 'Small',
+    '饭小': 'Small',
+    '米飯大': 'Big',
+    '米饭大': 'Big',
+    '白飯大': 'Big',
+    '白饭大': 'Big',
+    '米大': 'Big',
+    '飯大': 'Big',
+    '饭大': 'Big',
+    '米飯': 'Rice',
+    '米饭': 'Rice',
+    '大白飯': 'Big rice',
+    '大白饭': 'Big rice',
+    '大米飯': 'Big rice',
+    '大米饭': 'Big rice',
+    '細白飯': 'Small rice',
+    '细白饭': 'Small rice',
+    '細米飯': 'Small rice',
+    '细米饭': 'Small rice',
+    '大': 'Big',
+    '小': 'Small',
     '叉燒': 'BBQ Pork',
     '燒肉': 'Roast Pork',
     '燒鴨': 'Roast Duck',
@@ -903,6 +1049,15 @@ function addonEnglishName(value) {
     '雞蛋麵': 'Egg Noodles',
     '河粉': 'Hor Fun',
     '瀨粉': 'Lai Fen',
+    '白飯': 'Rice',
+    '白饭': 'Rice',
+    '飯': 'Rice',
+    '饭': 'Rice',
+    '蒜蓉': 'Garlic',
+    '蒜茸': 'Garlic',
+    '清炒': 'Plain',
+    '清炒時蔬': 'Plain',
+    '清炒时蔬': 'Plain',
     '肉': 'Meat',
     '椒鹽': 'Salt and Pepper',
     '少鹽': 'Less Salt',
@@ -916,8 +1071,29 @@ function displayAddon(addonText) {
   const raw = String(addonText || '').trim();
   if (!raw) return '';
   const hasCjk = /[\u3400-\u9fff]/.test(raw);
-  if (!hasCjk) return state.lang === 'sc' ? toSc(raw) : raw;
+  if (!hasCjk && state.lang === 'en') return raw;
   return localizeAddonForDisplay(raw) || raw;
+}
+
+function displayOrderAddon(order) {
+  const raw = String(order && order.addon || '').trim();
+  if (!raw) return '';
+  const rawParts = splitOrderFoodParts(String(order.food || ''));
+  const displayParts = splitOrderFoodParts(displayOrderFood(String(order.food || '')));
+  const parsedParts = displayParts.map((part, index) => parseFoodSummaryPart(part, rawParts[index] || part));
+  const optionParts = parsedParts.filter(part => part.food);
+  if (!optionParts.length) return displayAddon(raw);
+  const segments = parseAddonSummarySegments(raw);
+  if (!segments.length) return displayAddon(raw);
+  const values = segments.map(segment => {
+    if (segment.food) return segment.addon;
+    for (const part of optionParts) {
+      const inferred = inferAddonSegmentForFood(segment, part.food, part.raw);
+      if (inferred) return inferred.addon;
+    }
+    return segment.addon;
+  }).filter(Boolean);
+  return values.join(state.lang === 'en' ? '; ' : '；');
 }
 
 function allFoods() {
@@ -1034,6 +1210,9 @@ function renderDepartments() {
 function renderNames() {
   const names = state.staff[el.deptSelect.value] || [];
   fillSelect(el.nameSelect, names.map(name => ({ value: name, label: name })), t('chooseName'));
+  Array.from(el.nameSelect.options || []).forEach(option => {
+    if (option.value && memberIsInGroupOrder(el.deptSelect.value, option.value)) option.disabled = true;
+  });
   state.groupOrder.members = new Set();
   renderGroupMembers();
   renderSelection();
@@ -1060,17 +1239,47 @@ function selectedOrderMembers() {
   return deptNames.filter(name => state.groupOrder.members.has(name));
 }
 
-function findExistingOrderForMembers(dept, members) {
+function findExistingOrderForMembers(dept, members, options = {}) {
   const key = orderIdentityKey(dept, members);
-  return (state.orders || []).find(order => orderIdentityKey(order.dept, orderMemberNames(order)) === key);
+  const selectedMembers = [...(members || [])].map(name => String(name || '').trim()).filter(Boolean);
+  const exact = (state.orders || []).find(order => orderIdentityKey(order.dept, orderMemberNames(order)) === key);
+  if (exact) return exact;
+  if (!options.allowGroupSplit || !selectedMembers.length) return null;
+  return (state.orders || []).find(order => {
+    if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
+    const existingMembers = orderMemberNames(order);
+    return existingMembers.length > selectedMembers.length
+      && selectedMembers.every(member => existingMembers.includes(member));
+  });
+}
+
+function memberIsInGroupOrder(dept, member) {
+  const target = String(member || '').trim();
+  if (!target) return false;
+  return (state.orders || []).some(order => {
+    if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
+    const members = orderMemberNames(order);
+    return members.length > 1 && members.includes(target);
+  });
 }
 
 function memberHasDifferentOrder(dept, member, selectedMembers) {
-  const selectedKey = orderIdentityKey(dept, selectedMembers || []);
+  const selectedList = [...(selectedMembers || [])].map(name => String(name || '').trim()).filter(Boolean);
+  const selectedKey = orderIdentityKey(dept, selectedList);
+  const replacementGroup = selectedList.length ? (state.orders || []).find(order => {
+    if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
+    const members = orderMemberNames(order);
+    return members.length > selectedList.length && selectedList.every(selected => members.includes(selected));
+  }) : null;
+  if (replacementGroup && !orderMemberNames(replacementGroup).includes(member)) return true;
   return (state.orders || []).some(order => {
     if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
     const members = orderMemberNames(order);
     if (orderIdentityKey(order.dept, members) === selectedKey) return false;
+    if (members.length > 1 && members.includes(member)) {
+      if (!selectedList.length) return false;
+      if (selectedList.every(selected => members.includes(selected))) return false;
+    }
     return members.includes(member);
   });
 }
@@ -1153,7 +1362,13 @@ function selectedGroupDrinks() {
 }
 
 function renderCategories() {
-  const categories = Object.keys(state.menu || {});
+  const categories = Object.keys(state.menu || {}).filter(category => {
+    const items = Array.isArray(state.menu[category]) ? state.menu[category] : [];
+    return items.some(item => {
+      const food = normalizeFood(item, category);
+      return food.name && !food.paused;
+    });
+  });
   fillSelect(el.categorySelect, [
     { value: '__all__', label: t('allCategories') },
     ...categories.map(category => ({ value: category, label: localCategory(category) }))
@@ -1161,6 +1376,17 @@ function renderCategories() {
   el.categorySelect.selectedIndex = 0;
   el.categorySelect.value = '';
   renderFoods();
+}
+
+function renderPriceSortOptions() {
+  if (!el.priceSortSelect) return;
+  const current = el.priceSortSelect.value || 'original';
+  fillSelect(el.priceSortSelect, [
+    { value: 'original', label: t('sortOriginal') },
+    { value: 'asc', label: t('sortPriceAsc') },
+    { value: 'desc', label: t('sortPriceDesc') }
+  ], '');
+  el.priceSortSelect.value = current;
 }
 
 function renderFoods() {
@@ -1172,6 +1398,9 @@ function renderFoods() {
   const foods = allFoods().filter(food => {
     return category === '__all__' || food.category === category;
   });
+  const sortMode = el.priceSortSelect ? el.priceSortSelect.value : 'original';
+  if (sortMode === 'asc') foods.sort((a, b) => Number(a.price || 0) - Number(b.price || 0) || localFood(a).localeCompare(localFood(b), 'zh-Hant'));
+  if (sortMode === 'desc') foods.sort((a, b) => Number(b.price || 0) - Number(a.price || 0) || localFood(a).localeCompare(localFood(b), 'zh-Hant'));
 
   if (!foods.length) {
     el.foodList.innerHTML = `<p class="hint">${escapeHtml(t('noFoods'))}</p>`;
@@ -1364,7 +1593,7 @@ function renderOrders() {
       <td>${escapeHtml(order.dept || '')}</td>
       <td>${escapeHtml(order.name || '')}</td>
       <td>${escapeHtml(displayOrderFood(order.food || ''))}</td>
-      <td>${escapeHtml(displayAddon(order.addon || ''))}</td>
+      <td>${escapeHtml(displayOrderAddon(order))}</td>
       <td>${escapeHtml(displayOrderDrink(order.drink || '') || t('noDrink').replace(/-/g, '').trim())}</td>
       <td>${money(order.price)}</td>
     </tr>
@@ -1439,9 +1668,9 @@ function parseOrderDrinks(order) {
 function parseOrderFoodItems(order) {
   const rawText = String(order.food || '').trim();
   const text = displayOrderFood(rawText);
-  const addonRaw = displayAddon(order.addon || '');
-  const addonKey = normalizeAddonForSummary(addonRaw);
+  const addonRaw = String(order.addon || '').trim();
   const addon = displayAddon(addonRaw);
+  const addonKey = normalizeAddonForSummary(addonRaw);
   const rawParts = splitOrderFoodParts(rawText);
   const displayParts = splitOrderFoodParts(text);
   const parsedParts = displayParts.map((part, index) => parseFoodSummaryPart(part, rawParts[index] || part));
@@ -1455,8 +1684,8 @@ function parseOrderFoodItems(order) {
   parsedParts.forEach((part, index) => {
     if (!part.food) return;
     const isOptionFood = optionIndexes.includes(index);
-    const matchingSegments = isOptionFood
-      ? addonSegments.filter(segment => !segment.food || foodLabelsMatch(segment.food, part.food, rawParts[index] || part.food))
+    const matchingSegments = addonSegments.length
+      ? matchingAddonSegmentsForFood(addonSegments, part.food, rawParts[index] || part.food, isOptionFood ? optionIndexes.length : 0)
       : [];
     if (matchingSegments.length) {
       matchingSegments.forEach(segment => {
@@ -1466,7 +1695,7 @@ function parseOrderFoodItems(order) {
       });
       return;
     }
-    const useAddon = addon && (!hasOptionFood || isOptionFood);
+    const useAddon = addon && !addonSegments.length && (!hasOptionFood || isOptionFood);
     const label = useAddon ? `${part.food}（${addon}）` : part.food;
     const key = useAddon && addonKey ? `${part.food}||${addonKey}` : part.food;
     rows.push({ key, label, qty: part.qty });
@@ -1486,21 +1715,130 @@ function parseFoodSummaryPart(value, rawValue) {
 }
 
 function parseAddonSummarySegments(addonText) {
-  return String(addonText || '')
-    .split(/[;；]+/)
-    .map(segment => {
-      let text = String(segment || '').trim();
-      if (!text) return null;
-      const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
-      const food = prefixMatch ? displayOrderFood(prefixMatch[1].trim()) : '';
-      text = prefixMatch ? prefixMatch[2].trim() : text;
-      const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
-      const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
-      const addon = displayAddon(qtyMatch ? text.slice(0, qtyMatch.index).trim() : text);
-      if (!addon) return null;
-      return { food, addon, qty, key: normalizeAddonForSummary(addon) || addon };
-    })
+  const rows = [];
+  let scopedFood = '';
+  String(addonText || '').split(/[;；]+/).forEach(segment => {
+    let text = String(segment || '').trim();
+    if (!text) return;
+    const prefixMatch = text.match(/^(.+?)\s*[:：]\s*(.+)$/);
+    const explicitFood = prefixMatch ? displayOrderFood(prefixMatch[1].trim()) : '';
+    text = prefixMatch ? prefixMatch[2].trim() : text;
+    const qtyMatch = text.match(/\s+x\s*(\d+)\s*$/i);
+    const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1]) || 1) : 1;
+    const rawAddon = qtyMatch ? text.slice(0, qtyMatch.index).trim() : text;
+    const addon = displayAddon(rawAddon);
+    if (!addon) return;
+    const row = { food: explicitFood, addon, rawAddon, qty, key: normalizeAddonForSummary(addon) || addon };
+    if (explicitFood) {
+      scopedFood = explicitFood;
+    } else if (scopedFood && segmentBelongsToFoodChoice(row, scopedFood, scopedFood)) {
+      row.food = scopedFood;
+    } else {
+      scopedFood = '';
+    }
+    rows.push(row);
+  });
+  return rows;
+}
+
+function matchingAddonSegmentsForFood(segments, displayFood, rawFood, optionFoodCount) {
+  const direct = segments.filter(segment => segment.food && foodLabelsMatch(segment.food, displayFood, rawFood));
+  if (direct.length) return direct;
+  const inferred = segments
+    .filter(segment => !segment.food)
+    .map(segment => inferAddonSegmentForFood(segment, displayFood, rawFood))
     .filter(Boolean);
+  const inferredKeys = new Set(inferred.map(segment => String(segment.rawAddon || segment.addon || '').trim()));
+  const choiceMatched = segments
+    .filter(segment => !segment.food && !inferredKeys.has(String(segment.rawAddon || segment.addon || '').trim()))
+    .filter(segment => segmentBelongsToFoodChoice(segment, displayFood, rawFood));
+  if (inferred.length || choiceMatched.length) return [...inferred, ...choiceMatched];
+  return optionFoodCount === 1 ? segments.filter(segment => !segment.food) : [];
+}
+
+function segmentBelongsToFoodChoice(segment, displayFood, rawFood) {
+  const food = summaryFoodMatch(rawFood, displayFood);
+  const segmentKeys = [segment && segment.rawAddon, segment && segment.addon]
+    .map(canonicalAddonPart)
+    .filter(Boolean);
+  if (!segmentKeys.length) return false;
+  if (isRiceFoodName(rawFood) || isRiceFoodName(displayFood)) {
+    if (segmentKeys.some(key => key === '小' || key === '大')) return true;
+  }
+  if (!food || !Array.isArray(food.optionGroups) || !food.optionGroups.length) return false;
+  const foodNames = [food.name, food.nameSc, food.nameEn, displayFood, rawFood].filter(Boolean);
+  const choiceKeys = [];
+  food.optionGroups.forEach(group => {
+    (group.choices || []).map(normalizeOptionChoice).filter(Boolean).forEach(choice => {
+      [choice.label, orderOptionLabel(choice.label), localOptionLabel(choice.label), extractEnglishOptionLabel(choice.label)].forEach(label => {
+        const direct = canonicalAddonPart(label);
+        if (direct) choiceKeys.push(direct);
+        foodNames.forEach(name => {
+          const stripped = stripFoodPrefixFromAddon(label, name);
+          const key = canonicalAddonPart(stripped);
+          if (key) choiceKeys.push(key);
+        });
+      });
+    });
+  });
+  return segmentKeys.some(key => choiceKeys.includes(key));
+}
+
+function isRiceFoodName(value) {
+  const key = compactSummaryPrefix(value);
+  return key === '米飯' || key === '米饭' || key === '白飯' || key === '白饭' || key === 'rice';
+}
+
+function summaryFoodMatch(rawFood, displayFood) {
+  const clean = value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim();
+  const raw = clean(rawFood);
+  const display = clean(displayFood);
+  return allFoods().find(food => {
+    const names = [food.name, food.nameSc, food.nameEn, localFood(food)].map(clean);
+    return names.includes(raw) || names.includes(display);
+  }) || null;
+}
+
+function inferAddonSegmentForFood(segment, displayFood, rawFood) {
+  const source = String(segment && (segment.rawAddon || segment.addon) || '').trim();
+  const prefixes = [displayFood, rawFood, displayOrderFood(rawFood)]
+    .map(value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  for (const prefix of prefixes) {
+    const addon = stripFoodPrefixFromAddon(source, prefix);
+    if (!addon) continue;
+    const normalizedAddon = displayAddon(addon);
+    return { ...segment, food: displayFood, addon: normalizedAddon, key: normalizeAddonForSummary(normalizedAddon) || normalizedAddon };
+  }
+  return null;
+}
+
+function stripFoodPrefixFromAddon(text, prefix) {
+  const raw = String(text || '').trim();
+  const target = compactSummaryPrefix(prefix);
+  if (!raw || !target) return '';
+  let consumed = '';
+  for (let index = 0; index < raw.length; index += 1) {
+    const compact = compactSummaryPrefix(raw[index]);
+    if (!compact) continue;
+    consumed += compact;
+    if (!target.startsWith(consumed)) return '';
+    if (consumed === target) {
+      return raw.slice(index + 1)
+        .replace(/^[:：\s/／、,，(（]+/, '')
+        .replace(/[)）]+$/, '')
+        .trim();
+    }
+  }
+  return '';
+}
+
+function compactSummaryPrefix(value) {
+  return String(value || '')
+    .replace(/\s+x\s*\d+\s*$/i, '')
+    .toLowerCase()
+    .replace(/[\s/／\\,，、()（）]/g, '');
 }
 
 function foodLabelsMatch(prefix, displayFood, rawFood) {
@@ -1542,6 +1880,44 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function linkifyText(value) {
+  const text = String(value || '');
+  const urlPattern = /\b((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
+  let lastIndex = 0;
+  let html = '';
+  for (const match of text.matchAll(urlPattern)) {
+    const urlText = match[0].replace(/[),.;!?]+$/g, '');
+    const trailing = match[0].slice(urlText.length);
+    html += escapeHtml(text.slice(lastIndex, match.index));
+    const href = urlText.startsWith('www.') ? `https://${urlText}` : urlText;
+    try {
+      const parsed = new URL(href);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        const label = isMapUrl(parsed) ? t('mapAddress') : urlText;
+        html += `<a href="${escapeHtml(parsed.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+      } else {
+        html += escapeHtml(urlText);
+      }
+    } catch {
+      html += escapeHtml(urlText);
+    }
+    html += escapeHtml(trailing);
+    lastIndex = match.index + match[0].length;
+  }
+  html += escapeHtml(text.slice(lastIndex));
+  return html;
+}
+
+function isMapUrl(url) {
+  const host = url.hostname.toLowerCase();
+  const path = url.pathname.toLowerCase();
+  return host.includes('google.') && path.includes('/maps')
+    || host === 'maps.app.goo.gl'
+    || host === 'goo.gl' && path.startsWith('/maps')
+    || host.includes('maps.google.')
+    || path.includes('/maps/');
+}
+
 async function load() {
   setBusy(true);
   try {
@@ -1581,7 +1957,10 @@ async function submitOrder() {
   const name = members.join(' + ');
   if (!dept) return showToast(t('chooseDeptToast'));
   if (!name) return showToast(t('chooseNameToast'));
-  if (state.groupOrder.active && members.length < 2) return showToast(t('chooseGroupMembersToast'));
+  const existingGroupSplitOrder = state.groupOrder.active
+    ? findExistingOrderForMembers(dept, members, { allowGroupSplit: true })
+    : null;
+  if (state.groupOrder.active && members.length < 2 && !existingGroupSplitOrder) return showToast(t('chooseGroupMembersToast'));
   const entries = Array.from(state.selected.values());
   if (!entries.length) return showToast(t('chooseFoodToast'));
 
@@ -1603,7 +1982,8 @@ async function submitOrder() {
     food,
     addon,
     drink: selectedGroupDrinks().join(' + '),
-    price: totals.total
+    price: totals.total,
+    allowGroupSplit: Boolean(state.groupOrder.active)
   };
   if (state.cutoffPassed && state.lateOrder.active) {
     order.lateOrder = true;
@@ -1611,8 +1991,8 @@ async function submitOrder() {
     order.lateOrderPassword = state.lateOrder.password;
   }
 
-  const existing = findExistingOrderForMembers(dept, members);
-  if (existing && !sameOrder(existing, order)) {
+  const existing = findExistingOrderForMembers(dept, members, { allowGroupSplit: Boolean(state.groupOrder.active) });
+  if (existing && (orderIdentityKey(existing.dept, orderMemberNames(existing)) !== orderIdentityKey(dept, members) || !sameOrder(existing, order))) {
     const confirmed = await confirmOrderChange(existing, order);
     if (!confirmed) return;
   }
@@ -1763,7 +2143,7 @@ async function exportXlsx() {
       order.dept || '',
       order.name || '',
       displayOrderFood(order.food || ''),
-      displayAddon(order.addon || ''),
+      displayOrderAddon(order),
       displayOrderDrink(order.drink || ''),
       Number(order.price || 0)
     ]);
@@ -2223,6 +2603,7 @@ el.groupDrinksList.addEventListener('change', event => {
   state.groupOrder.drinks[index] = select.value;
 });
 el.categorySelect.addEventListener('change', renderFoods);
+if (el.priceSortSelect) el.priceSortSelect.addEventListener('change', renderFoods);
 el.langTc.addEventListener('click', () => setLanguage('tc'));
 el.langSc.addEventListener('click', () => setLanguage('sc'));
 el.langEn.addEventListener('click', () => setLanguage('en'));

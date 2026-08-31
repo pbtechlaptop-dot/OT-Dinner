@@ -85,6 +85,11 @@ const el = {
   addCategoryBtn: document.getElementById('addCategoryBtn'),
   renameCategory: document.getElementById('renameCategory'),
   renameCategoryBtn: document.getElementById('renameCategoryBtn'),
+  toggleCategoryBtn: document.getElementById('toggleCategoryBtn'),
+  deleteCategoryBtn: document.getElementById('deleteCategoryBtn'),
+  menuImportFile: document.getElementById('menuImportFile'),
+  menuImportBtn: document.getElementById('menuImportBtn'),
+  menuImportUpdateExisting: document.getElementById('menuImportUpdateExisting'),
   menuTable: document.getElementById('menuTable'),
   menuTc: document.getElementById('menuTc'),
   menuSc: document.getElementById('menuSc'),
@@ -908,6 +913,8 @@ function currentMenuCategory() {
 
 function updateCategoryRenameControls() {
   const enabled = Boolean(currentMenuRestaurant() && currentMenuCategory());
+  const importEnabled = Boolean(currentMenuRestaurant());
+  const hidden = enabled && isCurrentCategoryHidden();
   if (el.renameCategory) {
     el.renameCategory.disabled = !enabled;
     if (!enabled) el.renameCategory.value = '';
@@ -917,6 +924,36 @@ function updateCategoryRenameControls() {
     el.renameCategoryBtn.classList.toggle('opacity-60', !enabled);
     el.renameCategoryBtn.classList.toggle('cursor-not-allowed', !enabled);
   }
+  if (el.toggleCategoryBtn) {
+    el.toggleCategoryBtn.disabled = !enabled;
+    el.toggleCategoryBtn.textContent = hidden ? '恢復分類' : '隱藏分類';
+    el.toggleCategoryBtn.classList.toggle('opacity-60', !enabled);
+    el.toggleCategoryBtn.classList.toggle('cursor-not-allowed', !enabled);
+  }
+  if (el.deleteCategoryBtn) {
+    el.deleteCategoryBtn.disabled = !enabled;
+    el.deleteCategoryBtn.classList.toggle('opacity-60', !enabled);
+    el.deleteCategoryBtn.classList.toggle('cursor-not-allowed', !enabled);
+  }
+  [el.menuImportFile, el.menuImportBtn, el.menuImportUpdateExisting].forEach(node => {
+    if (!node) return;
+    node.disabled = !importEnabled;
+    node.classList.toggle('opacity-60', !importEnabled);
+    node.classList.toggle('cursor-not-allowed', !importEnabled);
+  });
+}
+
+function currentCategoryItems() {
+  const rest = currentMenuRestaurant();
+  const cat = currentMenuCategory();
+  return rest && cat && state.seed.menus && state.seed.menus[rest] && Array.isArray(state.seed.menus[rest][cat])
+    ? state.seed.menus[rest][cat]
+    : [];
+}
+
+function isCurrentCategoryHidden() {
+  const items = currentCategoryItems();
+  return items.length > 0 && items.every(item => Boolean(item && item.paused));
 }
 
 function renderMenuCategories() {
@@ -937,7 +974,11 @@ function renderMenuCategories() {
   if (!state.seed.menus[rest]) state.seed.menus[rest] = {};
   const cats = Object.keys(state.seed.menus[rest]);
   el.menuCategorySelect.innerHTML = cats.length
-    ? cats.map(c => `<option value="${c}">${c}</option>`).join('')
+    ? cats.map(c => {
+      const items = Array.isArray(state.seed.menus[rest][c]) ? state.seed.menus[rest][c] : [];
+      const hidden = items.length > 0 && items.every(item => Boolean(item && item.paused));
+      return `<option value="${c}">${hidden ? '[已隱藏] ' : ''}${c}</option>`;
+    }).join('')
     : '<option value="">-- 無分類 --</option>';
   if (selected && cats.includes(selected)) el.menuCategorySelect.value = selected;
   updateCategoryRenameControls();
@@ -1577,6 +1618,104 @@ async function importSeed() {
   }
 }
 
+function normalizeImportedMenuItem(item) {
+  const nameTcInput = String((item && item.nameTc) || '').trim();
+  const nameScInput = String((item && item.nameSc) || '').trim();
+  const nameTc = nameTcInput || toTc(nameScInput);
+  const nameSc = nameScInput || toSc(nameTcInput || nameTc);
+  const nameEn = String((item && item.nameEn) || nameTc).trim() || nameTc;
+  const price = Number(item && item.price);
+  if (!nameTc || !Number.isFinite(price) || price < 0) return null;
+  const out = { nameTc, nameSc: nameSc || nameTc, nameEn, price, paused: Boolean(item && item.paused) };
+  const optionGroups = parseOptionGroups(item && (item.optionGroups ?? item.option_groups ?? item.options));
+  if (optionGroups.length) out.optionGroups = optionGroups;
+  return out;
+}
+
+function collectMenuImportItems(seed) {
+  const menus = seed && seed.menus && typeof seed.menus === 'object' ? seed.menus : {};
+  const restaurants = Object.keys(menus).filter(Boolean);
+  const items = [];
+  restaurants.forEach(restaurant => {
+    const categories = menus[restaurant] && typeof menus[restaurant] === 'object' ? menus[restaurant] : {};
+    Object.keys(categories).forEach(category => {
+      const cleanCategory = String(category || '').trim();
+      if (!cleanCategory || !Array.isArray(categories[category])) return;
+      categories[category].forEach(rawItem => {
+        const item = normalizeImportedMenuItem(rawItem);
+        if (item) items.push({ sourceRestaurant: restaurant, category: cleanCategory, item });
+      });
+    });
+  });
+  return { restaurants, items };
+}
+
+async function importMenuToCurrentRestaurant() {
+  if (!requireAuth()) return;
+  if (!hasPermission('menus')) return setStatus('此帳號沒有菜單權限。', true);
+  const rest = currentMenuRestaurant();
+  if (!rest) return setStatus('請先在 5) 菜單選擇要匯入的餐廳。', true);
+  const file = el.menuImportFile && el.menuImportFile.files && el.menuImportFile.files[0];
+  if (!file) return setStatus('請先選擇菜單匯入檔案。', true);
+
+  try {
+    setBusy(true, '正在匯入菜單，請稍候...');
+    const seed = await readImportSeed(file);
+    const { restaurants, items } = collectMenuImportItems(seed);
+    if (!items.length) return setStatus('匯入檔案內找不到菜單資料。', true);
+    if (restaurants.length > 1) {
+      const ok = window.confirm(`檔案內有 ${restaurants.length} 間餐廳的菜單。此工具會全部匯入到「${rest}」，不會新增餐廳。是否繼續？`);
+      if (!ok) return;
+    }
+
+    if (!state.seed.menus) state.seed.menus = {};
+    if (!state.seed.menus[rest]) state.seed.menus[rest] = {};
+    const updateExisting = Boolean(el.menuImportUpdateExisting && el.menuImportUpdateExisting.checked);
+    let addedCategories = 0;
+    let addedItems = 0;
+    let updatedItems = 0;
+    let firstCategory = '';
+
+    items.forEach(({ category, item }) => {
+      if (!state.seed.menus[rest][category]) {
+        state.seed.menus[rest][category] = [];
+        addedCategories += 1;
+        if (!firstCategory) firstCategory = category;
+      }
+      const list = state.seed.menus[rest][category];
+      const existingIndex = list.findIndex(existing => String(existing && existing.nameTc || '').trim() === item.nameTc);
+      if (existingIndex >= 0) {
+        if (updateExisting) {
+          const existing = list[existingIndex] || {};
+          list[existingIndex] = { ...item, paused: Boolean(existing.paused) };
+          updatedItems += 1;
+        }
+        return;
+      }
+      list.push(item);
+      addedItems += 1;
+      if (!firstCategory) firstCategory = category;
+    });
+
+    if (el.menuImportFile) el.menuImportFile.value = '';
+    renderMenuCategories();
+    if (firstCategory && state.seed.menus[rest][firstCategory]) el.menuCategorySelect.value = firstCategory;
+    renderMenuItems();
+    markDirty(`已匯入菜單到 ${rest}`);
+    const parts = [];
+    if (addedCategories) parts.push(`分類 +${addedCategories}`);
+    if (addedItems) parts.push(`餐點 +${addedItems}`);
+    if (updatedItems) parts.push(`更新 ${updatedItems}`);
+    const summary = parts.join('、') || '沒有新增資料';
+    setStatus(`菜單已匯入到「${rest}」：${summary}。請檢查後按「儲存此區」。`);
+    showToast(`菜單匯入完成：${summary}`);
+  } catch (err) {
+    setStatus(`菜單匯入失敗: ${err.message}`, true);
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function login() {
   const username = String(el.loginUsername.value || '').trim().toLowerCase() || 'admin';
   const password = String(el.loginPassword.value || '').trim();
@@ -1669,6 +1808,7 @@ el.saveBtn.onclick = saveSeed;
 el.resetDayBtn.onclick = () => resetDay('main');
 if (el.resetLadyRubyBtn) el.resetLadyRubyBtn.onclick = () => resetDay('lady-ruby');
 el.importBtn.onclick = importSeed;
+if (el.menuImportBtn) el.menuImportBtn.onclick = importMenuToCurrentRestaurant;
 if (el.saveNewSettingsBtn) el.saveNewSettingsBtn.onclick = saveNewSettings;
 
 el.saveRestaurantBtn.onclick = () => saveSection('restaurants');
@@ -1838,6 +1978,51 @@ el.renameCategoryBtn.onclick = () => {
   markDirty(`已更改分類：${oldCat} → ${newCat}`);
   setStatus('分類已在畫面上更改，請按「儲存此區」寫入資料庫。');
 };
+
+if (el.toggleCategoryBtn) {
+  el.toggleCategoryBtn.onclick = () => {
+    if (!requireAuth()) return;
+    const rest = currentMenuRestaurant();
+    const cat = currentMenuCategory();
+    if (!rest) return setStatus('請先選擇餐廳。', true);
+    if (!cat) return setStatus('請先選擇分類。', true);
+    const items = currentCategoryItems();
+    if (!items.length) return setStatus('此分類未有餐點，可以直接刪除分類。', true);
+    const shouldRestore = isCurrentCategoryHidden();
+    const label = shouldRestore ? '恢復' : '隱藏';
+    if (!window.confirm(`確定${label}「${cat}」分類？此分類內 ${items.length} 個餐點會一起${shouldRestore ? '恢復供應' : '暫停供應'}。確認後仍要按「儲存此區」才會寫入資料庫。`)) return;
+    items.forEach(item => {
+      if (item) item.paused = !shouldRestore;
+    });
+    renderMenuCategories();
+    el.menuCategorySelect.value = cat;
+    renderMenuItems();
+    markDirty(`已${label}分類：${cat}`);
+    setStatus(`分類已${label}，請按「儲存此區」寫入資料庫。`);
+  };
+}
+
+if (el.deleteCategoryBtn) {
+  el.deleteCategoryBtn.onclick = () => {
+    if (!requireAuth()) return;
+    const rest = currentMenuRestaurant();
+    const cat = currentMenuCategory();
+    if (!rest) return setStatus('請先選擇餐廳。', true);
+    if (!cat) return setStatus('請先選擇分類。', true);
+    if (!state.seed.menus[rest] || !Object.prototype.hasOwnProperty.call(state.seed.menus[rest], cat)) {
+      return setStatus('找不到目前分類。', true);
+    }
+    const items = currentCategoryItems();
+    if (!window.confirm(`確定刪除「${cat}」分類？此分類內 ${items.length} 個餐點會一併刪除。確認後仍要按「儲存此區」才會寫入資料庫。`)) return;
+    delete state.seed.menus[rest][cat];
+    if (state.menuEdit && state.menuEdit.rest === rest && state.menuEdit.cat === cat) resetMenuEdit();
+    if (el.renameCategory) el.renameCategory.value = '';
+    renderMenuCategories();
+    renderMenuItems();
+    markDirty(`已刪除分類：${cat}`);
+    setStatus('分類已在畫面上刪除，請按「儲存此區」寫入資料庫。');
+  };
+}
 
 el.addMenuBtn.onclick = () => {
   if (!requireAuth()) return;
