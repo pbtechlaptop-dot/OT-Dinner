@@ -784,13 +784,20 @@ function applyLastStaff() {
   return true;
 }
 
+function normBool(value) {
+  if (value === true) return true;
+  if (value === false || value === null || value === undefined) return false;
+  const text = String(value || '').trim().toLowerCase();
+  return ['1', 'true', 'yes', 'y', 'paused', 'pause'].includes(text);
+}
+
 function normalizeDrink(raw) {
   if (typeof raw === 'string') return { tc: raw, paused: false };
   return {
     tc: String(raw && (raw.tc || raw.name) || '').trim(),
     sc: String(raw && (raw.sc || raw.tc || raw.name) || '').trim(),
     en: String(raw && (raw.en || raw.tc || raw.name) || '').trim(),
-    paused: Boolean(raw && raw.paused)
+    paused: normBool(raw && raw.paused)
   };
 }
 
@@ -804,7 +811,7 @@ function normalizeFood(raw, category) {
     nameSc: String(raw && (raw.nameSc || raw.sc || raw.nameTc || raw.name || raw.tc) || '').trim(),
     nameEn: String(raw && raw.nameEn || '').trim(),
     price: Number.isFinite(price) ? price : 0,
-    paused: Boolean(raw && raw.paused)
+    paused: normBool(raw && raw.paused)
   };
   if (Array.isArray(raw && raw.optionGroups) && raw.optionGroups.length) {
     food.optionGroups = raw.optionGroups;

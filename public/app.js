@@ -574,13 +574,20 @@ async function api(path, options = {}) {
   return res.json();
 }
 
+function normBool(value) {
+  if (value === true) return true;
+  if (value === false || value === null || value === undefined) return false;
+  const text = String(value || '').trim().toLowerCase();
+  return ['1', 'true', 'yes', 'y', 'paused', 'pause'].includes(text);
+}
+
 function normalizeDrink(d) {
   if (typeof d === 'string') return { tc: d, sc: d, en: d, paused: false };
   if (!d || typeof d !== 'object') return { tc: '', sc: '', en: '', paused: false };
   const tc = String(d.tc || d.name || '').trim();
   const sc = String(d.sc || tc).trim();
   const en = String(d.en || tc).trim();
-  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc, paused: Boolean(d.paused) };
+  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc, paused: normBool(d.paused) };
 }
 
 function normalizeMenuItem(item) {
@@ -589,7 +596,7 @@ function normalizeMenuItem(item) {
   const sc = String(item.nameSc || item.sc || tc).trim();
   const en = String(item.nameEn || item.en || tc).trim();
   const price = Number(item.price);
-  const base = { nameTc: tc || sc || en, nameSc: sc || tc || en, nameEn: en || tc || sc, price: Number.isFinite(price) ? price : 0, paused: Boolean(item.paused) };
+  const base = { nameTc: tc || sc || en, nameSc: sc || tc || en, nameEn: en || tc || sc, price: Number.isFinite(price) ? price : 0, paused: normBool(item.paused) };
   if (Array.isArray(item.optionGroups) && item.optionGroups.length) base.optionGroups = item.optionGroups;
   return base;
 }

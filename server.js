@@ -202,7 +202,7 @@ function mapDrinksByKey(seedInput) {
       tc: key,
       sc: normText(drink.sc) || key,
       en: normText(drink.en) || key,
-      paused: Boolean(drink.paused)
+      paused: normBool(drink.paused)
     });
   });
   return map;
@@ -223,7 +223,7 @@ function mapMenuItemsByKey(seedInput) {
           nameSc: normText(item.nameSc) || nameTc,
           nameEn: normText(item.nameEn) || nameTc,
           price: Number(item.price || 0),
-          paused: Boolean(item.paused)
+          paused: normBool(item.paused)
         });
       });
     });
@@ -686,7 +686,7 @@ function normalizeDrinkFlags(input) {
   Object.keys(pausedIn).forEach(key => {
     const tc = normText(key);
     if (!tc) return;
-    paused[tc] = Boolean(pausedIn[key]);
+    paused[tc] = normBool(pausedIn[key]);
   });
   return { paused };
 }
@@ -708,7 +708,7 @@ function applyDrinkFlags(seedInput, flagsInput) {
   const flags = normalizeDrinkFlags(flagsInput);
   seed.drinks = (seed.drinks || []).map(drink => ({
     ...drink,
-    paused: Boolean(flags.paused[drink.tc])
+    paused: normBool(flags.paused[drink.tc])
   }));
   return seed;
 }
@@ -717,7 +717,7 @@ function extractDrinkFlags(seedInput) {
   const seed = normalizeSeed(seedInput);
   const paused = {};
   (seed.drinks || []).forEach(drink => {
-    if (drink && drink.tc) paused[drink.tc] = Boolean(drink.paused);
+    if (drink && drink.tc) paused[drink.tc] = normBool(drink.paused);
   });
   return { paused };
 }
@@ -748,6 +748,13 @@ function normText(v) {
   return String(v || '').trim();
 }
 
+function normBool(value) {
+  if (value === true) return true;
+  if (value === false || value === null || value === undefined) return false;
+  const text = normText(value).toLowerCase();
+  return ['1', 'true', 'yes', 'y', 'paused', 'pause'].includes(text);
+}
+
 function normalizeDrinkItem(d) {
   if (typeof d === 'string') {
     const tc = normText(d);
@@ -758,7 +765,7 @@ function normalizeDrinkItem(d) {
   const sc = normText(d.sc || d.zhHans || tc);
   const en = normText(d.en || d.eng || tc);
   if (!tc && !sc && !en) return null;
-  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc, paused: Boolean(d.paused) };
+  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc, paused: normBool(d.paused) };
 }
 
 function normalizeOptionGroups(input) {
@@ -819,7 +826,7 @@ function normalizeMenuItem(item) {
   const price = Number(item.price);
   if (!nameTc || !Number.isFinite(price) || price < 0) return null;
   const optionGroups = normalizeOptionGroups(item.optionGroups ?? item.option_groups ?? item.options);
-  const normalized = { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price, paused: Boolean(item.paused) };
+  const normalized = { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price, paused: normBool(item.paused) };
   if (optionGroups.length) normalized.optionGroups = optionGroups;
   return normalized;
 }
@@ -1284,7 +1291,7 @@ async function saveSeedSupabase(input) {
   }
 
   if (seed.drinks.length) {
-    const rows = seed.drinks.map(d => ({ tc: d.tc, sc: d.sc, en: d.en, paused: Boolean(d.paused) }));
+    const rows = seed.drinks.map(d => ({ tc: d.tc, sc: d.sc, en: d.en, paused: normBool(d.paused) }));
     let { error } = await supabase.from(TABLES.drinks).insert(rows);
     if (error && isMissingSupabaseColumn(error, 'paused')) {
       writeDrinkFlags(drinkFlags);
@@ -1317,7 +1324,7 @@ async function saveSeedSupabase(input) {
           name_en: it.nameEn,
           price: Number(it.price),
           option_groups: Array.isArray(it.optionGroups) ? it.optionGroups : undefined,
-          paused: Boolean(it.paused)
+          paused: normBool(it.paused)
         });
       });
     });
