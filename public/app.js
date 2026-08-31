@@ -1484,7 +1484,7 @@ function displayOrderAddon(order) {
   const rawParts = splitOrderFoodParts(String(order.food || ''));
   const displayParts = splitOrderFoodParts(displayFood(String(order.food || '')));
   const parsedParts = displayParts.map((part, index) => parseFoodSummaryPart(part, rawParts[index] || part));
-  const optionParts = parsedParts.filter(part => foodUsesAddonForSummary(part.raw, part.food));
+  const optionParts = parsedParts.filter(part => part.food);
   if (!optionParts.length) return displayAddon(raw);
   const segments = parseAddonSummarySegments(raw);
   if (!segments.length) return displayAddon(raw);
@@ -1841,8 +1841,8 @@ function parseOrderFoodItems(order) {
   parsedParts.forEach((part, index) => {
     if (!part.food) return;
     const isOptionFood = optionIndexes.includes(index);
-    const matchingSegments = isOptionFood
-      ? matchingAddonSegmentsForFood(addonSegments, part.food, rawParts[index] || part.food, optionIndexes.length)
+    const matchingSegments = addonSegments.length
+      ? matchingAddonSegmentsForFood(addonSegments, part.food, rawParts[index] || part.food, isOptionFood ? optionIndexes.length : 0)
       : [];
     if (matchingSegments.length) {
       matchingSegments.forEach(segment => {
@@ -1852,7 +1852,7 @@ function parseOrderFoodItems(order) {
       });
       return;
     }
-    const useAddon = addon && (!hasOptionFood || isOptionFood && !addonSegments.length);
+    const useAddon = addon && !addonSegments.length && (!hasOptionFood || isOptionFood);
     const label = useAddon ? `${part.food}（${addon}）` : part.food;
     const key = useAddon && addonKey ? `${part.food}||${addonKey}` : part.food;
     rows.push({ key, label, qty: part.qty });
@@ -1897,8 +1897,44 @@ function matchingAddonSegmentsForFood(segments, displayFoodName, rawFood, option
     .filter(segment => !segment.food)
     .map(segment => inferAddonSegmentForFood(segment, displayFoodName, rawFood))
     .filter(Boolean);
-  if (inferred.length) return inferred;
+  const inferredKeys = new Set(inferred.map(segment => String(segment.rawAddon || segment.addon || '').trim()));
+  const choiceMatched = segments
+    .filter(segment => !segment.food && !inferredKeys.has(String(segment.rawAddon || segment.addon || '').trim()))
+    .filter(segment => segmentBelongsToFoodChoice(segment, displayFoodName, rawFood));
+  if (inferred.length || choiceMatched.length) return [...inferred, ...choiceMatched];
   return optionFoodCount === 1 ? segments.filter(segment => !segment.food) : [];
+}
+
+function segmentBelongsToFoodChoice(segment, displayFoodName, rawFood) {
+  const food = summaryFoodMatch(rawFood, displayFoodName);
+  if (!food || !Array.isArray(food.optionGroups) || !food.optionGroups.length) return false;
+  const segmentKeys = [segment && segment.rawAddon, segment && segment.addon]
+    .map(canonicalAddonPart)
+    .filter(Boolean);
+  if (!segmentKeys.length) return false;
+  const foodNames = [food.nameTc, food.nameSc, food.nameEn, displayFoodName, rawFood].filter(Boolean);
+  const choiceKeys = [];
+  food.optionGroups.forEach(group => {
+    (group.choices || []).map(normalizeOptionChoice).filter(Boolean).forEach(choice => {
+      [choice.label, storedOptionChineseLabel(choice.label), formatOptionLabel(choice.label, 0), extractEnglishOptionLabel(choice.label)].forEach(label => {
+        const direct = canonicalAddonPart(label);
+        if (direct) choiceKeys.push(direct);
+        foodNames.forEach(name => {
+          const stripped = stripFoodPrefixFromAddon(label, name);
+          const key = canonicalAddonPart(stripped);
+          if (key) choiceKeys.push(key);
+        });
+      });
+    });
+  });
+  return segmentKeys.some(key => choiceKeys.includes(key));
+}
+
+function summaryFoodMatch(rawFood, displayFoodName) {
+  const clean = value => String(value || '').replace(/\s+x\s*\d+\s*$/i, '').trim();
+  const raw = clean(rawFood);
+  const display = clean(displayFoodName);
+  return [raw, display].map(value => state.foodLookup[value]).find(Boolean) || null;
 }
 
 function inferAddonSegmentForFood(segment, displayFoodName, rawFood) {
