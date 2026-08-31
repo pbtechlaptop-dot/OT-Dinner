@@ -1080,7 +1080,7 @@ function findExistingOrderForMembers(dept, members) {
   const selectedMembers = [...(members || [])].map(name => String(name || '').trim()).filter(Boolean);
   const exact = (state.orders || []).find(order => orderIdentityKey(order.dept, orderMemberNames(order)) === key);
   if (exact) return exact;
-  if (selectedMembers.length < 2) return null;
+  if (!selectedMembers.length) return null;
   return (state.orders || []).find(order => {
     if (String(order.dept || '').trim() !== String(dept || '').trim()) return false;
     const existingMembers = orderMemberNames(order);
@@ -1660,7 +1660,7 @@ async function submitOrder() {
   const name = members.join(' + ');
   if (!dept) return showToast(t('chooseDeptToast'));
   if (!name) return showToast(t('chooseNameToast'));
-  if (state.groupOrder.active && members.length < 2) return showToast(t('chooseGroupMembersToast'));
+  if (state.groupOrder.active && members.length < 2 && !findExistingOrderForMembers(dept, members)) return showToast(t('chooseGroupMembersToast'));
   const entries = Array.from(state.selected.values());
   if (!entries.length) return showToast(t('chooseFoodToast'));
 

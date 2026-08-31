@@ -1956,7 +1956,7 @@ function findOrderForSubmission(orders, nextOrder) {
   const nextIdentity = orderIdentityKey(nextOrder);
   const exact = list.find(order => orderIdentityKey(order) === nextIdentity);
   if (exact) return exact;
-  if (nextMembers.length < 2) return null;
+  if (!nextMembers.length) return null;
   const dept = normText(nextOrder && nextOrder.dept);
   return list.find(order => {
     if (normText(order && order.dept) !== dept) return false;
