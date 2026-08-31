@@ -290,14 +290,13 @@ textarea:focus {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(220px, 360px);
   gap: 10px;
   margin-bottom: 10px;
 }
 
 .food-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 8px;
   max-height: 580px;
   overflow: auto;
@@ -781,12 +780,6 @@ tfoot td {
 
   .food-item {
     grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 9px;
-  }
-
-  .food-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .selected-controls {
@@ -796,11 +789,5 @@ tfoot td {
   .selected-remove {
     grid-column: 1 / -1;
     justify-self: stretch;
-  }
-}
-
-@media (max-width: 360px) {
-  .food-list {
-    grid-template-columns: 1fr;
   }
 }

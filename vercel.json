@@ -2,8 +2,6 @@
   "version": 2,
   "routes": [
     { "src": "^/api/(.*)$", "dest": "/api/index.js" },
-    { "src": "^/lady-ruby/new/?$", "dest": "/api/index.js" },
-    { "src": "^/lady-ruby/new/(.*)$", "dest": "/api/index.js" },
     { "src": "^/lady-ruby/?$", "dest": "/api/index.js" },
     { "src": "^/new/?$", "dest": "/api/index.js" },
     { "src": "^/new/(.*)$", "dest": "/api/index.js" },

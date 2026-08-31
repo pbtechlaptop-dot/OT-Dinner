@@ -202,7 +202,7 @@ function mapDrinksByKey(seedInput) {
       tc: key,
       sc: normText(drink.sc) || key,
       en: normText(drink.en) || key,
-      paused: normBool(drink.paused)
+      paused: Boolean(drink.paused)
     });
   });
   return map;
@@ -223,7 +223,7 @@ function mapMenuItemsByKey(seedInput) {
           nameSc: normText(item.nameSc) || nameTc,
           nameEn: normText(item.nameEn) || nameTc,
           price: Number(item.price || 0),
-          paused: normBool(item.paused)
+          paused: Boolean(item.paused)
         });
       });
     });
@@ -686,7 +686,7 @@ function normalizeDrinkFlags(input) {
   Object.keys(pausedIn).forEach(key => {
     const tc = normText(key);
     if (!tc) return;
-    paused[tc] = normBool(pausedIn[key]);
+    paused[tc] = Boolean(pausedIn[key]);
   });
   return { paused };
 }
@@ -708,7 +708,7 @@ function applyDrinkFlags(seedInput, flagsInput) {
   const flags = normalizeDrinkFlags(flagsInput);
   seed.drinks = (seed.drinks || []).map(drink => ({
     ...drink,
-    paused: normBool(flags.paused[drink.tc])
+    paused: Boolean(flags.paused[drink.tc])
   }));
   return seed;
 }
@@ -717,7 +717,7 @@ function extractDrinkFlags(seedInput) {
   const seed = normalizeSeed(seedInput);
   const paused = {};
   (seed.drinks || []).forEach(drink => {
-    if (drink && drink.tc) paused[drink.tc] = normBool(drink.paused);
+    if (drink && drink.tc) paused[drink.tc] = Boolean(drink.paused);
   });
   return { paused };
 }
@@ -748,21 +748,6 @@ function normText(v) {
   return String(v || '').trim();
 }
 
-function normBool(value) {
-  if (value === true) return true;
-  if (value === false || value === null || value === undefined) return false;
-  const text = normText(value).toLowerCase();
-  return ['1', 'true', 'yes', 'y', 'paused', 'pause'].includes(text);
-}
-
-function normPrice(value) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
-  const text = normText(value).replace(/[^0-9.-]/g, '');
-  if (!text) return NaN;
-  const price = Number(text);
-  return Number.isFinite(price) ? price : NaN;
-}
-
 function normalizeDrinkItem(d) {
   if (typeof d === 'string') {
     const tc = normText(d);
@@ -773,7 +758,7 @@ function normalizeDrinkItem(d) {
   const sc = normText(d.sc || d.zhHans || tc);
   const en = normText(d.en || d.eng || tc);
   if (!tc && !sc && !en) return null;
-  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc, paused: normBool(d.paused) };
+  return { tc: tc || sc || en, sc: sc || tc || en, en: en || tc || sc, paused: Boolean(d.paused) };
 }
 
 function normalizeOptionGroups(input) {
@@ -811,7 +796,7 @@ function normalizeOptionGroups(input) {
       const text = normText(choice.label || choice.name || choice.value || choice.text);
       if (!text) return null;
       const priceRaw = choice.price ?? choice.add ?? choice.extra;
-      const price = normPrice(priceRaw);
+      const price = Number(priceRaw);
       if (Number.isFinite(price) && price > 0) return { label: text, price };
       return text;
     }).filter(Boolean);
@@ -831,10 +816,10 @@ function normalizeMenuItem(item) {
   const nameTc = normText(item.nameTc || item.tc || item.name || item.nameChi);
   const nameSc = normText(item.nameSc || item.sc || nameTc);
   const nameEn = normText(item.nameEn || item.en || item.nameEng || nameTc);
-  const price = normPrice(item.price);
+  const price = Number(item.price);
   if (!nameTc || !Number.isFinite(price) || price < 0) return null;
   const optionGroups = normalizeOptionGroups(item.optionGroups ?? item.option_groups ?? item.options);
-  const normalized = { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price, paused: normBool(item.paused) };
+  const normalized = { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price, paused: Boolean(item.paused) };
   if (optionGroups.length) normalized.optionGroups = optionGroups;
   return normalized;
 }
@@ -870,12 +855,10 @@ function normalizeSeed(input) {
     }
   });
 
+    const restaurantSet = new Set(normalized.restaurants);
   Object.keys(menus).forEach(rest => {
     const cleanRest = normText(rest);
-    const menuRestaurant = restaurantNameForMenu(normalized.restaurants, cleanRest);
-    const targetRestaurant = menuRestaurant || cleanRest;
-    if (!targetRestaurant) return;
-    if (!normalized.restaurants.includes(targetRestaurant)) normalized.restaurants.push(targetRestaurant);
+    if (!cleanRest || !restaurantSet.has(cleanRest)) return;
     const cats = menus[rest] && typeof menus[rest] === 'object' ? menus[rest] : {};
     Object.keys(cats).forEach(cat => {
       const cleanCat = normText(cat);
@@ -883,8 +866,8 @@ function normalizeSeed(input) {
       const items = Array.isArray(cats[cat]) ? cats[cat] : [];
       const cleanItems = items.map(normalizeMenuItem).filter(Boolean);
       if (!cleanItems.length) return;
-      if (!normalized.menus[targetRestaurant]) normalized.menus[targetRestaurant] = {};
-      normalized.menus[targetRestaurant][cleanCat] = cleanItems;
+      if (!normalized.menus[cleanRest]) normalized.menus[cleanRest] = {};
+      normalized.menus[cleanRest][cleanCat] = cleanItems;
     });
   });
 
@@ -1081,62 +1064,12 @@ function normalizeNewSettings(input) {
   };
 }
 
-function restaurantLookupKey(value) {
-  let text = normText(value)
-    .toLowerCase()
-    .replace(/廚/g, '厨')
-    .replace(/記/g, '记')
-    .replace(/園/g, '园')
-    .replace(/華/g, '华')
-    .replace(/龍/g, '龙')
-    .replace(/興/g, '兴')
-    .replace(/東/g, '东')
-    .replace(/國/g, '国')
-    .replace(/萬/g, '万')
-    .replace(/廣/g, '广')
-    .replace(/樂/g, '乐')
-    .replace(/灣/g, '湾')
-    .replace(/麵/g, '面')
-    .replace(/臺/g, '台')
-    .replace(/[\s/／\\,，、()（）\-_.]/g, '');
-  return text;
-}
-
-function restaurantNameForMenu(restaurants, restaurant) {
-  const cleanRestaurant = normText(restaurant);
-  if (!cleanRestaurant) return '';
-  if ((restaurants || []).includes(cleanRestaurant)) return cleanRestaurant;
-  const target = restaurantLookupKey(cleanRestaurant);
-  return (restaurants || []).find(name => {
-    const key = restaurantLookupKey(name);
-    return key === target || Boolean(key && target && (key.includes(target) || target.includes(key)));
-  }) || '';
-}
-
-function hasRestaurant(seed, restaurant) {
-  const target = restaurantLookupKey(restaurant);
-  if (!target) return false;
-  return (seed.restaurants || []).some(name => restaurantLookupKey(name) === target);
-}
-
-function menuForRestaurant(seed, restaurant) {
-  const cleanRestaurant = normText(restaurant);
-  if (!cleanRestaurant) return null;
-  if (seed.menus && seed.menus[cleanRestaurant]) return seed.menus[cleanRestaurant];
-  const target = restaurantLookupKey(cleanRestaurant);
-  const matchedKey = Object.keys(seed.menus || {}).find(name => {
-    const key = restaurantLookupKey(name);
-    return key === target || Boolean(key && target && (key.includes(target) || target.includes(key)));
-  });
-  return matchedKey ? seed.menus[matchedKey] : null;
-}
-
 async function ensureStateHasValidRestaurant(appId, seedInput, stateInput) {
   const seed = normalizeSeed(seedInput);
   const state = normalizeState(stateInput);
   const restaurant = normText(state.restaurant);
   if (!restaurant) return state;
-  if (hasRestaurant(seed, restaurant)) return state;
+  if (seed.menus && seed.menus[restaurant]) return state;
   const nextState = { ...state, restaurant: null };
   await storage.saveState(appId, nextState);
   return nextState;
@@ -1307,7 +1240,7 @@ async function saveSeedSupabase(input) {
   }
 
   if (seed.drinks.length) {
-    const rows = seed.drinks.map(d => ({ tc: d.tc, sc: d.sc, en: d.en, paused: normBool(d.paused) }));
+    const rows = seed.drinks.map(d => ({ tc: d.tc, sc: d.sc, en: d.en, paused: Boolean(d.paused) }));
     let { error } = await supabase.from(TABLES.drinks).insert(rows);
     if (error && isMissingSupabaseColumn(error, 'paused')) {
       writeDrinkFlags(drinkFlags);
@@ -1340,7 +1273,7 @@ async function saveSeedSupabase(input) {
           name_en: it.nameEn,
           price: Number(it.price),
           option_groups: Array.isArray(it.optionGroups) ? it.optionGroups : undefined,
-          paused: normBool(it.paused)
+          paused: Boolean(it.paused)
         });
       });
     });
@@ -1618,21 +1551,6 @@ async function upsertOrderSupabase(appId, date, order) {
     throw new Error(ordersSchemaMigrationMessage());
   }
   if (result.error) throw new Error(`Supabase upsert order failed: ${result.error.message}`);
-}
-
-async function deleteOrderSupabase(appId, date, order) {
-  if (!order) return;
-  let result = await supabase
-    .from(TABLES.orders)
-    .delete()
-    .eq('date', date)
-    .eq('app_id', appId)
-    .eq('dept', normText(order.dept))
-    .eq('name', normText(order.name));
-  if (result.error && isMissingSupabaseColumn(result.error, 'app_id')) {
-    throw new Error(ordersSchemaMigrationMessage());
-  }
-  if (result.error) throw new Error(`Supabase delete order failed: ${result.error.message}`);
 }
 
 async function updateOrderDrinkSupabase(appId, date, dept, name, drink) {
@@ -2017,32 +1935,13 @@ function orderIdentityKey(order) {
   return `${normText(order && order.dept)}\u0000${members.join('\u0000')}`;
 }
 
-function findOrderForSubmission(orders, nextOrder) {
-  const list = Array.isArray(orders) ? orders : [];
-  const nextMembers = orderMemberNames(nextOrder);
-  const nextIdentity = orderIdentityKey(nextOrder);
-  const exact = list.find(order => orderIdentityKey(order) === nextIdentity);
-  if (exact) return exact;
-  if (!nextMembers.length || nextMembers.length < 2 && !nextOrder.allowGroupSplit) return null;
-  const dept = normText(nextOrder && nextOrder.dept);
-  return list.find(order => {
-    if (normText(order && order.dept) !== dept) return false;
-    const existingMembers = orderMemberNames(order);
-    return existingMembers.length > nextMembers.length
-      && nextMembers.every(member => existingMembers.includes(member));
-  }) || null;
-}
-
 function findOrderMemberConflict(orders, nextOrder) {
   const dept = normText(nextOrder && nextOrder.dept);
   const nextMembers = new Set(orderMemberNames(nextOrder));
   const nextIdentity = orderIdentityKey(nextOrder);
-  const replacementOrder = findOrderForSubmission(orders, nextOrder);
-  const replacementIdentity = replacementOrder ? orderIdentityKey(replacementOrder) : '';
   for (const order of Array.isArray(orders) ? orders : []) {
     if (normText(order && order.dept) !== dept) continue;
     if (orderIdentityKey(order) === nextIdentity) continue;
-    if (replacementIdentity && orderIdentityKey(order) === replacementIdentity) continue;
     const existingMembers = orderMemberNames(order);
     const duplicated = existingMembers.find(member => nextMembers.has(member));
     if (duplicated) return duplicated;
@@ -2120,19 +2019,12 @@ function getAppIdFromRequest(urlObj, body) {
 
 function serveStatic(req, reqPath, res) {
   const isLadyRubyPage = reqPath === '/lady-ruby' || reqPath === '/lady-ruby/';
-  const isLadyRubyNewPage = reqPath === '/lady-ruby/new' || reqPath === '/lady-ruby/new/' || reqPath.startsWith('/lady-ruby/new/');
   const isNewPage = reqPath === '/new' || reqPath === '/new/' || reqPath.startsWith('/new/');
   let baseDir = PUBLIC_DIR;
   let safePath = reqPath === '/'
     ? '/index.html'
     : ((reqPath === '/admin' || reqPath === '/admin/') ? '/admin.html' : reqPath);
   if (isLadyRubyPage) safePath = '/lady-ruby.html';
-  if (isLadyRubyNewPage) {
-    baseDir = NEW_PUBLIC_DIR;
-    safePath = (reqPath === '/lady-ruby/new' || reqPath === '/lady-ruby/new/')
-      ? '/lady-ruby.html'
-      : reqPath.replace(/^\/lady-ruby\/new/, '') || '/lady-ruby.html';
-  }
   if (isNewPage) {
     baseDir = NEW_PUBLIC_DIR;
     safePath = (reqPath === '/new' || reqPath === '/new/')
@@ -2268,7 +2160,7 @@ async function handleApi(req, res, urlObj) {
       cutoffTime: state.cutoffTime,
       cutoffPassed: isCutoffPassed(state.cutoffTime),
       orders: state.orders,
-      currentMenu: state.restaurant ? (menuForRestaurant(seed, state.restaurant) || {}) : {},
+      currentMenu: state.restaurant ? (seed.menus[state.restaurant] || {}) : {},
       app: appId
     });
   }
@@ -2291,7 +2183,7 @@ async function handleApi(req, res, urlObj) {
     const state = await ensureStateHasValidRestaurant(appId, seed, rawState);
     const restaurant = urlObj.searchParams.get('restaurant') || state.restaurant;
     if (!restaurant) return json(res, 400, { error: 'Restaurant is required' });
-    const menu = menuForRestaurant(seed, restaurant);
+    const menu = seed.menus[restaurant];
     if (!menu) return json(res, 404, { error: 'Menu not found for selected restaurant' });
     return json(res, 200, { restaurant, menu });
   }
@@ -2352,7 +2244,6 @@ async function handleApi(req, res, urlObj) {
       currentRestaurant: state.restaurant,
       cutoffTime: state.cutoffTime,
       cutoffPassed: isCutoffPassed(state.cutoffTime),
-      currentMenu: menuForRestaurant(seed, state.restaurant) || {},
       cleared,
       restaurantChanged,
       cutoffChanged
@@ -2392,19 +2283,17 @@ async function handleApi(req, res, urlObj) {
     const submittedOrder = {
       ...body,
       dept: normText(body.dept),
-      name: groupMembers.join(' + '),
-      allowGroupSplit: Boolean(body.allowGroupSplit)
+      name: groupMembers.join(' + ')
     };
     const conflictMember = findOrderMemberConflict(state.orders, submittedOrder);
     if (conflictMember) {
       return json(res, 409, { error: `${conflictMember} already has an order today` });
     }
 
-    const existingOrder = findOrderForSubmission(state.orders, submittedOrder);
-    const replacingGroup = Boolean(existingOrder && orderIdentityKey(existingOrder) !== orderIdentityKey(submittedOrder));
+    const existingOrder = (state.orders || []).find(o => orderIdentityKey(o) === orderIdentityKey(submittedOrder));
     const clean = {
       dept: submittedOrder.dept,
-      name: submittedOrder.name,
+      name: existingOrder ? normText(existingOrder.name) : submittedOrder.name,
       food: normText(body.food),
       addon: normText(body.addon),
       drink: normText(body.drink),
@@ -2416,13 +2305,11 @@ async function handleApi(req, res, urlObj) {
     const existed = Boolean(existingOrder);
 
     if (USE_SUPABASE) {
-      if (replacingGroup) await deleteOrderSupabase(appId, state.date, existingOrder);
       await upsertOrderSupabase(appId, state.date, clean);
       return json(res, 200, { ok: true, updated: existed });
     }
 
-    const existingIdentity = existingOrder ? orderIdentityKey(existingOrder) : orderIdentityKey(clean);
-    const idx = state.orders.findIndex(o => orderIdentityKey(o) === existingIdentity);
+    const idx = state.orders.findIndex(o => orderIdentityKey(o) === orderIdentityKey(clean));
     let updated = false;
     if (idx >= 0) {
       state.orders[idx] = { ...state.orders[idx], ...clean };
