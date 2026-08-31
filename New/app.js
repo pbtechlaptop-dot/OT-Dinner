@@ -791,6 +791,14 @@ function normBool(value) {
   return ['1', 'true', 'yes', 'y', 'paused', 'pause'].includes(text);
 }
 
+function normPrice(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  const text = String(value ?? '').trim().replace(/[^0-9.-]/g, '');
+  if (!text) return NaN;
+  const price = Number(text);
+  return Number.isFinite(price) ? price : NaN;
+}
+
 function normalizeDrink(raw) {
   if (typeof raw === 'string') return { tc: raw, paused: false };
   return {
@@ -803,7 +811,7 @@ function normalizeDrink(raw) {
 
 function normalizeFood(raw, category) {
   const name = String(raw && (raw.nameTc || raw.name || raw.tc) || '').trim();
-  const price = Number(raw && raw.price);
+  const price = normPrice(raw && raw.price);
   const food = {
     key: `${category}::${name}`,
     category,
@@ -839,7 +847,7 @@ function normalizeOptionChoice(choice) {
   if (!choice || typeof choice !== 'object') return null;
   const label = String(choice.label || choice.name || choice.value || choice.text || '').trim();
   if (!label) return null;
-  const price = Number(choice.price ?? choice.add ?? choice.extra);
+  const price = normPrice(choice.price ?? choice.add ?? choice.extra);
   return { label, price: Number.isFinite(price) ? price : 0 };
 }
 

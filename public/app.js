@@ -581,6 +581,14 @@ function normBool(value) {
   return ['1', 'true', 'yes', 'y', 'paused', 'pause'].includes(text);
 }
 
+function normPrice(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  const text = String(value ?? '').trim().replace(/[^0-9.-]/g, '');
+  if (!text) return NaN;
+  const price = Number(text);
+  return Number.isFinite(price) ? price : NaN;
+}
+
 function normalizeDrink(d) {
   if (typeof d === 'string') return { tc: d, sc: d, en: d, paused: false };
   if (!d || typeof d !== 'object') return { tc: '', sc: '', en: '', paused: false };
@@ -595,7 +603,7 @@ function normalizeMenuItem(item) {
   const tc = String(item.nameTc || item.name || item.tc || '').trim();
   const sc = String(item.nameSc || item.sc || tc).trim();
   const en = String(item.nameEn || item.en || tc).trim();
-  const price = Number(item.price);
+  const price = normPrice(item.price);
   const base = { nameTc: tc || sc || en, nameSc: sc || tc || en, nameEn: en || tc || sc, price: Number.isFinite(price) ? price : 0, paused: normBool(item.paused) };
   if (Array.isArray(item.optionGroups) && item.optionGroups.length) base.optionGroups = item.optionGroups;
   return base;

@@ -755,6 +755,14 @@ function normBool(value) {
   return ['1', 'true', 'yes', 'y', 'paused', 'pause'].includes(text);
 }
 
+function normPrice(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  const text = normText(value).replace(/[^0-9.-]/g, '');
+  if (!text) return NaN;
+  const price = Number(text);
+  return Number.isFinite(price) ? price : NaN;
+}
+
 function normalizeDrinkItem(d) {
   if (typeof d === 'string') {
     const tc = normText(d);
@@ -803,7 +811,7 @@ function normalizeOptionGroups(input) {
       const text = normText(choice.label || choice.name || choice.value || choice.text);
       if (!text) return null;
       const priceRaw = choice.price ?? choice.add ?? choice.extra;
-      const price = Number(priceRaw);
+      const price = normPrice(priceRaw);
       if (Number.isFinite(price) && price > 0) return { label: text, price };
       return text;
     }).filter(Boolean);
@@ -823,7 +831,7 @@ function normalizeMenuItem(item) {
   const nameTc = normText(item.nameTc || item.tc || item.name || item.nameChi);
   const nameSc = normText(item.nameSc || item.sc || nameTc);
   const nameEn = normText(item.nameEn || item.en || item.nameEng || nameTc);
-  const price = Number(item.price);
+  const price = normPrice(item.price);
   if (!nameTc || !Number.isFinite(price) || price < 0) return null;
   const optionGroups = normalizeOptionGroups(item.optionGroups ?? item.option_groups ?? item.options);
   const normalized = { nameTc, nameSc: nameSc || nameTc, nameEn: nameEn || nameTc, price, paused: normBool(item.paused) };
@@ -865,7 +873,9 @@ function normalizeSeed(input) {
   Object.keys(menus).forEach(rest => {
     const cleanRest = normText(rest);
     const menuRestaurant = restaurantNameForMenu(normalized.restaurants, cleanRest);
-    if (!menuRestaurant) return;
+    const targetRestaurant = menuRestaurant || cleanRest;
+    if (!targetRestaurant) return;
+    if (!normalized.restaurants.includes(targetRestaurant)) normalized.restaurants.push(targetRestaurant);
     const cats = menus[rest] && typeof menus[rest] === 'object' ? menus[rest] : {};
     Object.keys(cats).forEach(cat => {
       const cleanCat = normText(cat);
@@ -873,8 +883,8 @@ function normalizeSeed(input) {
       const items = Array.isArray(cats[cat]) ? cats[cat] : [];
       const cleanItems = items.map(normalizeMenuItem).filter(Boolean);
       if (!cleanItems.length) return;
-      if (!normalized.menus[menuRestaurant]) normalized.menus[menuRestaurant] = {};
-      normalized.menus[menuRestaurant][cleanCat] = cleanItems;
+      if (!normalized.menus[targetRestaurant]) normalized.menus[targetRestaurant] = {};
+      normalized.menus[targetRestaurant][cleanCat] = cleanItems;
     });
   });
 
@@ -1097,7 +1107,10 @@ function restaurantNameForMenu(restaurants, restaurant) {
   if (!cleanRestaurant) return '';
   if ((restaurants || []).includes(cleanRestaurant)) return cleanRestaurant;
   const target = restaurantLookupKey(cleanRestaurant);
-  return (restaurants || []).find(name => restaurantLookupKey(name) === target) || '';
+  return (restaurants || []).find(name => {
+    const key = restaurantLookupKey(name);
+    return key === target || Boolean(key && target && (key.includes(target) || target.includes(key)));
+  }) || '';
 }
 
 function hasRestaurant(seed, restaurant) {
@@ -1111,7 +1124,10 @@ function menuForRestaurant(seed, restaurant) {
   if (!cleanRestaurant) return null;
   if (seed.menus && seed.menus[cleanRestaurant]) return seed.menus[cleanRestaurant];
   const target = restaurantLookupKey(cleanRestaurant);
-  const matchedKey = Object.keys(seed.menus || {}).find(name => restaurantLookupKey(name) === target);
+  const matchedKey = Object.keys(seed.menus || {}).find(name => {
+    const key = restaurantLookupKey(name);
+    return key === target || Boolean(key && target && (key.includes(target) || target.includes(key)));
+  });
   return matchedKey ? seed.menus[matchedKey] : null;
 }
 
