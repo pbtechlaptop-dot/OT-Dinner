@@ -1277,7 +1277,7 @@ function memberHasDifferentOrder(dept, member, selectedMembers) {
     const members = orderMemberNames(order);
     if (orderIdentityKey(order.dept, members) === selectedKey) return false;
     if (members.length > 1 && members.includes(member)) {
-      if (!selectedList.length) return true;
+      if (!selectedList.length) return false;
       if (selectedList.every(selected => members.includes(selected))) return false;
     }
     return members.includes(member);
