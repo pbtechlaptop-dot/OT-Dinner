@@ -1076,23 +1076,41 @@ async function ensureStateHasValidRestaurant(appId, seedInput, stateInput) {
 }
 
 async function supaSelect(table, columns, opts = {}) {
-  let q = supabase.from(table).select(columns);
-  if (opts.eq) {
-    Object.keys(opts.eq).forEach(k => {
-      q = q.eq(k, opts.eq[k]);
-    });
+  const buildQuery = () => {
+    let q = supabase.from(table).select(columns);
+    if (opts.eq) {
+      Object.keys(opts.eq).forEach(k => {
+        q = q.eq(k, opts.eq[k]);
+      });
+    }
+    if (opts.order) {
+      opts.order.forEach(o => {
+        q = q.order(o.column, { ascending: o.ascending !== false });
+      });
+    }
+    return q;
+  };
+
+  if (opts.single || opts.maybeSingle || (Number.isInteger(opts.limit) && opts.limit > 0)) {
+    let q = buildQuery();
+    if (Number.isInteger(opts.limit) && opts.limit > 0) q = q.limit(opts.limit);
+    if (opts.single) q = q.single();
+    if (opts.maybeSingle) q = q.maybeSingle();
+    const { data, error } = await q;
+    if (error) throw new Error(`Supabase query failed on ${table}: ${error.message}`);
+    return data;
   }
-  if (opts.order) {
-    opts.order.forEach(o => {
-      q = q.order(o.column, { ascending: o.ascending !== false });
-    });
+
+  const pageSize = 1000;
+  const rows = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+    if (error) throw new Error(`Supabase query failed on ${table}: ${error.message}`);
+    const page = Array.isArray(data) ? data : [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
   }
-  if (Number.isInteger(opts.limit) && opts.limit > 0) q = q.limit(opts.limit);
-  if (opts.single) q = q.single();
-  if (opts.maybeSingle) q = q.maybeSingle();
-  const { data, error } = await q;
-  if (error) throw new Error(`Supabase query failed on ${table}: ${error.message}`);
-  return data;
+  return rows;
 }
 
 function isMissingSupabaseColumn(error, columnName) {
