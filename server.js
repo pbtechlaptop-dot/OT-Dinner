@@ -1260,8 +1260,16 @@ async function saveSeedSupabase(input) {
     if (error) throw new Error(`Supabase insert staff failed: ${error.message}`);
   }
 
+  const menuRows = buildMenuRows(seed);
+  await insertMenuRowsSupabase(menuRows);
+}
+
+function buildMenuRows(seedInput, onlyRestaurant = '') {
+  const seed = normalizeSeed(seedInput);
+  const restaurant = normText(onlyRestaurant);
   const menuMap = new Map();
   Object.keys(seed.menus).forEach(rest => {
+    if (restaurant && rest !== restaurant) return;
     Object.keys(seed.menus[rest] || {}).forEach(cat => {
       (seed.menus[rest][cat] || []).forEach(it => {
         const key = rest + '|' + cat + '|' + it.nameTc;
@@ -1278,7 +1286,10 @@ async function saveSeedSupabase(input) {
       });
     });
   });
-  const menuRows = Array.from(menuMap.values());
+  return Array.from(menuMap.values());
+}
+
+async function insertMenuRowsSupabase(menuRows) {
   if (menuRows.length) {
     let error = null;
     let fallbackRows = menuRows;
@@ -1301,6 +1312,14 @@ async function saveSeedSupabase(input) {
     }
     if (error) throw new Error(`Supabase insert menus failed: ${error.message}`);
   }
+}
+
+async function saveMenuRestaurantSupabase(seedInput, restaurantInput) {
+  const restaurant = normText(restaurantInput);
+  if (!restaurant) throw new Error('menuRestaurant is required');
+  const { error: deleteError } = await supabase.from(TABLES.menus).delete().eq('restaurant', restaurant);
+  if (deleteError) throw new Error(`Supabase delete menus failed for ${restaurant}: ${deleteError.message}`);
+  await insertMenuRowsSupabase(buildMenuRows(seedInput, restaurant));
 }
 
 async function getAdminUsersSupabase() {
@@ -1787,6 +1806,10 @@ async function getSeedCached() {
   seedCache.value = seed;
   seedCache.expiresAt = now + SEED_CACHE_TTL_MS;
   return seed;
+}
+
+async function getSeedFresh() {
+  return USE_SUPABASE ? getSeedSupabase() : getSeedLocal();
 }
 
 async function saveSeedWithCache(seed) {
@@ -2564,7 +2587,7 @@ async function handleApi(req, res, urlObj) {
       return json(res, 403, { error: 'You do not have permission to save all data.' });
     }
 
-    const currentSeed = await storage.getSeed();
+    const currentSeed = await getSeedFresh();
 
     if (merge) {
       const mergedSeed = mergeSeeds(currentSeed, nextSeed);
@@ -2586,7 +2609,12 @@ async function handleApi(req, res, urlObj) {
       : (section === 'menus'
         ? mergeScopedMenuRestaurantSeed(currentSeed, nextSeed, menuRestaurant)
         : nextSeed);
-    await storage.saveSeed(finalSeed);
+    if (USE_SUPABASE && section === 'menus' && menuRestaurant) {
+      await saveMenuRestaurantSupabase(finalSeed, menuRestaurant);
+      invalidateSeedCache();
+    } else {
+      await storage.saveSeed(finalSeed);
+    }
     await appendAdminLogSafe(buildSeedLogEntry({
       admin,
       section: section || 'all',
