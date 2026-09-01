@@ -776,9 +776,16 @@ function normalizeSeed() {
   state.seed.drinks = Array.from(drinkMap.values());
 
   const menusIn = state.seed.menus && typeof state.seed.menus === 'object' ? state.seed.menus : {};
+  Object.keys(menusIn).forEach(rest => {
+    const cleanRest = String(rest || '').trim();
+    if (cleanRest && !restaurants.includes(cleanRest)) restaurants.push(cleanRest);
+  });
   const menus = {};
   restaurants.forEach(rest => {
-    const cats = menusIn[rest] && typeof menusIn[rest] === 'object' ? menusIn[rest] : {};
+    const menuKey = Object.prototype.hasOwnProperty.call(menusIn, rest)
+      ? rest
+      : Object.keys(menusIn).find(key => String(key || '').trim() === rest);
+    const cats = menuKey && menusIn[menuKey] && typeof menusIn[menuKey] === 'object' ? menusIn[menuKey] : {};
     const outCats = {};
     Object.keys(cats).forEach(cat => {
       const cleanCat = String(cat || '').trim();

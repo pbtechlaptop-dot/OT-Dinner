@@ -855,10 +855,10 @@ function normalizeSeed(input) {
     }
   });
 
-    const restaurantSet = new Set(normalized.restaurants);
   Object.keys(menus).forEach(rest => {
     const cleanRest = normText(rest);
-    if (!cleanRest || !restaurantSet.has(cleanRest)) return;
+    if (!cleanRest) return;
+    if (!normalized.restaurants.includes(cleanRest)) normalized.restaurants.push(cleanRest);
     const cats = menus[rest] && typeof menus[rest] === 'object' ? menus[rest] : {};
     Object.keys(cats).forEach(cat => {
       const cleanCat = normText(cat);
