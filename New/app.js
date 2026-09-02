@@ -537,13 +537,7 @@ function localDrink(drink) {
 function localCategory(category) {
   const value = String(category || '').trim();
   if (!value) return value;
-  const slashParts = value.split('/').map(part => part.trim()).filter(Boolean);
-  if (state.lang === 'en' && slashParts.length > 1) return slashParts[slashParts.length - 1];
-  if (state.lang !== 'en' && slashParts.length) {
-    const tc = slashParts[0];
-    return state.lang === 'sc' ? toSc(tc) : tc;
-  }
-  return value;
+  return state.lang === 'sc' ? toSc(value) : value;
 }
 
 function foodLookup() {
