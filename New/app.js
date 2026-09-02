@@ -1380,7 +1380,7 @@ function renderCategories() {
 
 function renderPriceSortOptions() {
   if (!el.priceSortSelect) return;
-  const current = el.priceSortSelect.value || 'original';
+  const current = el.priceSortSelect.value || 'asc';
   fillSelect(el.priceSortSelect, [
     { value: 'original', label: t('sortOriginal') },
     { value: 'asc', label: t('sortPriceAsc') },
@@ -1398,7 +1398,7 @@ function renderFoods() {
   const foods = allFoods().filter(food => {
     return category === '__all__' || food.category === category;
   });
-  const sortMode = el.priceSortSelect ? el.priceSortSelect.value : 'original';
+  const sortMode = el.priceSortSelect ? el.priceSortSelect.value : 'asc';
   if (sortMode === 'asc') foods.sort((a, b) => Number(a.price || 0) - Number(b.price || 0) || localFood(a).localeCompare(localFood(b), 'zh-Hant'));
   if (sortMode === 'desc') foods.sort((a, b) => Number(b.price || 0) - Number(a.price || 0) || localFood(a).localeCompare(localFood(b), 'zh-Hant'));
 
