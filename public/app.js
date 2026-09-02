@@ -63,8 +63,8 @@ const i18n = {
     drink: '飲品',
     optionsTitle: '選項',
     optionsHint: '請選擇：',
-    addon: '加配',
-    addonHint: '例如：走蔥、加飯',
+    addon: '備註',
+    addonHint: '例如：小辣、走蔥、加飯',
     submitOrder: '提交訂單',
     secOrders: '3) 今日訂單',
     total: '總計',
@@ -145,8 +145,8 @@ const i18n = {
     drink: '饮品',
     optionsTitle: '选项',
     optionsHint: '请选择：',
-    addon: '加配',
-    addonHint: '例如：走葱、加饭',
+    addon: '备注',
+    addonHint: '例如：小辣、走葱、加饭',
     submitOrder: '提交订单',
     secOrders: '3) 今日订单',
     total: '总计',
@@ -227,8 +227,8 @@ const i18n = {
     drink: 'Drink',
     optionsTitle: 'Options',
     optionsHint: 'Please choose:',
-    addon: 'Addon',
-    addonHint: 'e.g. no onion, extra rice',
+    addon: 'Note',
+    addonHint: 'e.g. mild spicy, no onion, extra rice',
     submitOrder: 'Submit Order',
     secOrders: '3) Today Orders',
     total: 'Total',
@@ -2568,7 +2568,7 @@ async function exportXlsx() {
   const payload = await api('/api/orders');
   const orders = payload.orders || [];
 
-  const header = ['No', 'Dept', 'Name', 'Food', 'Addon', 'Drink', 'Price'];
+  const header = ['No', 'Dept', 'Name', 'Food', 'Note', 'Drink', 'Price'];
   const rows = orders.map((o, i) => [
     i + 1,
     o.dept || '',
