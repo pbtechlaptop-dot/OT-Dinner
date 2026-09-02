@@ -2222,16 +2222,14 @@ function renderStaffFoodSummary(orders) {
     if (!byDept[dept]) byDept[dept] = [];
     const food = displayFood(order.food || '');
     const addon = stripAddonPriceText(displayOrderAddon(order));
-    const drink = displayDrink(order.drink || '');
     const details = [
       food,
-      addon ? `${t('addon')}: ${addon}` : '',
-      drink ? `${t('drink')}: ${drink}` : ''
+      addon ? `${t('addon')}: ${addon}` : ''
     ].filter(Boolean).join(' / ');
     byDept[dept].push({ number: index + 1, details });
   });
   return Object.entries(byDept).map(([dept, rows]) => {
-    const lines = rows.map(row => `${row.number}　${escapeHtml(row.details)}`).join('<br>');
+    const lines = rows.map(row => `- (${row.number}) ${escapeHtml(row.details)}`).join('<br>');
     return `<div><strong>${escapeHtml(dept)}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${rows.length}</span></span><br>${lines}</div>`;
   }).join('<br>');
 }

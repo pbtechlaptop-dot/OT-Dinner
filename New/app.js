@@ -1657,16 +1657,14 @@ function renderStaffFoodSummary(orders) {
     if (!byDept[dept]) byDept[dept] = [];
     const food = displayOrderFood(order.food || '');
     const addon = displayOrderAddon(order);
-    const drink = displayOrderDrink(order.drink || '');
     const details = [
       food,
-      addon ? `${t('addon')}: ${addon}` : '',
-      drink ? `${t('drink')}: ${drink}` : ''
+      addon ? `${t('addon')}: ${addon}` : ''
     ].filter(Boolean).join(' / ');
     byDept[dept].push({ number: index + 1, details });
   });
   return Object.entries(byDept).map(([dept, rows]) => {
-    const lines = rows.map(row => `${row.number}　${escapeHtml(row.details)}`).join('<br>');
+    const lines = rows.map(row => `- (${row.number}) ${escapeHtml(row.details)}`).join('<br>');
     return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${rows.length}</span></strong><br>${lines}`;
   }).join('<br><br>');
 }
