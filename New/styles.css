@@ -553,6 +553,10 @@ tfoot td {
   background: var(--soft);
 }
 
+.staff-food-summary-box {
+  margin-top: 12px;
+}
+
 .summary-text {
   color: var(--muted);
   font-size: 14px;

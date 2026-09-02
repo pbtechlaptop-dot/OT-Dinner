@@ -116,6 +116,7 @@ const i18n = {
     chooseImportFile: '請先選擇匯入檔案',
     importSuccess: '匯入成功，已更新資料',
     importFail: '匯入失敗',
+    staffFoodSummary: '同事餐點總計',
     xLabel: 'x',
     badPrice: '\u50f9\u9322\u683c\u5f0f\u932f\u8aa4',
     busyProcessing: '\u7cfb\u7d71\u8655\u7406\u4e2d\uff0c\u8acb\u7a0d\u5019...',
@@ -197,6 +198,7 @@ const i18n = {
     chooseImportFile: '请先选择导入文件',
     importSuccess: '导入成功，已更新资料',
     importFail: '导入失败',
+    staffFoodSummary: '同事餐点总计',
     xLabel: 'x',
     badPrice: '\u4ef7\u683c\u683c\u5f0f\u9519\u8bef',
     busyProcessing: '\u7cfb\u7edf\u5904\u7406\u4e2d\uff0c\u8bf7\u7a0d\u5019...',
@@ -278,6 +280,7 @@ const i18n = {
     chooseImportFile: 'Please choose a file first',
     importSuccess: 'Import successful',
     importFail: 'Import failed',
+    staffFoodSummary: 'Staff Food Summary',
     xLabel: 'x',
     badPrice: 'Invalid price format',
     busyProcessing: 'Processing, please wait...',
@@ -409,6 +412,7 @@ const el = {
   drinkSummary: document.getElementById('drinkSummary'),
   foodSummary: document.getElementById('foodSummary'),
   foodSummaryByDept: document.getElementById('foodSummaryByDept'),
+  staffFoodSummary: document.getElementById('staffFoodSummary'),
   ordersSectionTitle: document.querySelector('[data-i18n="secOrders"]'),
   exportCsvLink: document.getElementById('exportCsvLink'),
   exportXlsxBtn: document.getElementById('exportXlsxBtn'),
@@ -2129,6 +2133,7 @@ function renderOrders() {
     el.drinkSummary.textContent = '';
     if (el.foodSummary) el.foodSummary.textContent = '';
     if (el.foodSummaryByDept) el.foodSummaryByDept.textContent = '';
+    if (el.staffFoodSummary) el.staffFoodSummary.textContent = '';
     updateDiagSummary();
     return;
   }
@@ -2206,7 +2211,29 @@ function renderOrders() {
       .join('<br>');
     el.foodSummaryByDept.innerHTML = foodByDeptHtml;
   }
+  if (el.staffFoodSummary) el.staffFoodSummary.innerHTML = renderStaffFoodSummary(orders);
   updateDiagSummary();
+}
+
+function renderStaffFoodSummary(orders) {
+  const byDept = {};
+  orders.forEach((order, index) => {
+    const dept = String(order.dept || '').trim() || '-';
+    if (!byDept[dept]) byDept[dept] = [];
+    const food = displayFood(order.food || '');
+    const addon = stripAddonPriceText(displayOrderAddon(order));
+    const drink = displayDrink(order.drink || '');
+    const details = [
+      food,
+      addon ? `${t('addon')}: ${addon}` : '',
+      drink ? `${t('drink')}: ${drink}` : ''
+    ].filter(Boolean).join(' / ');
+    byDept[dept].push({ number: index + 1, details });
+  });
+  return Object.entries(byDept).map(([dept, rows]) => {
+    const lines = rows.map(row => `${row.number}　${escapeHtml(row.details)}`).join('<br>');
+    return `<div><strong>${escapeHtml(dept)}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${rows.length}</span></span><br>${lines}</div>`;
+  }).join('<br>');
 }
 
 function updateCutoffUi() {

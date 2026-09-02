@@ -97,6 +97,8 @@ const el = {
   foodSummary: document.getElementById('foodSummary'),
   foodSummaryByDeptTitle: document.getElementById('foodSummaryByDeptTitle'),
   foodSummaryByDept: document.getElementById('foodSummaryByDept'),
+  staffFoodSummaryTitle: document.getElementById('staffFoodSummaryTitle'),
+  staffFoodSummary: document.getElementById('staffFoodSummary'),
   confirmModal: document.getElementById('confirmModal'),
   confirmTitle: document.getElementById('confirmTitle'),
   confirmMessage: document.getElementById('confirmMessage'),
@@ -189,6 +191,7 @@ const i18n = {
     drinkSummary: '飲品總計',
     foodSummary: '餐點總計',
     foodSummaryByDept: '餐點總計（按部門）',
+    staffFoodSummary: '同事餐點總計',
     confirmTitle: '確認變更訂單',
     cancel: '取消',
     confirm: '確定變更',
@@ -309,6 +312,7 @@ const i18n = {
     drinkSummary: '饮品总计',
     foodSummary: '餐点总计',
     foodSummaryByDept: '餐点总计（按部门）',
+    staffFoodSummary: '同事餐点总计',
     confirmTitle: '确认变更订单',
     cancel: '取消',
     confirm: '确认变更',
@@ -428,6 +432,7 @@ const i18n = {
     drinkSummary: 'Drink Summary',
     foodSummary: 'Food Summary',
     foodSummaryByDept: 'Food Summary by Department',
+    staffFoodSummary: 'Staff Food Summary',
     confirmTitle: 'Confirm Order Change',
     cancel: 'Cancel',
     confirm: 'Confirm Change',
@@ -662,6 +667,7 @@ function updateStaticText() {
   el.drinkSummaryTitle.textContent = t('drinkSummary');
   el.foodSummaryTitle.textContent = t('foodSummary');
   el.foodSummaryByDeptTitle.textContent = t('foodSummaryByDept');
+  if (el.staffFoodSummaryTitle) el.staffFoodSummaryTitle.textContent = t('staffFoodSummary');
   el.confirmTitle.textContent = t('confirmTitle');
   el.cancelChangeBtn.textContent = t('cancel');
   el.confirmChangeBtn.textContent = t('confirm');
@@ -1584,6 +1590,7 @@ function renderOrders() {
     el.drinkSummary.textContent = '';
     el.foodSummary.textContent = '';
     el.foodSummaryByDept.textContent = '';
+    if (el.staffFoodSummary) el.staffFoodSummary.textContent = '';
     return;
   }
   let total = 0;
@@ -1639,7 +1646,29 @@ function renderOrders() {
     const lines = Object.entries(foods).map(([, entry]) => formatFoodSummaryLine(entry.label, entry)).join('<br>');
     return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${count}</span></strong><br>${lines}`;
   }).join('<br><br>');
+  if (el.staffFoodSummary) el.staffFoodSummary.innerHTML = renderStaffFoodSummary(orders);
   renderGroupMembers();
+}
+
+function renderStaffFoodSummary(orders) {
+  const byDept = {};
+  orders.forEach((order, index) => {
+    const dept = String(order.dept || '').trim() || '-';
+    if (!byDept[dept]) byDept[dept] = [];
+    const food = displayOrderFood(order.food || '');
+    const addon = displayOrderAddon(order);
+    const drink = displayOrderDrink(order.drink || '');
+    const details = [
+      food,
+      addon ? `${t('addon')}: ${addon}` : '',
+      drink ? `${t('drink')}: ${drink}` : ''
+    ].filter(Boolean).join(' / ');
+    byDept[dept].push({ number: index + 1, details });
+  });
+  return Object.entries(byDept).map(([dept, rows]) => {
+    const lines = rows.map(row => `${row.number}　${escapeHtml(row.details)}`).join('<br>');
+    return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${rows.length}</span></strong><br>${lines}`;
+  }).join('<br><br>');
 }
 
 function orderSignature(orders) {
