@@ -697,7 +697,7 @@ function buildLookupMaps() {
     (items || []).forEach(raw => {
       const it = normalizeMenuItem(raw);
       if (!it.nameTc) return;
-      [it.nameTc, it.nameSc, it.nameEn, simplifyChoiceName(it.nameTc), simplifyChoiceName(it.nameSc)]
+      [it.nameTc, it.nameSc, it.nameEn]
         .map(value => String(value || '').trim())
         .filter(Boolean)
         .forEach(key => {
