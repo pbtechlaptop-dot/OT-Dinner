@@ -2281,7 +2281,7 @@ async function loadMenu(restaurant, initialMenu) {
     renderCategories();
     return;
   }
-  if (initialMenu && typeof initialMenu === 'object') {
+  if (initialMenu && typeof initialMenu === 'object' && Object.keys(initialMenu).length > 0) {
     state.menu = initialMenu;
     buildLookupMaps();
     renderCategories();

@@ -44,10 +44,12 @@ echo Starting local server with:
 echo   APP_TIMEZONE=%APP_TIMEZONE%
 echo   SUPABASE_URL=%SUPABASE_URL%
 echo.
-echo Open: http://127.0.0.1:3000
+echo Open:
+echo   Old / main: http://127.0.0.1:3000
+echo   New page: http://127.0.0.1:3000/new/
+echo.
 echo Press Ctrl+C to stop.
 echo.
 
 node server.js
 exit /b %errorlevel%
-

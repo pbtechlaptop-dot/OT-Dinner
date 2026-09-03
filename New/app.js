@@ -1953,7 +1953,7 @@ async function load() {
     state.restaurantContacts = bootstrap.restaurantContacts || {};
     state.staff = bootstrap.staff || {};
     state.drinks = bootstrap.drinks || [];
-    state.menu = bootstrap.currentMenu || {};
+    state.menu = {};
     state.orders = bootstrap.orders || [];
     state.lastOrdersSignature = orderSignature(state.orders);
     state.currentRestaurant = bootstrap.currentRestaurant || '';
@@ -1964,7 +1964,7 @@ async function load() {
     renderDepartments();
     applyLastStaff();
     renderDrinks();
-    renderCategories();
+    await loadMenu(state.currentRestaurant, bootstrap.currentMenu || null);
     renderSelection();
     renderOrders();
     updateDiagSummary();
@@ -1972,6 +1972,25 @@ async function load() {
   } finally {
     setBusy(false);
   }
+}
+
+async function loadMenu(restaurant, initialMenu) {
+  const hasInitialMenu = initialMenu && typeof initialMenu === 'object' && Object.keys(initialMenu).length > 0;
+  if (!restaurant) {
+    state.menu = {};
+    renderCategories();
+    return;
+  }
+  if (hasInitialMenu) {
+    state.menu = initialMenu;
+    renderCategories();
+    return;
+  }
+  state.menu = {};
+  renderCategories();
+  const payload = await api(`/api/menu?restaurant=${encodeURIComponent(restaurant)}`);
+  state.menu = payload.menu || {};
+  renderCategories();
 }
 
 async function submitOrder() {
