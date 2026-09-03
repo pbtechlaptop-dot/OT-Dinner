@@ -1603,8 +1603,10 @@ function renderOrders() {
   const drinkByDept = {};
   const foodCounts = {};
   const foodByDept = {};
+  const orderCountByDept = {};
   orders.forEach((order, index) => {
     const dept = String(order.dept || '').trim() || '-';
+    orderCountByDept[dept] = (orderCountByDept[dept] || 0) + 1;
     total += Number(order.price || 0);
     parseOrderDrinks(order).forEach(drink => {
       if (!drinkByDept[dept]) drinkByDept[dept] = {};
@@ -1636,7 +1638,7 @@ function renderOrders() {
     .map(([, entry]) => formatFoodSummaryLine(entry.label, entry))
     .join('<br>');
   el.foodSummaryByDept.innerHTML = Object.entries(foodByDept).map(([dept, foods]) => {
-    const count = Object.values(foods).reduce((sum, entry) => sum + Number(entry.count || 0), 0);
+    const count = orderCountByDept[dept] || 0;
     const lines = Object.entries(foods).map(([, entry]) => formatFoodSummaryLine(entry.label, entry)).join('<br>');
     return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${count}</span></strong><br>${lines}`;
   }).join('<br><br>');
