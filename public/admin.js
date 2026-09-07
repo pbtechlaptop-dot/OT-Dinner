@@ -67,6 +67,11 @@ const el = {
   contactPhone: document.getElementById('contactPhone'),
   contactEmail: document.getElementById('contactEmail'),
   contactNote: document.getElementById('contactNote'),
+  contactMenuImageUrl: document.getElementById('contactMenuImageUrl'),
+  contactMenuImageFile: document.getElementById('contactMenuImageFile'),
+  uploadMenuImageBtn: document.getElementById('uploadMenuImageBtn'),
+  clearMenuImageBtn: document.getElementById('clearMenuImageBtn'),
+  contactMenuImageHint: document.getElementById('contactMenuImageHint'),
   drinkTable: document.getElementById('drinkTable'),
   drinkTc: document.getElementById('drinkTc'),
   drinkSc: document.getElementById('drinkSc'),
@@ -524,7 +529,8 @@ function normalizeRestaurantContact(contact = {}) {
     restaurant,
     phone: String(contact.phone || '').trim(),
     email: String(contact.email || '').trim(),
-    note: String(contact.note || '').trim()
+    note: String(contact.note || '').trim(),
+    menuImageUrl: String(contact.menuImageUrl || contact.menu_image_url || '').trim()
   };
 }
 
@@ -533,16 +539,17 @@ function collectRestaurantContacts() {
   const selected = String((el.contactRestaurantSelect && el.contactRestaurantSelect.value) || '').trim();
   const map = new Map();
   contacts.map(normalizeRestaurantContact).filter(Boolean).forEach(contact => {
-    if (contact.phone || contact.email || contact.note) map.set(contact.restaurant, contact);
+    if (contact.phone || contact.email || contact.note || contact.menuImageUrl) map.set(contact.restaurant, contact);
   });
   if (selected) {
     const contact = {
       restaurant: selected,
       phone: String((el.contactPhone && el.contactPhone.value) || '').trim(),
       email: String((el.contactEmail && el.contactEmail.value) || '').trim(),
-      note: String((el.contactNote && el.contactNote.value) || '').trim()
+      note: String((el.contactNote && el.contactNote.value) || '').trim(),
+      menuImageUrl: String((el.contactMenuImageUrl && el.contactMenuImageUrl.value) || '').trim()
     };
-    if (contact.phone || contact.email || contact.note) map.set(selected, contact);
+    if (contact.phone || contact.email || contact.note || contact.menuImageUrl) map.set(selected, contact);
     else map.delete(selected);
   }
   const validRestaurants = new Set((state.seed.restaurants || []).map(name => String(name || '').trim()).filter(Boolean));
@@ -558,7 +565,8 @@ function collectSelectedRestaurantContact() {
     restaurant,
     phone: String((el.contactPhone && el.contactPhone.value) || '').trim(),
     email: String((el.contactEmail && el.contactEmail.value) || '').trim(),
-    note: String((el.contactNote && el.contactNote.value) || '').trim()
+    note: String((el.contactNote && el.contactNote.value) || '').trim(),
+    menuImageUrl: String((el.contactMenuImageUrl && el.contactMenuImageUrl.value) || '').trim()
   });
 }
 
@@ -567,7 +575,7 @@ function updateRestaurantContactState(contact) {
   if (!normalized) return;
   const next = (state.restaurantContacts || []).map(normalizeRestaurantContact).filter(Boolean)
     .filter(item => item.restaurant !== normalized.restaurant);
-  if (normalized.phone || normalized.email || normalized.note) next.push(normalized);
+  if (normalized.phone || normalized.email || normalized.note || normalized.menuImageUrl) next.push(normalized);
   state.restaurantContacts = next.sort((a, b) => a.restaurant.localeCompare(b.restaurant));
 }
 
@@ -581,6 +589,55 @@ async function saveSelectedRestaurantContact() {
   state.restaurantContacts = Array.isArray(payload.restaurantContacts) ? payload.restaurantContacts : state.restaurantContacts;
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('讀取圖片失敗。'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadSelectedMenuImage() {
+  if (!requireAuth()) return;
+  const restaurant = String((el.contactRestaurantSelect && el.contactRestaurantSelect.value) || '').trim();
+  const file = el.contactMenuImageFile && el.contactMenuImageFile.files && el.contactMenuImageFile.files[0];
+  if (!restaurant) return setStatus('請先選擇餐廳。', true);
+  if (!file) return setStatus('請先選擇圖片。', true);
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    return setStatus('只可上傳 JPG、PNG 或 WebP 圖片。', true);
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return setStatus('圖片不可大於 5MB。', true);
+  }
+  try {
+    setBusy(true, '正在上傳菜單圖片...');
+    const data = await readFileAsDataUrl(file);
+    const payload = await api('/api/admin/restaurant-contact/menu-image', {
+      method: 'POST',
+      body: JSON.stringify(adminAuthBody({
+        restaurant,
+        fileName: file.name,
+        contentType: file.type,
+        data
+      }))
+    });
+    if (el.contactMenuImageUrl) el.contactMenuImageUrl.value = String(payload.menuImageUrl || '').trim();
+    updateRestaurantContactState(collectSelectedRestaurantContact());
+    await saveSelectedRestaurantContact();
+    if (el.contactMenuImageFile) el.contactMenuImageFile.value = '';
+    syncSelectedRestaurantContact();
+    setStatus('已上傳並儲存菜單圖片。');
+    showToast('已上傳菜單圖片');
+  } catch (err) {
+    setStatus(`上傳菜單圖片失敗: ${err.message}`, true);
+    showToast('上傳菜單圖片失敗', true);
+    handleAdminPasswordError(err);
+  } finally {
+    setBusy(false);
+  }
+}
+
 function syncSelectedRestaurantContact() {
   const selected = String((el.contactRestaurantSelect && el.contactRestaurantSelect.value) || '').trim();
   const contact = (state.restaurantContacts || []).map(normalizeRestaurantContact).filter(Boolean)
@@ -588,6 +645,12 @@ function syncSelectedRestaurantContact() {
   if (el.contactPhone) el.contactPhone.value = contact.phone || '';
   if (el.contactEmail) el.contactEmail.value = contact.email || '';
   if (el.contactNote) el.contactNote.value = contact.note || '';
+  if (el.contactMenuImageUrl) el.contactMenuImageUrl.value = contact.menuImageUrl || '';
+  if (el.contactMenuImageHint) {
+    el.contactMenuImageHint.textContent = contact.menuImageUrl
+      ? '已有菜單圖片。更換圖片後請按「儲存此區」。'
+      : '支援 JPG、PNG、WebP，最多 5MB。上傳後請按「儲存此區」。';
+  }
 }
 
 async function fetchAdminUsers() {
@@ -1927,12 +1990,33 @@ el.contactRestaurantSelect?.addEventListener('change', () => {
   syncSelectedRestaurantContact();
 });
 
-[el.contactPhone, el.contactEmail, el.contactNote].forEach(input => {
+[el.contactPhone, el.contactEmail, el.contactNote, el.contactMenuImageUrl].forEach(input => {
   input?.addEventListener('input', () => {
     updateRestaurantContactState(collectSelectedRestaurantContact());
     markDirty('已更新餐廳聯絡資料');
   });
 });
+
+if (el.contactMenuImageFile) {
+  el.contactMenuImageFile.addEventListener('change', () => {
+    const file = el.contactMenuImageFile.files && el.contactMenuImageFile.files[0];
+    if (el.contactMenuImageHint) {
+      el.contactMenuImageHint.textContent = file ? `已選擇圖片：${file.name}` : '支援 JPG、PNG、WebP，最多 5MB。上傳後請按「儲存此區」。';
+    }
+  });
+}
+
+if (el.uploadMenuImageBtn) el.uploadMenuImageBtn.onclick = uploadSelectedMenuImage;
+
+if (el.clearMenuImageBtn) {
+  el.clearMenuImageBtn.onclick = () => {
+    if (el.contactMenuImageUrl) el.contactMenuImageUrl.value = '';
+    if (el.contactMenuImageFile) el.contactMenuImageFile.value = '';
+    updateRestaurantContactState(collectSelectedRestaurantContact());
+    markDirty('已清除餐廳菜單圖片');
+    if (el.contactMenuImageHint) el.contactMenuImageHint.textContent = '圖片 URL 已清除，請按「儲存此區」。';
+  };
+}
 
 el.addDrinkBtn.onclick = () => {
   if (!requireAuth()) return;

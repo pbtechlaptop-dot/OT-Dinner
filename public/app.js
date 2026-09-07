@@ -75,6 +75,9 @@ const i18n = {
     currentRestaurant: '目前：',
     restaurantContact: '聯絡：',
     mapAddress: '地圖',
+    menuPicture: '菜單圖片',
+    menuPictureTitle: '菜單圖片',
+    close: '關閉',
     notSet: '未設定',
     noOrders: '未有訂單',
     noDrink: '無',
@@ -157,6 +160,9 @@ const i18n = {
     currentRestaurant: '目前：',
     restaurantContact: '联系：',
     mapAddress: '地图',
+    menuPicture: '菜单图片',
+    menuPictureTitle: '菜单图片',
+    close: '关闭',
     notSet: '未设置',
     noOrders: '暂无订单',
     noDrink: '无',
@@ -239,6 +245,9 @@ const i18n = {
     currentRestaurant: 'Current: ',
     restaurantContact: 'Contact: ',
     mapAddress: 'Map address',
+    menuPicture: 'Menu picture',
+    menuPictureTitle: 'Menu picture',
+    close: 'Close',
     notSet: 'Not set',
     noOrders: 'No orders yet',
     noDrink: 'No drink',
@@ -529,6 +538,57 @@ function isMapUrl(url) {
     || host.includes('maps.google.')
     || path.includes('/maps/');
 }
+
+function safeMenuImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.href;
+  } catch {
+    return '';
+  }
+}
+
+function openMenuPictureModal(imageUrl) {
+  const url = safeMenuImageUrl(imageUrl);
+  if (!url) return;
+  let modal = document.getElementById('menuPictureModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'menuPictureModal';
+    modal.className = 'fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/70 px-3 py-4';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="relative flex max-h-[92vh] w-full max-w-5xl flex-col rounded-xl bg-white p-3 shadow-2xl">
+      <button id="closeMenuPictureModalBtn" type="button" class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-xl font-bold text-pbnavy shadow hover:bg-slate-100" aria-label="${escapeHtml(t('close'))}">×</button>
+      <h3 class="mb-2 pr-12 text-lg font-bold text-pbnavy">${escapeHtml(t('menuPictureTitle'))}</h3>
+      <div class="overflow-auto rounded-lg border border-slate-200 bg-slate-50">
+        <img src="${escapeHtml(url)}" alt="${escapeHtml(t('menuPictureTitle'))}" class="mx-auto block max-h-[78vh] w-auto max-w-full" />
+      </div>
+    </div>`;
+  const close = () => {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  };
+  modal.querySelector('#closeMenuPictureModalBtn').onclick = close;
+  modal.onclick = event => {
+    if (event.target === modal) close();
+  };
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  const modal = document.getElementById('menuPictureModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+});
 
 function getCutoffInputValue() {
   return String(el.cutoffTimeInput?.value || '').trim() || state.cutoffTime || state.defaultCutoffTime;
@@ -1173,12 +1233,18 @@ function renderCurrentRestaurantContact() {
   if (contact && contact.phone) parts.push(escapeHtml(contact.phone));
   if (contact && contact.email) parts.push(escapeHtml(contact.email));
   if (contact && contact.note) parts.push(linkifyText(contact.note));
+  const menuImageUrl = safeMenuImageUrl(contact && contact.menuImageUrl);
+  if (menuImageUrl) {
+    parts.push(`<button id="menuPictureBtn" type="button" class="inline-flex rounded-md border border-pbnavy/20 bg-pbnavy px-2 py-1 text-xs font-semibold text-white hover:bg-pbnavystrong">${escapeHtml(t('menuPicture'))}</button>`);
+  }
   if (!parts.length) {
     el.currentRestaurantContactText.classList.add('hidden');
     el.currentRestaurantContactText.textContent = '';
     return;
   }
   el.currentRestaurantContactText.innerHTML = `${escapeHtml(t('restaurantContact'))}${parts.join(' / ')}`;
+  const menuPictureBtn = el.currentRestaurantContactText.querySelector('#menuPictureBtn');
+  if (menuPictureBtn) menuPictureBtn.onclick = () => openMenuPictureModal(menuImageUrl);
   el.currentRestaurantContactText.classList.remove('hidden');
 }
 

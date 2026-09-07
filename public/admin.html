@@ -109,6 +109,16 @@
             <input id="contactEmail" placeholder="Email" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
             <input id="contactNote" placeholder="備註（例如 WhatsApp）" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
           </div>
+          <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto_auto]">
+            <input id="contactMenuImageUrl" placeholder="菜單圖片 URL" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+            <label class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+              選擇圖片
+              <input id="contactMenuImageFile" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" />
+            </label>
+            <button id="uploadMenuImageBtn" type="button" class="rounded-md bg-pbnavy px-3 py-2 text-sm font-semibold text-white">上傳圖片</button>
+            <button id="clearMenuImageBtn" type="button" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white">清除圖片</button>
+          </div>
+          <p id="contactMenuImageHint" class="mt-1 text-xs text-slate-500">支援 JPG、PNG、WebP，最多 5MB。上傳後請按「儲存此區」。</p>
         </div>
       </section>
 
@@ -255,7 +265,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.min.js"></script>
-  <script src="/admin.js?v=20260907-1"></script>
+  <script src="/admin.js?v=20260907-2"></script>
   <script src="/pwa.js?v=20260616-1"></script>
 </body>
 </html>

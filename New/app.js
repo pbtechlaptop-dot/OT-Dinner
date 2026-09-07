@@ -131,6 +131,9 @@ const i18n = {
     currentRestaurant: '目前：',
     contact: '聯絡：',
     mapAddress: '地圖',
+    menuPicture: '菜單圖片',
+    menuPictureTitle: '菜單圖片',
+    close: '關閉',
     cutoff: '今日截單時間：',
     restaurantActionHint: '如需要改餐廳或截單時間，按設定餐廳並輸入密碼。',
     cutoffActiveNotice: '請於截單前完成下單，如已過時請聯絡部門主管或 Simon。',
@@ -252,6 +255,9 @@ const i18n = {
     currentRestaurant: '目前：',
     contact: '联系：',
     mapAddress: '地图',
+    menuPicture: '菜单图片',
+    menuPictureTitle: '菜单图片',
+    close: '关闭',
     cutoff: '今日截单时间：',
     restaurantActionHint: '如需要改餐厅或截单时间，按设置餐厅并输入密码。',
     cutoffActiveNotice: '请于截单前完成下单，如已过时请联络部门主管或 Simon。',
@@ -372,6 +378,9 @@ const i18n = {
     currentRestaurant: 'Current: ',
     contact: 'Contact: ',
     mapAddress: 'Map address',
+    menuPicture: 'Menu picture',
+    menuPictureTitle: 'Menu picture',
+    close: 'Close',
     cutoff: 'Cutoff time: ',
     restaurantActionHint: 'To change the restaurant or cutoff time, click Set Restaurant and enter the password.',
     cutoffActiveNotice: 'Please place your order before the cutoff time. After that, contact your team leader or Simon.',
@@ -677,12 +686,18 @@ function renderRestaurantContact() {
   if (contact && contact.phone) parts.push(escapeHtml(contact.phone));
   if (contact && contact.email) parts.push(escapeHtml(contact.email));
   if (contact && contact.note) parts.push(linkifyText(contact.note));
+  const menuImageUrl = safeMenuImageUrl(contact && contact.menuImageUrl);
+  if (menuImageUrl) {
+    parts.push(`<button id="menuPictureBtn" type="button" class="menu-picture-btn">${escapeHtml(t('menuPicture'))}</button>`);
+  }
   if (!parts.length) {
     el.restaurantContactText.classList.add('hidden');
     el.restaurantContactText.textContent = '';
     return;
   }
   el.restaurantContactText.innerHTML = `${escapeHtml(t('contact'))}${parts.join(' / ')}`;
+  const menuPictureBtn = el.restaurantContactText.querySelector('#menuPictureBtn');
+  if (menuPictureBtn) menuPictureBtn.onclick = () => openMenuPictureModal(menuImageUrl);
   el.restaurantContactText.classList.remove('hidden');
 }
 
@@ -1940,6 +1955,50 @@ function isMapUrl(url) {
     || host.includes('maps.google.')
     || path.includes('/maps/');
 }
+
+function safeMenuImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.href;
+  } catch {
+    return '';
+  }
+}
+
+function openMenuPictureModal(imageUrl) {
+  const url = safeMenuImageUrl(imageUrl);
+  if (!url) return;
+  let modal = document.getElementById('menuPictureModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'menuPictureModal';
+    modal.className = 'modal hidden';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="modal-card menu-picture-card">
+      <button id="closeMenuPictureModalBtn" type="button" class="modal-close" aria-label="${escapeHtml(t('close'))}">×</button>
+      <h3>${escapeHtml(t('menuPictureTitle'))}</h3>
+      <div class="menu-picture-frame">
+        <img src="${escapeHtml(url)}" alt="${escapeHtml(t('menuPictureTitle'))}" />
+      </div>
+    </div>`;
+  const close = () => modal.classList.add('hidden');
+  modal.querySelector('#closeMenuPictureModalBtn').onclick = close;
+  modal.onclick = event => {
+    if (event.target === modal) close();
+  };
+  modal.classList.remove('hidden');
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  const modal = document.getElementById('menuPictureModal');
+  if (modal) modal.classList.add('hidden');
+});
 
 async function load() {
   setBusy(true);

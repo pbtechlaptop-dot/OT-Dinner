@@ -91,6 +91,10 @@ const TABLES = {
 };
 
 const DEFAULT_CUTOFF_TIME = '13:00';
+const MENU_PICTURES_BUCKET = process.env.SUPABASE_MENU_PICTURES_BUCKET || 'menu-pictures';
+const MENU_PICTURE_MAX_BYTES = Number(process.env.MENU_PICTURE_MAX_BYTES || 5 * 1024 * 1024);
+const MENU_PICTURE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const JSON_BODY_MAX_BYTES = Number(process.env.JSON_BODY_MAX_BYTES || 8 * 1024 * 1024);
 const SEED_CACHE_TTL_MS = Number(process.env.SEED_CACHE_TTL_MS || 30000);
 const AUTH_WINDOW_MS = Number(process.env.AUTH_WINDOW_MS || 10 * 60 * 1000);
 const AUTH_MAX_FAILURES = Number(process.env.AUTH_MAX_FAILURES || 8);
@@ -668,7 +672,8 @@ function normalizeRestaurantContact(input) {
     restaurant,
     phone: normText(input.phone),
     email: normText(input.email).toLowerCase(),
-    note: normText(input.note)
+    note: normText(input.note),
+    menuImageUrl: normText(input.menuImageUrl || input.menu_image_url)
   };
 }
 
@@ -677,7 +682,7 @@ function normalizeRestaurantContacts(input) {
   (Array.isArray(input) ? input : []).forEach(item => {
     const contact = normalizeRestaurantContact(item);
     if (!contact) return;
-    if (contact.phone || contact.email || contact.note) map.set(contact.restaurant, contact);
+    if (contact.phone || contact.email || contact.note || contact.menuImageUrl) map.set(contact.restaurant, contact);
   });
   return Array.from(map.values()).sort((a, b) => a.restaurant.localeCompare(b.restaurant));
 }
@@ -687,6 +692,55 @@ function contactMapByRestaurant(contacts) {
     map[contact.restaurant] = contact;
     return map;
   }, {});
+}
+
+function safeStorageFilePart(value) {
+  return normText(value)
+    .normalize('NFKD')
+    .replace(/[^\w.-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'menu-picture';
+}
+
+function extensionForImageContentType(contentType, fileName = '') {
+  const rawExt = path.extname(normText(fileName)).toLowerCase();
+  if (['.jpg', '.jpeg', '.png', '.webp'].includes(rawExt)) return rawExt === '.jpeg' ? '.jpg' : rawExt;
+  if (contentType === 'image/png') return '.png';
+  if (contentType === 'image/webp') return '.webp';
+  return '.jpg';
+}
+
+function parseImageUploadPayload(body) {
+  const contentType = normText(body && body.contentType).toLowerCase();
+  if (!MENU_PICTURE_MIME_TYPES.has(contentType)) {
+    throw new Error('只可上傳 JPG、PNG 或 WebP 圖片。');
+  }
+  let base64 = normText(body && (body.data || body.base64));
+  const match = base64.match(/^data:([^;,]+);base64,(.+)$/i);
+  if (match) base64 = match[2];
+  if (!base64) throw new Error('圖片資料不能為空。');
+  const buffer = Buffer.from(base64, 'base64');
+  if (!buffer.length) throw new Error('圖片資料不能為空。');
+  if (buffer.length > MENU_PICTURE_MAX_BYTES) {
+    throw new Error(`圖片不可大於 ${Math.floor(MENU_PICTURE_MAX_BYTES / 1024 / 1024)}MB。`);
+  }
+  return { buffer, contentType };
+}
+
+async function uploadMenuPictureSupabase({ restaurant, fileName, contentType, buffer }) {
+  if (!USE_SUPABASE || !supabase || !supabase.storage) {
+    throw new Error('Supabase Storage is not configured.');
+  }
+  const ext = extensionForImageContentType(contentType, fileName);
+  const objectPath = `${safeStorageFilePart(restaurant)}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
+  const { error } = await supabase.storage
+    .from(MENU_PICTURES_BUCKET)
+    .upload(objectPath, buffer, { contentType, upsert: false });
+  if (error) throw new Error(`Supabase upload menu picture failed: ${error.message}`);
+  const { data } = supabase.storage.from(MENU_PICTURES_BUCKET).getPublicUrl(objectPath);
+  const publicUrl = data && data.publicUrl ? normText(data.publicUrl) : '';
+  if (!publicUrl) throw new Error('未能取得圖片網址。');
+  return { path: objectPath, url: publicUrl };
 }
 
 function normalizeAppId(input) {
@@ -1475,9 +1529,17 @@ async function getAdminLogsSupabase(options = {}) {
 
 async function getRestaurantContactsSupabase() {
   try {
-    const rows = await supaSelect(TABLES.restaurantContacts, 'restaurant,phone,email,note', {
-      order: [{ column: 'restaurant' }]
-    });
+    let rows = [];
+    try {
+      rows = await supaSelect(TABLES.restaurantContacts, 'restaurant,phone,email,note,menu_image_url', {
+        order: [{ column: 'restaurant' }]
+      });
+    } catch (err) {
+      if (!isMissingSupabaseColumn(err, 'menu_image_url')) throw err;
+      rows = await supaSelect(TABLES.restaurantContacts, 'restaurant,phone,email,note', {
+        order: [{ column: 'restaurant' }]
+      });
+    }
     return normalizeRestaurantContacts(rows || []);
   } catch (err) {
     if (isMissingSupabaseTable(err, TABLES.restaurantContacts)) return [];
@@ -1498,9 +1560,20 @@ async function saveRestaurantContactsSupabase(contacts) {
     restaurant: contact.restaurant,
     phone: contact.phone,
     email: contact.email,
-    note: contact.note
+    note: contact.note,
+    menu_image_url: contact.menuImageUrl
   })));
   if (error) {
+    if (isMissingSupabaseColumn(error, 'menu_image_url')) {
+      const fallbackRows = rows.map(contact => ({
+        restaurant: contact.restaurant,
+        phone: contact.phone,
+        email: contact.email,
+        note: contact.note
+      }));
+      const fallback = await supabase.from(TABLES.restaurantContacts).insert(fallbackRows);
+      if (!fallback.error) return;
+    }
     if (isMissingSupabaseTable(error, TABLES.restaurantContacts)) return;
     throw new Error(`Supabase insert restaurant contacts failed: ${error.message}`);
   }
@@ -1510,7 +1583,7 @@ async function saveRestaurantContactSupabase(contactInput) {
   const contact = normalizeRestaurantContact(contactInput);
   if (!contact) return [];
   try {
-    if (!contact.phone && !contact.email && !contact.note) {
+    if (!contact.phone && !contact.email && !contact.note && !contact.menuImageUrl) {
       const { error } = await supabase
         .from(TABLES.restaurantContacts)
         .delete()
@@ -1522,8 +1595,17 @@ async function saveRestaurantContactSupabase(contactInput) {
     }
     const { error } = await supabase
       .from(TABLES.restaurantContacts)
-      .upsert(contact, { onConflict: 'restaurant' });
+      .upsert({
+        restaurant: contact.restaurant,
+        phone: contact.phone,
+        email: contact.email,
+        note: contact.note,
+        menu_image_url: contact.menuImageUrl
+      }, { onConflict: 'restaurant' });
     if (error) {
+      if (isMissingSupabaseColumn(error, 'menu_image_url')) {
+        throw new Error('Supabase column restaurant_contacts.menu_image_url is missing. Please add it before saving menu pictures.');
+      }
       if (isMissingSupabaseTable(error, TABLES.restaurantContacts)) return [];
       throw new Error(`Supabase save restaurant contact failed: ${error.message}`);
     }
@@ -1810,7 +1892,7 @@ async function saveRestaurantContactLocal(contactInput) {
   if (!contact) return getRestaurantContactsLocal();
   const contacts = await getRestaurantContactsLocal();
   const next = contacts.filter(item => item.restaurant !== contact.restaurant);
-  if (contact.phone || contact.email || contact.note) next.push(contact);
+  if (contact.phone || contact.email || contact.note || contact.menuImageUrl) next.push(contact);
   await saveRestaurantContactsLocal(next);
   return getRestaurantContactsLocal();
 }
@@ -2049,7 +2131,7 @@ function parseBody(req) {
     let raw = '';
     req.on('data', chunk => {
       raw += chunk;
-      if (raw.length > 1024 * 1024) reject(new Error('Payload too large'));
+      if (raw.length > JSON_BODY_MAX_BYTES) reject(new Error('Payload too large'));
     });
     req.on('end', () => {
       if (!raw) return resolve({});
@@ -2777,6 +2859,52 @@ async function handleApi(req, res, urlObj) {
       details: { restaurant: contact.restaurant }
     });
     return json(res, 200, { ok: true, restaurantContacts });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/restaurant-contact/menu-image') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const body = await parseBody(req);
+    const admin = await authenticateAdmin(body);
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    if (!requireAdminPermission(admin, 'restaurants')) {
+      return json(res, 403, { error: 'You do not have permission to edit restaurants.' });
+    }
+    const restaurant = normText(body && body.restaurant);
+    const seed = await storage.getSeed();
+    if (!restaurant || !(seed.restaurants || []).includes(restaurant)) {
+      return json(res, 400, { error: 'Unknown restaurant' });
+    }
+    let image;
+    try {
+      image = parseImageUploadPayload(body);
+    } catch (err) {
+      return json(res, 400, { error: err.message });
+    }
+    const uploaded = await uploadMenuPictureSupabase({
+      restaurant,
+      fileName: body && body.fileName,
+      contentType: image.contentType,
+      buffer: image.buffer
+    });
+    await appendAdminLogSafe({
+      username: admin.username,
+      action: 'upload',
+      section: 'restaurants',
+      summary: `上傳餐廳菜單圖片：${restaurant}`,
+      details: {
+        restaurant,
+        changes: [
+          { label: '菜單圖片', items: [uploaded.path] }
+        ]
+      }
+    });
+    return json(res, 200, { ok: true, menuImageUrl: uploaded.url, menuImagePath: uploaded.path });
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/reset-day') {
