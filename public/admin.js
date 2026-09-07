@@ -598,28 +598,98 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('圖片載入失敗。'));
+    image.src = dataUrl;
+  });
+}
+
+function canvasToDataUrl(canvas, type = 'image/jpeg', quality = 0.9) {
+  return canvas.toDataURL(type, quality);
+}
+
+function dataUrlByteSize(dataUrl) {
+  const base64 = String(dataUrl || '').split(',')[1] || '';
+  return Math.ceil((base64.length * 3) / 4);
+}
+
+async function buildMenuImageUpload(files) {
+  const imageFiles = Array.from(files || []);
+  if (!imageFiles.length) throw new Error('請先選擇圖片。');
+  imageFiles.forEach(file => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      throw new Error('只可上傳 JPG、PNG 或 WebP 圖片。');
+    }
+  });
+  if (imageFiles.length === 1) {
+    const file = imageFiles[0];
+    if (file.size > 5 * 1024 * 1024) throw new Error('圖片不可大於 5MB。');
+    return {
+      data: await readFileAsDataUrl(file),
+      fileName: file.name,
+      contentType: file.type
+    };
+  }
+
+  const loaded = [];
+  for (const file of imageFiles) {
+    const dataUrl = await readFileAsDataUrl(file);
+    loaded.push({ file, image: await loadImageFromDataUrl(dataUrl) });
+  }
+  const targetWidth = Math.min(1600, Math.max(...loaded.map(item => item.image.naturalWidth || item.image.width || 1)));
+  const pages = loaded.map(item => {
+    const width = item.image.naturalWidth || item.image.width || 1;
+    const height = item.image.naturalHeight || item.image.height || 1;
+    const scale = targetWidth / width;
+    return {
+      image: item.image,
+      width: targetWidth,
+      height: Math.max(1, Math.round(height * scale))
+    };
+  });
+  const totalHeight = pages.reduce((sum, page) => sum + page.height, 0);
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = totalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('未能合成圖片。');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let y = 0;
+  pages.forEach(page => {
+    ctx.drawImage(page.image, 0, y, page.width, page.height);
+    y += page.height;
+  });
+  const data = canvasToDataUrl(canvas, 'image/jpeg', 0.9);
+  if (dataUrlByteSize(data) > 5 * 1024 * 1024) {
+    throw new Error('合成後圖片大於 5MB，請減少圖片或先壓縮。');
+  }
+  return {
+    data,
+    fileName: 'combined-menu.jpg',
+    contentType: 'image/jpeg'
+  };
+}
+
 async function uploadSelectedMenuImage() {
   if (!requireAuth()) return;
   const restaurant = String((el.contactRestaurantSelect && el.contactRestaurantSelect.value) || '').trim();
-  const file = el.contactMenuImageFile && el.contactMenuImageFile.files && el.contactMenuImageFile.files[0];
+  const files = el.contactMenuImageFile && el.contactMenuImageFile.files;
   if (!restaurant) return setStatus('請先選擇餐廳。', true);
-  if (!file) return setStatus('請先選擇圖片。', true);
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    return setStatus('只可上傳 JPG、PNG 或 WebP 圖片。', true);
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    return setStatus('圖片不可大於 5MB。', true);
-  }
+  if (!files || !files.length) return setStatus('請先選擇圖片。', true);
   try {
-    setBusy(true, '正在上傳菜單圖片...');
-    const data = await readFileAsDataUrl(file);
+    setBusy(true, files.length > 1 ? '正在合成並上傳菜單圖片...' : '正在上傳菜單圖片...');
+    const upload = await buildMenuImageUpload(files);
     const payload = await api('/api/admin/restaurant-contact/menu-image', {
       method: 'POST',
       body: JSON.stringify(adminAuthBody({
         restaurant,
-        fileName: file.name,
-        contentType: file.type,
-        data
+        fileName: upload.fileName,
+        contentType: upload.contentType,
+        data: upload.data
       }))
     });
     if (el.contactMenuImageUrl) el.contactMenuImageUrl.value = String(payload.menuImageUrl || '').trim();
@@ -649,7 +719,7 @@ function syncSelectedRestaurantContact() {
   if (el.contactMenuImageHint) {
     el.contactMenuImageHint.textContent = contact.menuImageUrl
       ? '已有菜單圖片。更換圖片後請按「儲存此區」。'
-      : '支援 JPG、PNG、WebP，最多 5MB。上傳後請按「儲存此區」。';
+      : '可一次選多張圖片，會自動合成一張長圖；合成後最多 5MB。';
   }
 }
 
@@ -1999,9 +2069,15 @@ el.contactRestaurantSelect?.addEventListener('change', () => {
 
 if (el.contactMenuImageFile) {
   el.contactMenuImageFile.addEventListener('change', () => {
-    const file = el.contactMenuImageFile.files && el.contactMenuImageFile.files[0];
+    const files = Array.from((el.contactMenuImageFile && el.contactMenuImageFile.files) || []);
     if (el.contactMenuImageHint) {
-      el.contactMenuImageHint.textContent = file ? `已選擇圖片：${file.name}` : '支援 JPG、PNG、WebP，最多 5MB。上傳後請按「儲存此區」。';
+      if (!files.length) {
+        el.contactMenuImageHint.textContent = '可一次選多張圖片，會自動合成一張長圖；合成後最多 5MB。';
+      } else if (files.length === 1) {
+        el.contactMenuImageHint.textContent = `已選擇圖片：${files[0].name}`;
+      } else {
+        el.contactMenuImageHint.textContent = `已選擇 ${files.length} 張圖片，會按選擇順序合成一張長圖。`;
+      }
     }
   });
 }
