@@ -564,19 +564,50 @@ function openMenuPictureModal(imageUrl) {
   modal.innerHTML = `
     <div class="relative flex max-h-[92vh] w-full max-w-5xl flex-col rounded-xl bg-white p-3 shadow-2xl">
       <button id="closeMenuPictureModalBtn" type="button" class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-xl font-bold text-pbnavy shadow hover:bg-slate-100" aria-label="${escapeHtml(t('close'))}">×</button>
-      <h3 class="mb-2 pr-12 text-lg font-bold text-pbnavy">${escapeHtml(t('menuPictureTitle'))}</h3>
+      <div class="mb-2 flex flex-wrap items-center gap-2 pr-12">
+        <h3 class="mr-auto text-lg font-bold text-pbnavy">${escapeHtml(t('menuPictureTitle'))}</h3>
+        <button id="menuPictureZoomOutBtn" type="button" class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-lg font-bold text-pbnavy hover:bg-slate-50">-</button>
+        <span id="menuPictureZoomText" class="min-w-[52px] text-center text-sm font-semibold text-slate-600">100%</span>
+        <button id="menuPictureZoomInBtn" type="button" class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-lg font-bold text-pbnavy hover:bg-slate-50">+</button>
+        <button id="menuPictureZoomResetBtn" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">100%</button>
+      </div>
       <div class="overflow-auto rounded-lg border border-slate-200 bg-slate-50">
-        <img src="${escapeHtml(url)}" alt="${escapeHtml(t('menuPictureTitle'))}" class="mx-auto block max-h-[78vh] w-auto max-w-full" />
+        <img id="menuPictureImage" src="${escapeHtml(url)}" alt="${escapeHtml(t('menuPictureTitle'))}" class="mx-auto block h-auto max-w-none" style="width:100%;" />
       </div>
     </div>`;
+  let zoom = 100;
+  const image = modal.querySelector('#menuPictureImage');
+  const zoomText = modal.querySelector('#menuPictureZoomText');
+  const zoomOutBtn = modal.querySelector('#menuPictureZoomOutBtn');
+  const zoomInBtn = modal.querySelector('#menuPictureZoomInBtn');
+  const applyZoom = () => {
+    if (image) image.style.width = `${zoom}%`;
+    if (zoomText) zoomText.textContent = `${zoom}%`;
+    if (zoomOutBtn) zoomOutBtn.disabled = zoom <= 50;
+    if (zoomInBtn) zoomInBtn.disabled = zoom >= 300;
+  };
   const close = () => {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
   };
   modal.querySelector('#closeMenuPictureModalBtn').onclick = close;
+  if (zoomOutBtn) zoomOutBtn.onclick = () => {
+    zoom = Math.max(50, zoom - 25);
+    applyZoom();
+  };
+  if (zoomInBtn) zoomInBtn.onclick = () => {
+    zoom = Math.min(300, zoom + 25);
+    applyZoom();
+  };
+  const resetBtn = modal.querySelector('#menuPictureZoomResetBtn');
+  if (resetBtn) resetBtn.onclick = () => {
+    zoom = 100;
+    applyZoom();
+  };
   modal.onclick = event => {
     if (event.target === modal) close();
   };
+  applyZoom();
   modal.classList.remove('hidden');
   modal.classList.add('flex');
 }

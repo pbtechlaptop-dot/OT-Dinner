@@ -1981,16 +1981,49 @@ function openMenuPictureModal(imageUrl) {
   modal.innerHTML = `
     <div class="modal-card menu-picture-card">
       <button id="closeMenuPictureModalBtn" type="button" class="modal-close" aria-label="${escapeHtml(t('close'))}">×</button>
-      <h3>${escapeHtml(t('menuPictureTitle'))}</h3>
+      <div class="menu-picture-header">
+        <h3>${escapeHtml(t('menuPictureTitle'))}</h3>
+        <div class="menu-picture-zoom">
+          <button id="menuPictureZoomOutBtn" type="button">-</button>
+          <span id="menuPictureZoomText">100%</span>
+          <button id="menuPictureZoomInBtn" type="button">+</button>
+          <button id="menuPictureZoomResetBtn" type="button" class="menu-picture-reset">100%</button>
+        </div>
+      </div>
       <div class="menu-picture-frame">
-        <img src="${escapeHtml(url)}" alt="${escapeHtml(t('menuPictureTitle'))}" />
+        <img id="menuPictureImage" src="${escapeHtml(url)}" alt="${escapeHtml(t('menuPictureTitle'))}" />
       </div>
     </div>`;
+  let zoom = 100;
+  const image = modal.querySelector('#menuPictureImage');
+  const zoomText = modal.querySelector('#menuPictureZoomText');
+  const zoomOutBtn = modal.querySelector('#menuPictureZoomOutBtn');
+  const zoomInBtn = modal.querySelector('#menuPictureZoomInBtn');
+  const applyZoom = () => {
+    if (image) image.style.width = `${zoom}%`;
+    if (zoomText) zoomText.textContent = `${zoom}%`;
+    if (zoomOutBtn) zoomOutBtn.disabled = zoom <= 50;
+    if (zoomInBtn) zoomInBtn.disabled = zoom >= 300;
+  };
   const close = () => modal.classList.add('hidden');
   modal.querySelector('#closeMenuPictureModalBtn').onclick = close;
+  if (zoomOutBtn) zoomOutBtn.onclick = () => {
+    zoom = Math.max(50, zoom - 25);
+    applyZoom();
+  };
+  if (zoomInBtn) zoomInBtn.onclick = () => {
+    zoom = Math.min(300, zoom + 25);
+    applyZoom();
+  };
+  const resetBtn = modal.querySelector('#menuPictureZoomResetBtn');
+  if (resetBtn) resetBtn.onclick = () => {
+    zoom = 100;
+    applyZoom();
+  };
   modal.onclick = event => {
     if (event.target === modal) close();
   };
+  applyZoom();
   modal.classList.remove('hidden');
 }
 
