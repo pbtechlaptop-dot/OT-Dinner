@@ -436,6 +436,38 @@ function buildLoginLogEntry(admin) {
   });
 }
 
+function buildRestaurantSelectionLogEntry({ appId, previousRestaurant, restaurant, previousCutoffTime, cutoffTime, cleared }) {
+  const app = normalizeAppId(appId);
+  const appLabel = app === APP_LADY_RUBY ? 'Lady Ruby' : '主站';
+  const from = normText(previousRestaurant);
+  const to = normText(restaurant);
+  const previousCutoff = normalizeCutoffTime(previousCutoffTime) || DEFAULT_CUTOFF_TIME;
+  const nextCutoff = normalizeCutoffTime(cutoffTime) || DEFAULT_CUTOFF_TIME;
+  const actionText = from && from !== to ? '更改今日餐廳' : '選擇今日餐廳';
+  const items = [
+    from && from !== to ? `${appLabel}: ${from} -> ${to}` : `${appLabel}: ${to}`,
+    previousCutoff !== nextCutoff ? `截單時間: ${previousCutoff} -> ${nextCutoff}` : `截單時間: ${nextCutoff}`,
+    cleared ? '已清空今日訂單' : '保留今日訂單'
+  ];
+  return normalizeAdminLogEntry({
+    username: 'system',
+    action: 'restaurant',
+    section: 'restaurant',
+    summary: `${actionText}: ${to}，截單 ${nextCutoff}`,
+    details: {
+      app,
+      previousRestaurant: from,
+      restaurant: to,
+      previousCutoffTime: previousCutoff,
+      cutoffTime: nextCutoff,
+      cleared: Boolean(cleared),
+      changes: [
+        { label: actionText, items }
+      ]
+    }
+  });
+}
+
 function normalizeAdminDepartments(input) {
   const list = Array.isArray(input) ? input : [];
   return [...new Set(list.map(v => normText(v)).filter(Boolean))];
@@ -1534,6 +1566,20 @@ async function deleteAdminLogSupabase(id) {
   return Number(count || 0) > 0;
 }
 
+async function deleteAdminLogsSupabase(ids) {
+  const logIds = uniqueSortedTextList(ids);
+  if (!logIds.length) return 0;
+  const { error, count } = await supabase
+    .from(TABLES.adminLogs)
+    .delete({ count: 'exact' })
+    .in('id', logIds);
+  if (error) {
+    if (isMissingSupabaseTable(error, TABLES.adminLogs)) return 0;
+    throw new Error(`Supabase delete admin_logs failed: ${error.message}`);
+  }
+  return Number(count || 0);
+}
+
 async function selectOrdersSupabase(date, appId) {
   try {
     return await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id,ordered_at', {
@@ -1800,6 +1846,16 @@ async function deleteAdminLogLocal(id) {
   return deleted;
 }
 
+async function deleteAdminLogsLocal(ids) {
+  const logIds = new Set(uniqueSortedTextList(ids));
+  if (!logIds.size) return 0;
+  const logs = normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, defaultAdminLogs()));
+  const nextLogs = logs.filter(log => !logIds.has(normText(log.id)));
+  const deletedCount = logs.length - nextLogs.length;
+  if (deletedCount > 0) writeJson(ADMIN_LOGS_FILE, nextLogs);
+  return deletedCount;
+}
+
 async function getStateLocal(appId = APP_MAIN) {
   const statePath = stateFileForApp(appId);
   const state = normalizeState(readJsonSafe(statePath, defaultState()));
@@ -1902,6 +1958,10 @@ const storage = {
   deleteAdminLog(id) {
     if (USE_SUPABASE) return deleteAdminLogSupabase(id);
     return deleteAdminLogLocal(id);
+  },
+  deleteAdminLogs(ids) {
+    if (USE_SUPABASE) return deleteAdminLogsSupabase(ids);
+    return deleteAdminLogsLocal(ids);
   },
   getState(appId = APP_MAIN) {
     const normalizedAppId = normalizeAppId(appId);
@@ -2349,11 +2409,23 @@ async function handleApi(req, res, urlObj) {
     }
     clearAuthFailures(req, 'restaurant-settings');
 
+    const previousRestaurant = state.restaurant;
+    const previousCutoffTime = currentCutoff;
     state.restaurant = restaurant;
     state.cutoffTime = nextCutoff;
     const cleared = forceChange || restaurantChanged;
     if (cleared) state.orders = [];
     await storage.saveState(appId, state);
+    if (!previousRestaurant || restaurantChanged || cutoffChanged || cleared) {
+      await appendAdminLogSafe(buildRestaurantSelectionLogEntry({
+        appId,
+        previousRestaurant,
+        restaurant: state.restaurant,
+        previousCutoffTime,
+        cutoffTime: state.cutoffTime,
+        cleared
+      }));
+    }
     return json(res, 200, {
       ok: true,
       currentRestaurant: state.restaurant,
@@ -2765,8 +2837,13 @@ async function handleApi(req, res, urlObj) {
     if (!admin.isRoot) {
       return json(res, 403, { error: 'Only admin can delete logs.' });
     }
+    const ids = body && Array.isArray(body.ids) ? body.ids : [];
+    if (ids.length) {
+      const deletedCount = await storage.deleteAdminLogs(ids);
+      return json(res, 200, { ok: true, deleted: deletedCount > 0, deletedCount });
+    }
     const deleted = await storage.deleteAdminLog(body && body.id);
-    return json(res, 200, { ok: true, deleted });
+    return json(res, 200, { ok: true, deleted, deletedCount: deleted ? 1 : 0 });
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/users') {

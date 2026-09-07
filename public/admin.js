@@ -110,6 +110,7 @@ const el = {
   newAdminDepartmentOptions: document.getElementById('newAdminDepartmentOptions'),
   addAdminUserBtn: document.getElementById('addAdminUserBtn'),
   refreshLogsBtn: document.getElementById('refreshLogsBtn'),
+  deleteSelectedLogsBtn: document.getElementById('deleteSelectedLogsBtn'),
   logsHint: document.getElementById('logsHint'),
   adminLogsList: document.getElementById('adminLogsList'),
   toast: document.getElementById('toast'),
@@ -605,6 +606,14 @@ async function deleteAdminLog(id) {
     body: JSON.stringify(adminAuthBody({ id }))
   });
   return Boolean(payload && payload.deleted);
+}
+
+async function deleteAdminLogs(ids) {
+  const payload = await api('/api/admin/logs/delete', {
+    method: 'POST',
+    body: JSON.stringify(adminAuthBody({ ids }))
+  });
+  return Number(payload && payload.deletedCount) || 0;
 }
 
 async function fetchAdminUsernames() {
@@ -1115,6 +1124,24 @@ function renderLogChange(change) {
   </div>`;
 }
 
+function getSelectedAdminLogIds() {
+  if (!el.adminLogsList) return [];
+  return Array.from(el.adminLogsList.querySelectorAll('.select-log:checked'))
+    .map(input => String(input.value || '').trim())
+    .filter(Boolean);
+}
+
+function updateDeleteSelectedLogsButton() {
+  if (!el.deleteSelectedLogsBtn) return;
+  const canBulkDelete = Boolean(state.isRoot && Array.isArray(state.logs) && state.logs.length);
+  el.deleteSelectedLogsBtn.classList.toggle('hidden', !canBulkDelete);
+  if (!canBulkDelete) {
+    el.deleteSelectedLogsBtn.disabled = true;
+    return;
+  }
+  el.deleteSelectedLogsBtn.disabled = getSelectedAdminLogIds().length === 0;
+}
+
 function renderLogs() {
   if (!el.adminLogsList || !el.logsHint) return;
   const logs = Array.isArray(state.logs) ? state.logs : [];
@@ -1122,6 +1149,7 @@ function renderLogs() {
   el.logsHint.textContent = logs.length ? `顯示最近 ${logs.length} 筆${scopeLabel}` : `暫時未有${scopeLabel}。`;
   if (!logs.length) {
     el.adminLogsList.innerHTML = '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">未有可顯示的紀錄。</p>';
+    updateDeleteSelectedLogsButton();
     return;
   }
 
@@ -1130,9 +1158,12 @@ function renderLogs() {
     const changesHtml = changes.map(renderLogChange).filter(Boolean).join('');
     return `<article class="rounded-lg border border-slate-200 p-3">
       <div class="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p class="font-semibold text-pbnavy">${log.summary || '已更新資料'}</p>
-          <p class="mt-1 text-xs text-slate-500">帳號：${log.username || 'admin'} ｜ 區域：${log.section || 'all'} ｜ ${formatLogTime(log.createdAt)}</p>
+        <div class="flex min-w-0 items-start gap-2">
+          ${state.isRoot ? `<input type="checkbox" value="${log.id || ''}" class="select-log mt-1 h-4 w-4 rounded border-slate-300" aria-label="選擇操作紀錄" />` : ''}
+          <div>
+            <p class="font-semibold text-pbnavy">${log.summary || '已更新資料'}</p>
+            <p class="mt-1 text-xs text-slate-500">帳號：${log.username || 'admin'} ｜ 區域：${log.section || 'all'} ｜ ${formatLogTime(log.createdAt)}</p>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">${log.action || 'save'}</span>
@@ -1144,6 +1175,9 @@ function renderLogs() {
   }).join('');
 
   if (state.isRoot) {
+    el.adminLogsList.querySelectorAll('.select-log').forEach(input => {
+      input.onchange = updateDeleteSelectedLogsButton;
+    });
     el.adminLogsList.querySelectorAll('.delete-log').forEach(button => {
       button.onclick = async () => {
         const id = String(button.dataset.id || '').trim();
@@ -1165,6 +1199,7 @@ function renderLogs() {
       };
     });
   }
+  updateDeleteSelectedLogsButton();
 }
 
 async function loadAdminLogs(options = {}) {
@@ -1824,6 +1859,31 @@ el.saveStaffBtn.onclick = () => saveSection('staff');
 el.saveMenuBtn.onclick = () => saveSection('menus');
 if (el.saveUsersBtn) el.saveUsersBtn.onclick = saveAdminUsers;
 if (el.refreshLogsBtn) el.refreshLogsBtn.onclick = () => loadAdminLogs();
+if (el.deleteSelectedLogsBtn) {
+  el.deleteSelectedLogsBtn.onclick = async () => {
+    const ids = getSelectedAdminLogIds();
+    if (!ids.length) {
+      showToast('請先選擇要刪除的紀錄', true);
+      return;
+    }
+    if (!window.confirm(`確定要刪除 ${ids.length} 筆操作紀錄？此操作不能還原。`)) return;
+    try {
+      el.deleteSelectedLogsBtn.disabled = true;
+      const deletedCount = await deleteAdminLogs(ids);
+      const idSet = new Set(ids);
+      state.logs = state.logs.filter(log => !idSet.has(String(log.id || '')));
+      renderLogs();
+      const countText = deletedCount || ids.length;
+      setStatus(`已刪除 ${countText} 筆操作紀錄。`);
+      showToast(`已刪除 ${countText} 筆操作紀錄`);
+    } catch (err) {
+      setStatus(`刪除操作紀錄失敗: ${err.message}`, true);
+      showToast('刪除操作紀錄失敗', true);
+      handleAdminPasswordError(err);
+      updateDeleteSelectedLogsButton();
+    }
+  };
+}
 
 if (el.addAdminUserBtn) {
   el.addAdminUserBtn.onclick = () => {
