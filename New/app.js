@@ -683,7 +683,7 @@ function renderRestaurantContact() {
   const contactMap = state.restaurantContacts && typeof state.restaurantContacts === 'object' ? state.restaurantContacts : {};
   const contact = state.currentRestaurant ? contactMap[state.currentRestaurant] : null;
   const parts = [];
-  if (contact && contact.phone) parts.push(escapeHtml(contact.phone));
+  if (contact && contact.phone) parts.push(phoneLinkHtml(contact.phone));
   if (contact && contact.email) parts.push(escapeHtml(contact.email));
   if (contact && contact.note) parts.push(linkifyText(contact.note));
   const menuImageUrl = safeMenuImageUrl(contact && contact.menuImageUrl);
@@ -1918,6 +1918,24 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function phoneHref(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const cleaned = raw.replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '');
+  return cleaned.replace(/^\+?$/, '');
+}
+
+function phoneLinkHtml(value) {
+  const raw = String(value || '').trim();
+  const href = phoneHref(raw);
+  if (!raw || !href) return escapeHtml(raw);
+  return `<a href="tel:${escapeHtml(href)}" class="menu-picture-btn">${escapeHtml(raw)}</a>`;
+}
+
+function mapLinkHtml(href) {
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="menu-picture-btn">${escapeHtml(t('mapAddress'))}</a>`;
+}
+
 function linkifyText(value) {
   const text = String(value || '');
   const urlPattern = /\b((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
@@ -1931,8 +1949,11 @@ function linkifyText(value) {
     try {
       const parsed = new URL(href);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        const label = isMapUrl(parsed) ? t('mapAddress') : urlText;
-        html += `<a href="${escapeHtml(parsed.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+        if (isMapUrl(parsed)) {
+          html += mapLinkHtml(parsed.href);
+        } else {
+          html += `<a href="${escapeHtml(parsed.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(urlText)}</a>`;
+        }
       } else {
         html += escapeHtml(urlText);
       }

@@ -66,7 +66,9 @@ textarea {
   color: white;
   font-size: 13px;
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
+  vertical-align: middle;
 }
 
 .menu-picture-btn:hover {
