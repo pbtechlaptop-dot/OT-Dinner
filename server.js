@@ -650,10 +650,14 @@ function sortOrdersForDisplay(orders) {
       const bTime = normalizeOrderTimestamp(b && b.orderedAt);
       if (aTime !== bTime) return String(aTime || '').localeCompare(String(bTime || ''));
     }
-    const deptCompare = normText(a && a.dept).localeCompare(normText(b && b.dept));
+    const deptCompare = orderDeliveryDept(a).localeCompare(orderDeliveryDept(b));
     if (deptCompare) return deptCompare;
     return normText(a && a.name).localeCompare(normText(b && b.name));
   }).map((order, index) => ({ ...order, id: index + 1 }));
+}
+
+function orderDeliveryDept(order) {
+  return normText(order && (order.pickupDept || order.pickup_dept)) || normText(order && order.dept);
 }
 
 function defaultSeed() {
@@ -1122,6 +1126,7 @@ function normalizeState(input) {
     cutoffTime: normalizeCutoffTime(state.cutoffTime) || DEFAULT_CUTOFF_TIME,
     orders: (Array.isArray(state.orders) ? state.orders : []).map(order => ({
       ...order,
+      pickupDept: orderDeliveryDept(order),
       orderedAt: normalizeOrderTimestamp(order && order.orderedAt),
       lateOrder: Boolean(order && order.lateOrder)
     }))
@@ -1664,15 +1669,22 @@ async function deleteAdminLogsSupabase(ids) {
 
 async function selectOrdersSupabase(date, appId) {
   try {
-    return await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id,ordered_at', {
+    return await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,app_id,ordered_at', {
       eq: { date, app_id: appId },
-      order: [{ column: 'dept' }, { column: 'name' }]
+      order: [{ column: 'pickup_dept' }, { column: 'dept' }, { column: 'name' }]
     });
   } catch (err) {
-    if (isMissingSupabaseColumn(err, 'ordered_at')) {
-      const rows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id', {
+    if (isMissingSupabaseColumn(err, 'pickup_dept')) {
+      const rows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id,ordered_at', {
         eq: { date, app_id: appId },
         order: [{ column: 'dept' }, { column: 'name' }]
+      });
+      return (rows || []).map(row => ({ ...row, pickup_dept: null }));
+    }
+    if (isMissingSupabaseColumn(err, 'ordered_at')) {
+      const rows = await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,app_id', {
+        eq: { date, app_id: appId },
+        order: [{ column: 'pickup_dept' }, { column: 'dept' }, { column: 'name' }]
       });
       return (rows || []).map(row => ({ ...row, ordered_at: null }));
     }
@@ -1696,6 +1708,7 @@ async function insertOrdersSupabase(date, appId, orders) {
     app_id: appId,
     date,
     dept: normText(o.dept),
+    pickup_dept: orderDeliveryDept(o),
     name: normText(o.name),
     food: normText(o.food),
     addon: normText(o.addon),
@@ -1718,6 +1731,7 @@ async function upsertOrderSupabase(appId, date, order) {
     app_id: appId,
     date,
     dept: normText(order.dept),
+    pickup_dept: orderDeliveryDept(order),
     name: normText(order.name),
     food: normText(order.food),
     addon: normText(order.addon),
@@ -1799,6 +1813,7 @@ async function getStateSupabase(appId = APP_MAIN) {
 
   const orders = sortOrdersForDisplay((ordersRows || []).map(o => ({
     dept: normText(o.dept),
+    pickupDept: orderDeliveryDept(o),
     name: normText(o.name),
     food: normText(o.food),
     addon: normText(o.addon),
@@ -2233,7 +2248,7 @@ function toCsv(orders) {
     return stripAddonPriceText(out || raw);
   };
   orders.forEach((o, i) => {
-    const row = [i + 1, o.dept, o.name, o.food, normalizeAddon(o.addon || ''), o.drink || '', o.price].map(value => {
+    const row = [i + 1, orderDeliveryDept(o), o.name, o.food, normalizeAddon(o.addon || ''), o.drink || '', o.price].map(value => {
       const s = String(value ?? '');
       return '"' + s.replace(/"/g, '""') + '"';
     });
@@ -2564,6 +2579,7 @@ async function handleApi(req, res, urlObj) {
     const replacingGroup = Boolean(existingOrder && orderIdentityKey(existingOrder) !== orderIdentityKey(submittedOrder));
     const clean = {
       dept: submittedOrder.dept,
+      pickupDept: normText(body.pickupDept || body.pickup_dept) || submittedOrder.dept,
       name: submittedOrder.name,
       food: normText(body.food),
       addon: normText(body.addon),

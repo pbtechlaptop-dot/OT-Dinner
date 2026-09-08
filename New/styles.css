@@ -775,6 +775,12 @@ tfoot td {
   font-weight: 800;
 }
 
+.pickup-changed {
+  background: #fff7ed;
+  color: #9a3412;
+  font-weight: 700;
+}
+
 .old {
   color: var(--muted);
 }

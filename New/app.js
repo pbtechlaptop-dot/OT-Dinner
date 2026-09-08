@@ -50,9 +50,11 @@ const el = {
   staffTitle: document.getElementById('staffTitle'),
   deptLabel: document.getElementById('deptLabel'),
   nameLabel: document.getElementById('nameLabel'),
+  pickupDeptLabel: document.getElementById('pickupDeptLabel'),
   drinkLabel: document.getElementById('drinkLabel'),
   deptSelect: document.getElementById('deptSelect'),
   nameSelect: document.getElementById('nameSelect'),
+  pickupDeptSelect: document.getElementById('pickupDeptSelect'),
   groupOrderToggle: document.getElementById('groupOrderToggle'),
   groupOrderLabel: document.getElementById('groupOrderLabel'),
   groupMembersWrap: document.getElementById('groupMembersWrap'),
@@ -165,6 +167,7 @@ const i18n = {
     main: '舊前台',
     staffTitle: '2) 同事資料',
     dept: '部門',
+    pickupDept: '送餐位置',
     name: '同事',
     groupOrder: '多人組合下單',
     groupMembersHint: '選擇同一張訂單的人員',
@@ -289,6 +292,7 @@ const i18n = {
     main: '旧前台',
     staffTitle: '2) 人员资料',
     dept: '部门',
+    pickupDept: '送餐位置',
     name: '人员',
     groupOrder: '多人组合下单',
     groupMembersHint: '选择同一张订单的人员',
@@ -412,6 +416,7 @@ const i18n = {
     main: 'Old Page',
     staffTitle: '2) Staff',
     dept: 'Department',
+    pickupDept: 'Delivery location',
     name: 'Name',
     groupOrder: 'Group order',
     groupMembersHint: 'Select people for the same order',
@@ -646,6 +651,7 @@ function updateStaticText() {
   el.staffTitle.textContent = t('staffTitle');
   el.deptLabel.textContent = t('dept');
   el.nameLabel.textContent = t('name');
+  if (el.pickupDeptLabel) el.pickupDeptLabel.textContent = t('pickupDept');
   el.groupOrderLabel.textContent = t('groupOrder');
   el.groupMembersHint.textContent = t('groupMembersHint');
   el.groupDrinksHint.textContent = t('groupDrinksHint');
@@ -795,6 +801,7 @@ function applyLastStaff() {
   if (!Array.isArray(names) || !names.includes(last.name)) return false;
   el.deptSelect.value = last.dept;
   renderNames();
+  renderPickupDepartments(last.dept, false);
   el.nameSelect.value = last.name;
   return true;
 }
@@ -1220,6 +1227,7 @@ function renderDepartments() {
     el.deptSelect.value = single;
     renderNames();
   }
+  renderPickupDepartments(single || el.deptSelect.value);
 }
 
 function renderNames() {
@@ -1231,6 +1239,25 @@ function renderNames() {
   state.groupOrder.members = new Set();
   renderGroupMembers();
   renderSelection();
+}
+
+function orderDeliveryDept(order) {
+  return String((order && (order.pickupDept || order.pickup_dept)) || (order && order.dept) || '').trim();
+}
+
+function orderHasCustomDelivery(order) {
+  const dept = String(order && order.dept || '').trim();
+  const pickupDept = String(order && (order.pickupDept || order.pickup_dept) || '').trim();
+  return Boolean(dept && pickupDept && pickupDept !== dept);
+}
+
+function renderPickupDepartments(defaultDept = '', preserveCurrent = true) {
+  if (!el.pickupDeptSelect) return;
+  const previous = preserveCurrent ? String(el.pickupDeptSelect.value || '').trim() : '';
+  const departments = Object.keys(state.staff || {});
+  fillSelect(el.pickupDeptSelect, departments.map(dept => ({ value: dept, label: dept })), t('pickupDept'));
+  const desired = previous || String(defaultDept || '').trim();
+  if (departments.includes(desired)) el.pickupDeptSelect.value = desired;
 }
 
 function orderMemberNames(order) {
@@ -1603,24 +1630,30 @@ function renderOrders() {
     return;
   }
   let total = 0;
-  el.ordersBody.innerHTML = orders.map((order, index) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(order.dept || '')}</td>
-      <td>${escapeHtml(order.name || '')}</td>
-      <td>${escapeHtml(displayOrderFood(order.food || ''))}</td>
-      <td>${escapeHtml(displayOrderAddon(order))}</td>
-      <td>${escapeHtml(displayOrderDrink(order.drink || '') || t('noDrink').replace(/-/g, '').trim())}</td>
-      <td>${money(order.price)}</td>
-    </tr>
-  `).join('');
+  el.ordersBody.innerHTML = orders.map((order, index) => {
+    const deliveryDept = orderDeliveryDept(order);
+    const changed = orderHasCustomDelivery(order);
+    const deptClass = changed ? ' class="pickup-changed"' : '';
+    const deptTitle = changed ? ` title="${escapeHtml(`${t('dept')}：${order.dept || ''}`)}"` : '';
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td${deptClass}${deptTitle}>${escapeHtml(deliveryDept)}</td>
+        <td>${escapeHtml(order.name || '')}</td>
+        <td>${escapeHtml(displayOrderFood(order.food || ''))}</td>
+        <td>${escapeHtml(displayOrderAddon(order))}</td>
+        <td>${escapeHtml(displayOrderDrink(order.drink || '') || t('noDrink').replace(/-/g, '').trim())}</td>
+        <td>${money(order.price)}</td>
+      </tr>
+    `;
+  }).join('');
 
   const drinkByDept = {};
   const foodCounts = {};
   const foodByDept = {};
   const orderCountByDept = {};
   orders.forEach((order, index) => {
-    const dept = String(order.dept || '').trim() || '-';
+    const dept = orderDeliveryDept(order) || '-';
     orderCountByDept[dept] = (orderCountByDept[dept] || 0) + 1;
     total += Number(order.price || 0);
     parseOrderDrinks(order).forEach(drink => {
@@ -1664,7 +1697,7 @@ function renderOrders() {
 function renderStaffFoodSummary(orders) {
   const byDept = {};
   orders.forEach((order, index) => {
-    const dept = String(order.dept || '').trim() || '-';
+    const dept = orderDeliveryDept(order) || '-';
     if (!byDept[dept]) byDept[dept] = [];
     const food = displayOrderFood(order.food || '');
     const addon = displayOrderAddon(order);
@@ -1687,7 +1720,8 @@ function orderSignature(orders) {
     order.food || '',
     Number(order.price || 0),
     order.addon || '',
-    order.drink || ''
+    order.drink || '',
+    orderDeliveryDept(order)
   ]));
 }
 
@@ -2132,6 +2166,7 @@ async function submitOrder() {
   const addon = [optionAddon, addonRaw].filter(Boolean).join('；');
   const order = {
     dept,
+    pickupDept: String(el.pickupDeptSelect && el.pickupDeptSelect.value || dept).trim() || dept,
     name,
     groupMembers: members,
     food,
@@ -2191,6 +2226,7 @@ function resetStaffForm() {
   const single = departments.length === 1 ? departments[0] : '';
   el.deptSelect.value = single || '';
   renderNames();
+  renderPickupDepartments(single || el.deptSelect.value, false);
   el.nameSelect.value = '';
   el.drinkSelect.value = '';
   renderGroupDrinks();
@@ -2295,7 +2331,7 @@ async function exportXlsx() {
     const header = ['No', t('dept'), t('name'), t('food'), t('addon'), t('drink'), t('price')];
     const rows = orders.map((order, index) => [
       index + 1,
-      order.dept || '',
+      orderDeliveryDept(order),
       order.name || '',
       displayOrderFood(order.food || ''),
       displayOrderAddon(order),
@@ -2409,6 +2445,7 @@ function sameOrder(a, b) {
   return String(a.food || '') === String(b.food || '')
     && String(a.addon || '') === String(b.addon || '')
     && String(a.drink || '') === String(b.drink || '')
+    && orderDeliveryDept(a) === orderDeliveryDept(b)
     && Number(a.price || 0) === Number(b.price || 0);
 }
 
@@ -2729,7 +2766,10 @@ async function saveDrinkChanges(username, password, modal) {
   }
 }
 
-el.deptSelect.addEventListener('change', renderNames);
+el.deptSelect.addEventListener('change', () => {
+  renderNames();
+  renderPickupDepartments(el.deptSelect.value, false);
+});
 el.nameSelect.addEventListener('change', renderSelection);
 el.groupOrderToggle.addEventListener('change', () => {
   state.groupOrder.active = el.groupOrderToggle.checked;
