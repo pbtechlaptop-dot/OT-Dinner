@@ -1256,7 +1256,7 @@ function renderPickupDepartments(defaultDept = '', preserveCurrent = true) {
   const previous = preserveCurrent ? String(el.pickupDeptSelect.value || '').trim() : '';
   const departments = Object.keys(state.staff || {});
   fillSelect(el.pickupDeptSelect, departments.map(dept => ({ value: dept, label: dept })), t('pickupDept'));
-  const desired = previous || String(defaultDept || '').trim();
+  const desired = previous || String(defaultDept || '').trim() || String(el.deptSelect && el.deptSelect.value || '').trim();
   if (departments.includes(desired)) el.pickupDeptSelect.value = desired;
 }
 
