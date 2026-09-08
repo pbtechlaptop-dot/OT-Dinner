@@ -28,6 +28,7 @@ const state = {
 
 const LAST_STAFF_KEY = 'otDinnerNewLastStaff';
 const ANNOUNCEMENT_SEEN_KEY = 'otDinnerAnnouncementSeenVersion';
+const DELIVERY_OVERRIDES_KEY = 'otDinnerDeliveryOverrides';
 const announcementDismissedVersions = new Set();
 
 const el = {
@@ -1251,6 +1252,61 @@ function orderHasCustomDelivery(order) {
   return Boolean(dept && pickupDept && pickupDept !== dept);
 }
 
+function deliveryOverridesStorageKey() {
+  return `${DELIVERY_OVERRIDES_KEY}:${state.appId || 'main'}:${state.date || ''}`;
+}
+
+function deliveryOverrideOrderKey(order) {
+  return [
+    String(order && order.name || '').trim(),
+    String(order && order.food || '').trim(),
+    String(order && order.drink || '').trim(),
+    String(Number(order && order.price || 0))
+  ].join('\u0000');
+}
+
+function readDeliveryOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem(deliveryOverridesStorageKey()) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDeliveryOverrides(overrides) {
+  try {
+    localStorage.setItem(deliveryOverridesStorageKey(), JSON.stringify(overrides || {}));
+  } catch {
+  }
+}
+
+function rememberDeliveryOverrides(orders) {
+  const overrides = readDeliveryOverrides();
+  (orders || []).forEach(order => {
+    const key = deliveryOverrideOrderKey(order);
+    if (!key.trim()) return;
+    if (orderHasCustomDelivery(order)) {
+      overrides[key] = {
+        dept: String(order.dept || '').trim(),
+        pickupDept: orderDeliveryDept(order)
+      };
+    } else {
+      delete overrides[key];
+    }
+  });
+  writeDeliveryOverrides(overrides);
+}
+
+function applyDeliveryOverrides(orders) {
+  const overrides = readDeliveryOverrides();
+  return (orders || []).map(order => {
+    if (order && (order.pickupDept || order.pickup_dept)) return order;
+    const saved = overrides[deliveryOverrideOrderKey(order)];
+    if (!saved || !saved.pickupDept || !saved.dept || saved.pickupDept === saved.dept) return order;
+    return { ...order, dept: saved.dept, pickupDept: saved.pickupDept };
+  });
+}
+
 function renderPickupDepartments(defaultDept = '', preserveCurrent = true) {
   if (!el.pickupDeptSelect) return;
   const previous = preserveCurrent ? String(el.pickupDeptSelect.value || '').trim() : '';
@@ -2101,12 +2157,13 @@ async function load() {
     state.staff = bootstrap.staff || {};
     state.drinks = bootstrap.drinks || [];
     state.menu = {};
-    state.orders = bootstrap.orders || [];
+    state.date = bootstrap.date || '';
+    state.orders = applyDeliveryOverrides(bootstrap.orders || []);
+    rememberDeliveryOverrides(state.orders);
     state.lastOrdersSignature = orderSignature(state.orders);
     state.currentRestaurant = bootstrap.currentRestaurant || '';
     state.cutoffTime = bootstrap.cutoffTime || '';
     state.cutoffPassed = Boolean(bootstrap.cutoffPassed);
-    state.date = bootstrap.date || '';
     updateStaticText();
     renderDepartments();
     applyLastStaff();
@@ -2193,8 +2250,9 @@ async function submitOrder() {
       method: 'POST',
       body: JSON.stringify(order)
     });
-    if (Array.isArray(payload.orders)) state.orders = payload.orders;
-    else state.orders = await api('/api/orders').then(data => data.orders || []);
+    if (Array.isArray(payload.orders)) state.orders = applyDeliveryOverrides(payload.orders);
+    else state.orders = applyDeliveryOverrides(await api('/api/orders').then(data => data.orders || []));
+    rememberDeliveryOverrides(state.orders);
     state.lastOrdersSignature = orderSignature(state.orders);
     if (!state.groupOrder.active) saveLastStaff(dept, name);
     state.selected.clear();
@@ -2356,7 +2414,7 @@ async function refreshOrdersSilently() {
   refreshOrdersSilently.inFlight = true;
   try {
     const payload = await api(`/api/orders?_=${Date.now()}`);
-    const incoming = payload.orders || [];
+    const incoming = applyDeliveryOverrides(payload.orders || []);
     const signature = orderSignature(incoming);
     const previousRestaurant = state.currentRestaurant;
     const previousCutoffTime = state.cutoffTime;
@@ -2369,6 +2427,7 @@ async function refreshOrdersSilently() {
     if (signature !== state.lastOrdersSignature) {
       state.orders = incoming;
       state.lastOrdersSignature = signature;
+      rememberDeliveryOverrides(state.orders);
       renderOrders();
       updateDiagSummary();
     }
