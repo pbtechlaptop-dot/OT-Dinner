@@ -29,7 +29,19 @@ const state = {
 const LAST_STAFF_KEY = 'otDinnerNewLastStaff';
 const ANNOUNCEMENT_SEEN_KEY = 'otDinnerAnnouncementSeenVersion';
 const DELIVERY_OVERRIDES_KEY = 'otDinnerDeliveryOverrides';
+const LAST_SUCCESSFUL_PAGE_KEY = 'otDinnerLastSuccessfulPage';
 const announcementDismissedVersions = new Set();
+
+function lastSuccessfulPageStorageKey() {
+  return `${LAST_SUCCESSFUL_PAGE_KEY}:${state.appId || 'main'}`;
+}
+
+function rememberSuccessfulPage(page) {
+  try {
+    localStorage.setItem(lastSuccessfulPageStorageKey(), page);
+  } catch {
+  }
+}
 
 const el = {
   appTitle: document.getElementById('appTitle'),
@@ -2266,6 +2278,7 @@ async function submitOrder() {
     else state.orders = applyDeliveryOverrides(await api('/api/orders').then(data => data.orders || []));
     rememberDeliveryOverrides(state.orders);
     state.lastOrdersSignature = orderSignature(state.orders);
+    rememberSuccessfulPage('new');
     if (!state.groupOrder.active) saveLastStaff(dept, name);
     state.selected.clear();
     el.categorySelect.value = '';

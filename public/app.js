@@ -28,7 +28,32 @@ const state = {
 };
 
 const ANNOUNCEMENT_SEEN_KEY = 'otDinnerAnnouncementSeenVersion';
+const LAST_SUCCESSFUL_PAGE_KEY = 'otDinnerLastSuccessfulPage';
 const announcementDismissedVersions = new Set();
+
+function lastSuccessfulPageStorageKey() {
+  return `${LAST_SUCCESSFUL_PAGE_KEY}:${state.appId || 'main'}`;
+}
+
+function rememberSuccessfulPage(page) {
+  try {
+    localStorage.setItem(lastSuccessfulPageStorageKey(), page);
+  } catch {
+  }
+}
+
+function shouldRedirectToNewPage() {
+  try {
+    return localStorage.getItem(lastSuccessfulPageStorageKey()) === 'new';
+  } catch {
+    return false;
+  }
+}
+
+const redirectedToLastSuccessfulPage = shouldRedirectToNewPage();
+if (redirectedToLastSuccessfulPage) {
+  window.location.replace(state.appId === 'lady-ruby' ? '/lady-ruby/new/' : '/new/');
+}
 
 let toSc = v => String(v || '');
 let toTc = v => String(v || '');
@@ -2887,6 +2912,7 @@ el.orderForm.addEventListener('submit', async event => {
       if (typeof payload.updated === 'boolean') updated = payload.updated;
     }
     state.lastOrdersSignature = orderSignature(state.orders);
+    rememberSuccessfulPage('old');
     if (state.lateOrder.active) {
       state.lateOrder.active = false;
       state.lateOrder.password = '';
@@ -2929,4 +2955,6 @@ setupDrinkChangeEntry();
 if (el.cutoffTimeInput && !el.cutoffTimeInput.value) el.cutoffTimeInput.value = state.defaultCutoffTime;
 el.cutoffTimeInput?.addEventListener('input', syncRestaurantLock);
 startAutoRefresh();
-loadBootstrap().catch(err => showToast(err.message, 3000));
+if (!redirectedToLastSuccessfulPage) {
+  loadBootstrap().catch(err => showToast(err.message, 3000));
+}
