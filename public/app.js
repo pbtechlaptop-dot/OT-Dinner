@@ -821,6 +821,14 @@ function orderHasCustomDelivery(order) {
   return Boolean(dept && pickupDept && pickupDept !== dept);
 }
 
+function orderSourcePage(order) {
+  return String((order && (order.sourcePage || order.source_page)) || '').trim().toLowerCase();
+}
+
+function orderIsFromOldPage(order) {
+  return orderSourcePage(order) === 'old';
+}
+
 function renderPickupDepartments(defaultDept = '', preserveCurrent = true) {
   if (!el.pickupDeptSelect) return;
   const previous = preserveCurrent ? String(el.pickupDeptSelect.value || '').trim() : '';
@@ -1931,7 +1939,8 @@ function orderSignature(orders) {
     Number(o.price || 0),
     o.addon || '',
     o.drink || '',
-    orderDeliveryDept(o)
+    orderDeliveryDept(o),
+    orderSourcePage(o)
   ]));
 }
 
@@ -2294,7 +2303,9 @@ function renderOrders() {
     const changed = orderHasCustomDelivery(o);
     const deptClass = changed ? ' class="bg-amber-50 font-semibold text-amber-800"' : '';
     const deptTitle = changed ? ` title="${escapeHtml(`${t('dept')}：${o.dept || ''}`)}"` : '';
-    return `<tr><td>${i + 1}</td><td${deptClass}${deptTitle}>${escapeHtml(deliveryDept)}</td><td>${escapeHtml(o.name)}</td><td>${displayFood(o.food)}</td><td>${escapeHtml(addon)}</td><td>${displayDrinkHtml(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
+    const nameClass = orderIsFromOldPage(o) ? ' class="font-semibold text-stone-500"' : '';
+    const nameTitle = orderIsFromOldPage(o) ? ' title="舊版下單"' : '';
+    return `<tr><td>${i + 1}</td><td${deptClass}${deptTitle}>${escapeHtml(deliveryDept)}</td><td${nameClass}${nameTitle}>${escapeHtml(o.name)}</td><td>${displayFood(o.food)}</td><td>${escapeHtml(addon)}</td><td>${displayDrinkHtml(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
   }).join('');
   el.totalPrice.textContent = total.toFixed(2);
 
@@ -2846,6 +2857,7 @@ el.orderForm.addEventListener('submit', async event => {
   const order = {
     dept: el.deptSelect.value,
     pickupDept: String(el.pickupDeptSelect && el.pickupDeptSelect.value || el.deptSelect.value || '').trim(),
+    sourcePage: 'old',
     name: el.nameSelect.value,
     food: el.foodSelect.value,
     price,

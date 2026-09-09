@@ -660,6 +660,10 @@ function orderDeliveryDept(order) {
   return normText(order && (order.pickupDept || order.pickup_dept)) || normText(order && order.dept);
 }
 
+function orderSourcePage(order) {
+  return normText(order && (order.sourcePage || order.source_page));
+}
+
 function defaultSeed() {
   return { restaurants: [], staff: {}, drinks: [], menus: {} };
 }
@@ -1127,6 +1131,7 @@ function normalizeState(input) {
     orders: (Array.isArray(state.orders) ? state.orders : []).map(order => ({
       ...order,
       pickupDept: orderDeliveryDept(order),
+      sourcePage: orderSourcePage(order),
       orderedAt: normalizeOrderTimestamp(order && order.orderedAt),
       lateOrder: Boolean(order && order.lateOrder)
     }))
@@ -1669,20 +1674,27 @@ async function deleteAdminLogsSupabase(ids) {
 
 async function selectOrdersSupabase(date, appId) {
   try {
-    return await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,app_id,ordered_at', {
+    return await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,source_page,app_id,ordered_at', {
       eq: { date, app_id: appId },
       order: [{ column: 'pickup_dept' }, { column: 'dept' }, { column: 'name' }]
     });
   } catch (err) {
+    if (isMissingSupabaseColumn(err, 'source_page')) {
+      const rows = await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,app_id,ordered_at', {
+        eq: { date, app_id: appId },
+        order: [{ column: 'pickup_dept' }, { column: 'dept' }, { column: 'name' }]
+      });
+      return (rows || []).map(row => ({ ...row, source_page: '' }));
+    }
     if (isMissingSupabaseColumn(err, 'pickup_dept')) {
-      const rows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,app_id,ordered_at', {
+      const rows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,source_page,app_id,ordered_at', {
         eq: { date, app_id: appId },
         order: [{ column: 'dept' }, { column: 'name' }]
       });
       return (rows || []).map(row => ({ ...row, pickup_dept: null }));
     }
     if (isMissingSupabaseColumn(err, 'ordered_at')) {
-      const rows = await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,app_id', {
+      const rows = await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,source_page,app_id', {
         eq: { date, app_id: appId },
         order: [{ column: 'pickup_dept' }, { column: 'dept' }, { column: 'name' }]
       });
@@ -1709,6 +1721,7 @@ async function insertOrdersSupabase(date, appId, orders) {
     date,
     dept: normText(o.dept),
     pickup_dept: orderDeliveryDept(o),
+    source_page: orderSourcePage(o),
     name: normText(o.name),
     food: normText(o.food),
     addon: normText(o.addon),
@@ -1732,6 +1745,7 @@ async function upsertOrderSupabase(appId, date, order) {
     date,
     dept: normText(order.dept),
     pickup_dept: orderDeliveryDept(order),
+    source_page: orderSourcePage(order),
     name: normText(order.name),
     food: normText(order.food),
     addon: normText(order.addon),
@@ -1814,6 +1828,7 @@ async function getStateSupabase(appId = APP_MAIN) {
   const orders = sortOrdersForDisplay((ordersRows || []).map(o => ({
     dept: normText(o.dept),
     pickupDept: orderDeliveryDept(o),
+    sourcePage: orderSourcePage(o),
     name: normText(o.name),
     food: normText(o.food),
     addon: normText(o.addon),
@@ -2580,6 +2595,7 @@ async function handleApi(req, res, urlObj) {
     const clean = {
       dept: submittedOrder.dept,
       pickupDept: normText(body.pickupDept || body.pickup_dept) || submittedOrder.dept,
+      sourcePage: normText(body.sourcePage || body.source_page) || 'old',
       name: submittedOrder.name,
       food: normText(body.food),
       addon: normText(body.addon),

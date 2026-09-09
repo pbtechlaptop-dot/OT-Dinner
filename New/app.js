@@ -1252,6 +1252,14 @@ function orderHasCustomDelivery(order) {
   return Boolean(dept && pickupDept && pickupDept !== dept);
 }
 
+function orderSourcePage(order) {
+  return String((order && (order.sourcePage || order.source_page)) || '').trim().toLowerCase();
+}
+
+function orderIsFromOldPage(order) {
+  return orderSourcePage(order) === 'old';
+}
+
 function deliveryOverridesStorageKey() {
   return `${DELIVERY_OVERRIDES_KEY}:${state.appId || 'main'}:${state.date || ''}`;
 }
@@ -1691,11 +1699,13 @@ function renderOrders() {
     const changed = orderHasCustomDelivery(order);
     const deptClass = changed ? ' class="pickup-changed"' : '';
     const deptTitle = changed ? ` title="${escapeHtml(`${t('dept')}：${order.dept || ''}`)}"` : '';
+    const nameClass = orderIsFromOldPage(order) ? ' class="source-old"' : '';
+    const nameTitle = orderIsFromOldPage(order) ? ' title="舊版下單"' : '';
     return `
       <tr>
         <td>${index + 1}</td>
         <td${deptClass}${deptTitle}>${escapeHtml(deliveryDept)}</td>
-        <td>${escapeHtml(order.name || '')}</td>
+        <td${nameClass}${nameTitle}>${escapeHtml(order.name || '')}</td>
         <td>${escapeHtml(displayOrderFood(order.food || ''))}</td>
         <td>${escapeHtml(displayOrderAddon(order))}</td>
         <td>${escapeHtml(displayOrderDrink(order.drink || '') || t('noDrink').replace(/-/g, '').trim())}</td>
@@ -1777,7 +1787,8 @@ function orderSignature(orders) {
     Number(order.price || 0),
     order.addon || '',
     order.drink || '',
-    orderDeliveryDept(order)
+    orderDeliveryDept(order),
+    orderSourcePage(order)
   ]));
 }
 
@@ -2224,6 +2235,7 @@ async function submitOrder() {
   const order = {
     dept,
     pickupDept: String(el.pickupDeptSelect && el.pickupDeptSelect.value || dept).trim() || dept,
+    sourcePage: 'new',
     name,
     groupMembers: members,
     food,
