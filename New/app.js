@@ -1738,18 +1738,13 @@ function renderOrders() {
       if (!drinkByDept[dept]) drinkByDept[dept] = {};
       drinkByDept[dept][drink] = (drinkByDept[dept][drink] || 0) + 1;
     });
+    const orderAddon = displayOrderAddon(order);
     parseOrderFoodItems(order).forEach(({ key, label, qty }) => {
       if (!label) return;
       const foodKey = key || label;
-      if (!foodCounts[foodKey]) foodCounts[foodKey] = { label, count: 0, numbers: [] };
-      foodCounts[foodKey].label = label;
-      foodCounts[foodKey].count += qty;
-      if (!foodCounts[foodKey].numbers.includes(index + 1)) foodCounts[foodKey].numbers.push(index + 1);
       if (!foodByDept[dept]) foodByDept[dept] = {};
-      if (!foodByDept[dept][foodKey]) foodByDept[dept][foodKey] = { label, count: 0, numbers: [] };
-      foodByDept[dept][foodKey].label = label;
-      foodByDept[dept][foodKey].count += qty;
-      if (!foodByDept[dept][foodKey].numbers.includes(index + 1)) foodByDept[dept][foodKey].numbers.push(index + 1);
+      addFoodSummaryEntry(foodCounts, foodKey, label, qty, index + 1, orderAddon);
+      addFoodSummaryEntry(foodByDept[dept], foodKey, label, qty, index + 1, orderAddon);
     });
   });
 
@@ -2018,8 +2013,27 @@ function foodUsesAddonForSummary(rawFood, displayFoodName) {
 
 function formatFoodSummaryLine(food, entry) {
   const numbers = Array.isArray(entry.numbers) ? entry.numbers.join(',') : '';
+  const notes = entry && entry.notes && typeof entry.notes === 'object' ? entry.notes : {};
+  if (numbers && Object.keys(notes).length) {
+    return String(numbers).split(',').map(number => {
+      const note = String(notes[number] || '').trim();
+      const label = note ? `${food} / ${t('addon')}：${note}` : food;
+      const qty = Number(entry.qtyByNumber && entry.qtyByNumber[number]) || 1;
+      return `- (${escapeHtml(number)}) - ${escapeHtml(label)} x ${qty}`;
+    }).join('<br>');
+  }
   const prefix = numbers ? `(${escapeHtml(numbers)}) - ` : '';
   return `- ${prefix}${escapeHtml(food)} x ${Number(entry.count || 0)}`;
+}
+
+function addFoodSummaryEntry(target, foodKey, label, qty, orderNumber, addon) {
+  if (!target[foodKey]) target[foodKey] = { label, count: 0, numbers: [], notes: {}, qtyByNumber: {} };
+  target[foodKey].label = label;
+  target[foodKey].count += qty;
+  if (!target[foodKey].numbers.includes(orderNumber)) target[foodKey].numbers.push(orderNumber);
+  target[foodKey].qtyByNumber[orderNumber] = (Number(target[foodKey].qtyByNumber[orderNumber]) || 0) + qty;
+  const note = String(addon || '').trim();
+  if (note) target[foodKey].notes[orderNumber] = note;
 }
 
 function escapeHtml(value) {

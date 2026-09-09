@@ -2297,8 +2297,27 @@ function foodUsesAddonForSummary(rawFood, displayFoodName) {
 function formatFoodSummaryLine(food, entry) {
   const numbers = Array.isArray(entry && entry.numbers) ? entry.numbers.filter(Boolean) : [];
   const count = Number(entry && entry.count) || 0;
+  const notes = entry && entry.notes && typeof entry.notes === 'object' ? entry.notes : {};
+  if (numbers.length && Object.keys(notes).length) {
+    return numbers.map(number => {
+      const note = String(notes[number] || '').trim();
+      const label = note ? `${food} / ${t('addon')}：${note}` : food;
+      const qty = Number(entry.qtyByNumber && entry.qtyByNumber[number]) || 1;
+      return `- (${number}) - ${escapeHtml(label)} ${t('xLabel')} ${qty}`;
+    }).join('<br>');
+  }
   const numberPrefix = numbers.length ? `(${numbers.join(',')}) - ` : '';
   return `- ${numberPrefix}${escapeHtml(food)} ${t('xLabel')} ${count}`;
+}
+
+function addFoodSummaryEntry(target, foodKey, label, qty, orderNumber, addon) {
+  if (!target[foodKey]) target[foodKey] = { label: label || foodKey, count: 0, numbers: [], notes: {}, qtyByNumber: {} };
+  target[foodKey].label = label || target[foodKey].label;
+  target[foodKey].count += qty;
+  if (!target[foodKey].numbers.includes(orderNumber)) target[foodKey].numbers.push(orderNumber);
+  target[foodKey].qtyByNumber[orderNumber] = (Number(target[foodKey].qtyByNumber[orderNumber]) || 0) + qty;
+  const note = stripAddonPriceText(addon || '');
+  if (note) target[foodKey].notes[orderNumber] = note;
 }
 
 function firstSummaryNumber(entry) {
@@ -2347,18 +2366,13 @@ function renderOrders() {
       byDeptDrink[dept][drinkKey] = (byDeptDrink[dept][drinkKey] || 0) + 1;
     });
 
+    const orderAddon = stripAddonPriceText(displayOrderAddon(o));
     parseOrderFoodItems(o).forEach(({ key, label, qty }) => {
       const foodKey = key || label || buildFoodSummaryLabel(o);
       if (!foodKey) return;
-      if (!foodCounts[foodKey]) foodCounts[foodKey] = { label: label || foodKey, count: 0, numbers: [] };
-      foodCounts[foodKey].label = label || foodCounts[foodKey].label;
-      foodCounts[foodKey].count += qty;
-      if (!foodCounts[foodKey].numbers.includes(orderNumber)) foodCounts[foodKey].numbers.push(orderNumber);
       if (!byDeptFood[dept]) byDeptFood[dept] = {};
-      if (!byDeptFood[dept][foodKey]) byDeptFood[dept][foodKey] = { label: label || foodKey, count: 0, numbers: [] };
-      byDeptFood[dept][foodKey].label = label || byDeptFood[dept][foodKey].label;
-      byDeptFood[dept][foodKey].count += qty;
-      if (!byDeptFood[dept][foodKey].numbers.includes(orderNumber)) byDeptFood[dept][foodKey].numbers.push(orderNumber);
+      addFoodSummaryEntry(foodCounts, foodKey, label || foodKey, qty, orderNumber, orderAddon);
+      addFoodSummaryEntry(byDeptFood[dept], foodKey, label || foodKey, qty, orderNumber, orderAddon);
     });
   });
 
