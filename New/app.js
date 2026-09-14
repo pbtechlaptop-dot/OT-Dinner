@@ -163,6 +163,7 @@ const i18n = {
     restaurantPassword: '密碼',
     enterAdminPassword: '請輸入管理密碼',
     saveRestaurantSettings: '確認設定',
+    savingRestaurantSettings: '設定中...',
     selectRestaurant: '-- 選擇餐廳 --',
     chooseRestaurantFirst: '請先選擇餐廳',
     restaurantSet: '已設定今日餐廳',
@@ -288,6 +289,7 @@ const i18n = {
     restaurantPassword: '密码',
     enterAdminPassword: '请输入管理密码',
     saveRestaurantSettings: '确认设置',
+    savingRestaurantSettings: '设置中...',
     selectRestaurant: '-- 选择餐厅 --',
     chooseRestaurantFirst: '请先选择餐厅',
     restaurantSet: '已设置今日餐厅',
@@ -412,6 +414,7 @@ const i18n = {
     restaurantPassword: 'Password',
     enterAdminPassword: 'Enter admin password',
     saveRestaurantSettings: 'Save Settings',
+    savingRestaurantSettings: 'Saving...',
     selectRestaurant: '-- Select Restaurant --',
     chooseRestaurantFirst: 'Please select a restaurant first',
     restaurantSet: 'Today restaurant set',
@@ -632,6 +635,17 @@ function setBusy(isBusy, text) {
   if (!el.busyOverlay) return;
   if (el.busyText) el.busyText.textContent = text || t('busy');
   el.busyOverlay.classList.toggle('hidden', !isBusy);
+}
+
+function setRestaurantSaving(isSaving) {
+  if (el.setRestaurantBtn) {
+    el.setRestaurantBtn.disabled = isSaving;
+    el.setRestaurantBtn.textContent = isSaving ? t('savingRestaurantSettings') : t('saveRestaurantSettings');
+    el.setRestaurantBtn.classList.toggle('loading', isSaving);
+  }
+  [el.restaurantSelect, el.cutoffTimeInput, el.restaurantPasswordInput, el.cancelRestaurantBtn].forEach(control => {
+    if (control) control.disabled = isSaving;
+  });
 }
 
 function updateStaticText() {
@@ -2394,12 +2408,15 @@ function showAnnouncementIfNeeded(settings) {
 }
 
 async function saveRestaurantSettings() {
+  if (el.setRestaurantBtn.disabled) return;
   const restaurant = String(el.restaurantSelect.value || '').trim();
   const cutoffTime = String(el.cutoffTimeInput.value || '').trim();
   const password = String(el.restaurantPasswordInput.value || '').trim();
   if (!restaurant) return showToast(t('chooseRestaurantFirst'));
+  if (!password) return showToast(t('enterAdminPassword'));
   const changingRestaurant = Boolean(state.currentRestaurant && restaurant !== state.currentRestaurant);
   try {
+    setRestaurantSaving(true);
     setBusy(true);
     const payload = await api('/api/restaurant', {
       method: 'POST',
@@ -2415,6 +2432,7 @@ async function saveRestaurantSettings() {
     el.restaurantPasswordInput.value = '';
     el.restaurantPasswordInput.focus();
   } finally {
+    setRestaurantSaving(false);
     setBusy(false);
   }
 }

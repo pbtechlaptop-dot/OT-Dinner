@@ -136,6 +136,7 @@ const i18n = {
     restaurantModalTitle: '設定今日餐廳',
     restaurantModalHint: '輸入密碼後，選擇餐廳及截單時間。',
     saveRestaurantSettings: '確認設定',
+    savingRestaurantSettings: '設定中...',
     cancel: '取消',
     orderBlockedNotice: '下單沒有成功，請聯絡部門主管或 Simon 下單。',
     orderOverLimit: amount => `餐點價錢超過上限 ${amount}，不能下單。`,
@@ -222,6 +223,7 @@ const i18n = {
     restaurantModalTitle: '设置今日餐厅',
     restaurantModalHint: '输入密码后，选择餐厅及截单时间。',
     saveRestaurantSettings: '确认设置',
+    savingRestaurantSettings: '设置中...',
     cancel: '取消',
     orderBlockedNotice: '下单没有成功，请联络部门主管或 Simon 下单。',
     orderOverLimit: amount => `餐点价钱超过上限 ${amount}，不能下单。`,
@@ -308,6 +310,7 @@ const i18n = {
     restaurantModalTitle: 'Set Today Restaurant',
     restaurantModalHint: 'Enter the password, then choose the restaurant and cutoff time.',
     saveRestaurantSettings: 'Save Settings',
+    savingRestaurantSettings: 'Saving...',
     cancel: 'Cancel',
     orderBlockedNotice: 'Order was not placed successfully. Please contact your team leader or Simon to place an order.',
     orderOverLimit: amount => `Order price exceeds the limit ${amount}.`,
@@ -696,6 +699,18 @@ function setBusy(isBusy) {
   if (!el.busyOverlay) return;
   el.busyOverlay.classList.toggle('hidden', !isBusy);
   el.busyOverlay.classList.toggle('flex', isBusy);
+}
+
+function setRestaurantSaving(isSaving) {
+  if (el.setRestaurantBtn) {
+    el.setRestaurantBtn.disabled = isSaving;
+    el.setRestaurantBtn.textContent = isSaving ? t('savingRestaurantSettings') : t('saveRestaurantSettings');
+    el.setRestaurantBtn.classList.toggle('opacity-70', isSaving);
+    el.setRestaurantBtn.classList.toggle('cursor-wait', isSaving);
+  }
+  [el.restaurantSelect, el.cutoffTimeInput, el.restaurantPasswordInput, el.cancelRestaurantModalBtn].forEach(control => {
+    if (control) control.disabled = isSaving;
+  });
 }
 
 function apiPath(path) {
@@ -2819,18 +2834,20 @@ el.restaurantModal?.addEventListener('click', event => {
 });
 
 el.setRestaurantBtn.addEventListener('click', async () => {
+  if (el.setRestaurantBtn.disabled) return;
   const restaurant = el.restaurantSelect.value;
   const changingRestaurant = Boolean(state.currentRestaurant && restaurant && restaurant !== state.currentRestaurant);
   const cutoffTime = getCutoffInputValue();
   if (!restaurant) return showToast(t('chooseRestaurantFirst'));
+  const password = String(el.restaurantPasswordInput?.value || '').trim();
+  if (!password) return showToast(t('enterAdminPassword'));
   const previousRestaurant = state.currentRestaurant;
   const previousCutoffTime = state.cutoffTime;
   const previousMenu = state.menu;
   const previousFoodLookup = state.foodLookup;
   try {
+    setRestaurantSaving(true);
     setBusy(true);
-    const password = String(el.restaurantPasswordInput?.value || '').trim();
-    if (!password) return showToast(t('enterAdminPassword'));
     const payload = await api('/api/restaurant', {
       method: 'POST',
       body: JSON.stringify({ restaurant, cutoffTime, password, forceChange: changingRestaurant })
@@ -2868,6 +2885,7 @@ el.setRestaurantBtn.addEventListener('click', async () => {
     }
     showToast(localizeApiError(err.message));
   } finally {
+    setRestaurantSaving(false);
     setBusy(false);
   }
 });
