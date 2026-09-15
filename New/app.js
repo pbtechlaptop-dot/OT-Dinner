@@ -2070,16 +2070,38 @@ function formatFoodSummaryLine(food, entry) {
 function summaryExtraNote(food, note) {
   const rawNote = String(note || '').trim();
   if (!rawNote) return '';
-  const foodKey = compactSummaryPrefix(food);
-  const noteParts = rawNote.split(/[、,，/／]+/).map(part => part.trim()).filter(Boolean);
-  if (!noteParts.length) {
-    const noteKey = compactSummaryPrefix(rawNote);
-    return foodKey && noteKey && foodKey.includes(noteKey) ? '' : rawNote;
-  }
+  const systemOptionKeys = summarySystemOptionKeys(food);
+  const noteParts = rawNote.split(/[+＋、,，/／;；]+/).map(part => part.trim()).filter(Boolean);
+  if (!noteParts.length) return systemOptionKeys.has(compactSummaryPrefix(rawNote)) ? '' : rawNote;
   return noteParts.filter(part => {
     const partKey = compactSummaryPrefix(part);
-    return partKey && !(foodKey && foodKey.includes(partKey));
+    return partKey && !systemOptionKeys.has(partKey);
   }).join('，');
+}
+
+function summarySystemOptionKeys(foodLabel) {
+  const keys = new Set();
+  const addKey = value => {
+    const key = compactSummaryPrefix(value);
+    if (key) keys.add(key);
+  };
+  const label = String(foodLabel || '').trim();
+  label.replace(/[（(]([^）)]*)[）)]/g, (_, optionsText) => {
+    splitAddonParts(optionsText).forEach(addKey);
+    addKey(optionsText);
+    return '';
+  });
+  const baseFood = label.replace(/[（(][^）)]*[）)]/g, '').trim();
+  const food = summaryFoodMatch(baseFood, baseFood);
+  if (food && Array.isArray(food.optionGroups)) {
+    food.optionGroups.forEach(group => {
+      (group.choices || []).map(normalizeOptionChoice).filter(Boolean).forEach(choice => {
+        [choice.label, orderOptionLabel(choice.label), localOptionLabel(choice.label), extractEnglishOptionLabel(choice.label)]
+          .forEach(addKey);
+      });
+    });
+  }
+  return keys;
 }
 
 function addFoodSummaryEntry(target, foodKey, label, qty, orderNumber, addon) {
