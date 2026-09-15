@@ -1373,20 +1373,20 @@ function renderTodayOrders() {
     const body = orders.length ? orders.map((order, index) => {
       const dept = orderDeliveryDept(order) || '-';
       const name = String(order && order.name || '').trim() || '-';
-      return `<div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-        <div class="min-w-0">
-          <p class="truncate text-sm font-semibold text-pbnavy">${escapeHtml(name)}</p>
-          <p class="text-xs text-slate-500">${escapeHtml(dept)}</p>
+      return `<article class="grid min-h-[72px] grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+        <div class="min-w-0 leading-tight">
+          <p class="truncate text-base font-semibold text-pbnavy">${escapeHtml(name)}</p>
+          <p class="mt-1 truncate text-sm text-slate-500">${escapeHtml(dept)}</p>
         </div>
-        <button type="button" class="delete-today-order rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700" data-app="${escapeHtml(app.id)}" data-index="${index}">刪除</button>
-      </div>`;
-    }).join('') : '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">未有訂單。</p>';
-    return `<section class="rounded-lg border border-slate-200 p-3">
-      <div class="mb-2 flex items-center justify-between gap-2">
-        <h3 class="text-sm font-bold text-pbnavy">${escapeHtml(app.label)}</h3>
-        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">${orders.length} 張</span>
+        <button type="button" class="delete-today-order rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300" data-app="${escapeHtml(app.id)}" data-index="${index}">刪除</button>
+      </article>`;
+    }).join('') : '<p class="rounded-md border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500">未有訂單。</p>';
+    return `<section class="rounded-lg border border-slate-200 p-4">
+      <div class="mb-4 flex items-center justify-between gap-3">
+        <h3 class="text-base font-bold text-pbnavy">${escapeHtml(app.label)}</h3>
+        <span class="rounded-full bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600">${orders.length} 張</span>
       </div>
-      <div class="grid gap-2">${body}</div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">${body}</div>
     </section>`;
   }).join('');
 
