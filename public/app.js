@@ -2314,11 +2314,17 @@ function formatFoodSummaryLine(food, entry) {
   const count = Number(entry && entry.count) || 0;
   const notes = entry && entry.notes && typeof entry.notes === 'object' ? entry.notes : {};
   if (numbers.length && Object.keys(notes).length) {
-    return numbers.map(number => {
+    const grouped = {};
+    numbers.forEach(number => {
       const note = String(notes[number] || '').trim();
       const label = note && !summaryLabelAlreadyIncludesNote(food, note) ? `${food} / ${t('addon')}：${note}` : food;
       const qty = Number(entry.qtyByNumber && entry.qtyByNumber[number]) || 1;
-      return `- (${number}) - ${escapeHtml(label)} ${t('xLabel')} ${qty}`;
+      if (!grouped[label]) grouped[label] = { label, numbers: [], count: 0 };
+      grouped[label].numbers.push(number);
+      grouped[label].count += qty;
+    });
+    return Object.values(grouped).map(row => {
+      return `- (${row.numbers.join(',')}) - ${escapeHtml(row.label)} ${t('xLabel')} ${row.count}`;
     }).join('<br>');
   }
   const numberPrefix = numbers.length ? `(${numbers.join(',')}) - ` : '';

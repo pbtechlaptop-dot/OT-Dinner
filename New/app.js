@@ -2049,11 +2049,17 @@ function formatFoodSummaryLine(food, entry) {
   const numbers = Array.isArray(entry.numbers) ? entry.numbers.join(',') : '';
   const notes = entry && entry.notes && typeof entry.notes === 'object' ? entry.notes : {};
   if (numbers && Object.keys(notes).length) {
-    return String(numbers).split(',').map(number => {
+    const grouped = {};
+    String(numbers).split(',').forEach(number => {
       const note = String(notes[number] || '').trim();
       const label = note && !summaryLabelAlreadyIncludesNote(food, note) ? `${food} / ${t('addon')}：${note}` : food;
       const qty = Number(entry.qtyByNumber && entry.qtyByNumber[number]) || 1;
-      return `- (${escapeHtml(number)}) - ${escapeHtml(label)} x ${qty}`;
+      if (!grouped[label]) grouped[label] = { label, numbers: [], count: 0 };
+      grouped[label].numbers.push(number);
+      grouped[label].count += qty;
+    });
+    return Object.values(grouped).map(row => {
+      return `- (${escapeHtml(row.numbers.join(','))}) - ${escapeHtml(row.label)} x ${row.count}`;
     }).join('<br>');
   }
   const prefix = numbers ? `(${escapeHtml(numbers)}) - ` : '';
