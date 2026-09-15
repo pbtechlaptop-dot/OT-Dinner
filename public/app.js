@@ -2317,7 +2317,8 @@ function formatFoodSummaryLine(food, entry) {
     const grouped = {};
     numbers.forEach(number => {
       const note = String(notes[number] || '').trim();
-      const label = note && !summaryLabelAlreadyIncludesNote(food, note) ? `${food} / ${t('addon')}：${note}` : food;
+      const extraNote = summaryExtraNote(food, note);
+      const label = extraNote ? `${food} / ${t('addon')}：${extraNote}` : food;
       const qty = Number(entry.qtyByNumber && entry.qtyByNumber[number]) || 1;
       if (!grouped[label]) grouped[label] = { label, numbers: [], count: 0 };
       grouped[label].numbers.push(number);
@@ -2331,10 +2332,19 @@ function formatFoodSummaryLine(food, entry) {
   return `- ${numberPrefix}${escapeHtml(food)} ${t('xLabel')} ${count}`;
 }
 
-function summaryLabelAlreadyIncludesNote(food, note) {
+function summaryExtraNote(food, note) {
+  const rawNote = String(note || '').trim();
+  if (!rawNote) return '';
   const foodKey = compactSummaryPrefix(food);
-  const noteKey = compactSummaryPrefix(note);
-  return Boolean(foodKey && noteKey && foodKey.includes(noteKey));
+  const noteParts = rawNote.split(/[、,，/／]+/).map(part => part.trim()).filter(Boolean);
+  if (!noteParts.length) {
+    const noteKey = compactSummaryPrefix(rawNote);
+    return foodKey && noteKey && foodKey.includes(noteKey) ? '' : rawNote;
+  }
+  return noteParts.filter(part => {
+    const partKey = compactSummaryPrefix(part);
+    return partKey && !(foodKey && foodKey.includes(partKey));
+  }).join('，');
 }
 
 function addFoodSummaryEntry(target, foodKey, label, qty, orderNumber, addon) {
@@ -2453,10 +2463,10 @@ function renderStaffFoodSummary(orders) {
     const foodItems = parseOrderFoodItems(order);
     if (foodItems.length) {
       foodItems.forEach(item => {
-        const itemUsesAddon = String(item.key || '').includes('||');
+        const extraNote = summaryExtraNote(item.label || item.key || '', addon);
         const details = [
           item.label || item.key || '',
-          addon && !itemUsesAddon ? `${t('addon')}: ${addon}` : ''
+          extraNote ? `${t('addon')}: ${extraNote}` : ''
         ].filter(Boolean).join(' / ');
         byDept[dept].push({ number: index + 1, details, qty: Number(item.qty || 1) });
       });
