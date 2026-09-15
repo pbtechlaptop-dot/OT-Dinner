@@ -2051,13 +2051,19 @@ function formatFoodSummaryLine(food, entry) {
   if (numbers && Object.keys(notes).length) {
     return String(numbers).split(',').map(number => {
       const note = String(notes[number] || '').trim();
-      const label = note ? `${food} / ${t('addon')}：${note}` : food;
+      const label = note && !summaryLabelAlreadyIncludesNote(food, note) ? `${food} / ${t('addon')}：${note}` : food;
       const qty = Number(entry.qtyByNumber && entry.qtyByNumber[number]) || 1;
       return `- (${escapeHtml(number)}) - ${escapeHtml(label)} x ${qty}`;
     }).join('<br>');
   }
   const prefix = numbers ? `(${escapeHtml(numbers)}) - ` : '';
   return `- ${prefix}${escapeHtml(food)} x ${Number(entry.count || 0)}`;
+}
+
+function summaryLabelAlreadyIncludesNote(food, note) {
+  const foodKey = compactSummaryPrefix(food);
+  const noteKey = compactSummaryPrefix(note);
+  return Boolean(foodKey && noteKey && foodKey.includes(noteKey));
 }
 
 function addFoodSummaryEntry(target, foodKey, label, qty, orderNumber, addon) {
