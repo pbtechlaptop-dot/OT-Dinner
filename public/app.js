@@ -2371,11 +2371,9 @@ function renderOrders() {
   const byDeptDrink = {};
   const foodCounts = {};
   const byDeptFood = {};
-  const orderCountByDept = {};
   orders.forEach((o, index) => {
     const orderNumber = index + 1;
     const dept = orderDeliveryDept(o) || '-';
-    orderCountByDept[dept] = (orderCountByDept[dept] || 0) + 1;
     parseOrderDrinks(o).forEach(drinkKey => {
       if (!byDeptDrink[dept]) byDeptDrink[dept] = {};
       byDeptDrink[dept][drinkKey] = (byDeptDrink[dept][drinkKey] || 0) + 1;
@@ -2415,7 +2413,7 @@ function renderOrders() {
   if (el.foodSummaryByDept) {
     const foodByDeptHtml = Object.entries(byDeptFood)
       .map(([dept, foodMap]) => {
-        const deptTotal = orderCountByDept[dept] || 0;
+        const deptTotal = Object.values(foodMap).reduce((sum, entry) => sum + Number(entry.count || 0), 0);
         const foodsList = Object.entries(foodMap)
           .sort((a, b) => {
             const firstNumberDiff = firstSummaryNumber(a[1]) - firstSummaryNumber(b[1]);
