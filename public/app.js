@@ -2437,17 +2437,33 @@ function renderStaffFoodSummary(orders) {
   orders.forEach((order, index) => {
     const dept = orderDeliveryDept(order) || '-';
     if (!byDept[dept]) byDept[dept] = [];
-    const food = displayFood(order.food || '');
     const addon = stripAddonPriceText(displayOrderAddon(order));
+    const foodItems = parseOrderFoodItems(order);
+    if (foodItems.length) {
+      foodItems.forEach(item => {
+        const itemUsesAddon = String(item.key || '').includes('||');
+        const details = [
+          item.label || item.key || '',
+          addon && !itemUsesAddon ? `${t('addon')}: ${addon}` : ''
+        ].filter(Boolean).join(' / ');
+        byDept[dept].push({ number: index + 1, details, qty: Number(item.qty || 1) });
+      });
+      return;
+    }
     const details = [
-      food,
+      displayFood(order.food || ''),
       addon ? `${t('addon')}: ${addon}` : ''
     ].filter(Boolean).join(' / ');
-    byDept[dept].push({ number: index + 1, details });
+    byDept[dept].push({ number: index + 1, details, qty: 1 });
   });
   return Object.entries(byDept).map(([dept, rows]) => {
-    const lines = rows.map(row => `- (${row.number}) ${escapeHtml(row.details)}`).join('<br>');
-    return `<div><strong>${escapeHtml(dept)}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${rows.length}</span></span><br>${lines}</div>`;
+    const count = rows.reduce((sum, row) => sum + Number(row.qty || 1), 0);
+    const lines = rows.map(row => {
+      const qty = Number(row.qty || 1);
+      const suffix = qty > 1 ? ` ${t('xLabel')} ${qty}` : '';
+      return `- (${row.number}) ${escapeHtml(row.details)}${suffix}`;
+    }).join('<br>');
+    return `<div><strong>${escapeHtml(dept)}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${count}</span></span><br>${lines}</div>`;
   }).join('<br>');
 }
 

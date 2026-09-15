@@ -1784,17 +1784,33 @@ function renderStaffFoodSummary(orders) {
   orders.forEach((order, index) => {
     const dept = orderDeliveryDept(order) || '-';
     if (!byDept[dept]) byDept[dept] = [];
-    const food = displayOrderFood(order.food || '');
     const addon = displayOrderAddon(order);
+    const foodItems = parseOrderFoodItems(order);
+    if (foodItems.length) {
+      foodItems.forEach(item => {
+        const itemUsesAddon = String(item.key || '').includes('||');
+        const details = [
+          item.label || item.key || '',
+          addon && !itemUsesAddon ? `${t('addon')}: ${addon}` : ''
+        ].filter(Boolean).join(' / ');
+        byDept[dept].push({ number: index + 1, details, qty: Number(item.qty || 1) });
+      });
+      return;
+    }
     const details = [
-      food,
+      displayOrderFood(order.food || ''),
       addon ? `${t('addon')}: ${addon}` : ''
     ].filter(Boolean).join(' / ');
-    byDept[dept].push({ number: index + 1, details });
+    byDept[dept].push({ number: index + 1, details, qty: 1 });
   });
   return Object.entries(byDept).map(([dept, rows]) => {
-    const lines = rows.map(row => `- (${row.number}) ${escapeHtml(row.details)}`).join('<br>');
-    return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${rows.length}</span></strong><br>${lines}`;
+    const count = rows.reduce((sum, row) => sum + Number(row.qty || 1), 0);
+    const lines = rows.map(row => {
+      const qty = Number(row.qty || 1);
+      const suffix = qty > 1 ? ` x ${qty}` : '';
+      return `- (${row.number}) ${escapeHtml(row.details)}${suffix}`;
+    }).join('<br>');
+    return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${count}</span></strong><br>${lines}`;
   }).join('<br><br>');
 }
 
