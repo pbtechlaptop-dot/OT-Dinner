@@ -2458,10 +2458,16 @@ function renderStaffFoodSummary(orders) {
   });
   return Object.entries(byDept).map(([dept, rows]) => {
     const count = rows.reduce((sum, row) => sum + Number(row.qty || 1), 0);
-    const lines = rows.map(row => {
-      const qty = Number(row.qty || 1);
-      const suffix = qty > 1 ? ` ${t('xLabel')} ${qty}` : '';
-      return `- (${row.number}) ${escapeHtml(row.details)}${suffix}`;
+    const groupedRows = {};
+    rows.forEach(row => {
+      const key = row.details || '';
+      if (!groupedRows[key]) groupedRows[key] = { details: key, numbers: [], count: 0 };
+      if (!groupedRows[key].numbers.includes(row.number)) groupedRows[key].numbers.push(row.number);
+      groupedRows[key].count += Number(row.qty || 1);
+    });
+    const lines = Object.values(groupedRows).map(row => {
+      const suffix = row.count > 1 ? ` ${t('xLabel')} ${row.count}` : '';
+      return `- (${row.numbers.join(',')}) ${escapeHtml(row.details)}${suffix}`;
     }).join('<br>');
     return `<div><strong>${escapeHtml(dept)}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${count}</span></span><br>${lines}</div>`;
   }).join('<br>');

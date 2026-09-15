@@ -1805,10 +1805,16 @@ function renderStaffFoodSummary(orders) {
   });
   return Object.entries(byDept).map(([dept, rows]) => {
     const count = rows.reduce((sum, row) => sum + Number(row.qty || 1), 0);
-    const lines = rows.map(row => {
-      const qty = Number(row.qty || 1);
-      const suffix = qty > 1 ? ` x ${qty}` : '';
-      return `- (${row.number}) ${escapeHtml(row.details)}${suffix}`;
+    const groupedRows = {};
+    rows.forEach(row => {
+      const key = row.details || '';
+      if (!groupedRows[key]) groupedRows[key] = { details: key, numbers: [], count: 0 };
+      if (!groupedRows[key].numbers.includes(row.number)) groupedRows[key].numbers.push(row.number);
+      groupedRows[key].count += Number(row.qty || 1);
+    });
+    const lines = Object.values(groupedRows).map(row => {
+      const suffix = row.count > 1 ? ` x ${row.count}` : '';
+      return `- (${row.numbers.join(',')}) ${escapeHtml(row.details)}${suffix}`;
     }).join('<br>');
     return `<strong>${escapeHtml(dept)}:</strong> <strong>Total: <span class="changed">${count}</span></strong><br>${lines}`;
   }).join('<br><br>');
