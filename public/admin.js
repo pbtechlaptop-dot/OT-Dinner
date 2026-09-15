@@ -55,6 +55,7 @@ const el = {
   importFile: document.getElementById('importFile'),
   importBtn: document.getElementById('importBtn'),
   newPriceLimit: document.getElementById('newPriceLimit'),
+  groupOrderEnabled: document.getElementById('groupOrderEnabled'),
   announcementEnabled: document.getElementById('announcementEnabled'),
   announcementMessageTc: document.getElementById('announcementMessageTc'),
   announcementMessageSc: document.getElementById('announcementMessageSc'),
@@ -150,6 +151,10 @@ function ensureNewSettingsSection() {
       </label>
       <p id="newSettingsHint" class="self-end text-sm text-slate-500">登入後會載入目前設定。</p>
     </div>
+    <label class="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-pbnavy">
+      <input id="groupOrderEnabled" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
+      開啟多人組合下單
+    </label>
     <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
       <label class="mb-2 flex items-center gap-2 text-sm font-semibold text-pbnavy">
         <input id="announcementEnabled" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
@@ -170,6 +175,7 @@ function ensureNewSettingsSection() {
   }
   el.sectionNewSettings = section;
   el.newPriceLimit = document.getElementById('newPriceLimit');
+  el.groupOrderEnabled = document.getElementById('groupOrderEnabled');
   el.announcementEnabled = document.getElementById('announcementEnabled');
   el.announcementMessageTc = document.getElementById('announcementMessageTc');
   el.announcementMessageSc = document.getElementById('announcementMessageSc');
@@ -534,6 +540,7 @@ async function fetchSeedByCredentials(username, password) {
 async function loadNewSettings() {
   const settings = await api('/api/new-settings');
   if (el.newPriceLimit) el.newPriceLimit.value = Number(settings.priceLimit || 22).toFixed(2);
+  if (el.groupOrderEnabled) el.groupOrderEnabled.checked = settings.groupOrderEnabled !== false;
   const announcement = settings.announcement || {};
   if (el.announcementEnabled) el.announcementEnabled.checked = Boolean(announcement.enabled);
   if (el.announcementMessageTc) el.announcementMessageTc.value = String(announcement.messageTc || announcement.message || '');
@@ -553,6 +560,7 @@ async function saveNewSettings() {
       method: 'POST',
       body: JSON.stringify(adminAuthBody({
         priceLimit,
+        groupOrderEnabled: Boolean(!el.groupOrderEnabled || el.groupOrderEnabled.checked),
         announcementEnabled: Boolean(el.announcementEnabled && el.announcementEnabled.checked),
         announcementMessageTc: String(el.announcementMessageTc && el.announcementMessageTc.value || '').trim(),
         announcementMessageSc: String(el.announcementMessageSc && el.announcementMessageSc.value || '').trim(),
@@ -562,13 +570,14 @@ async function saveNewSettings() {
     const settings = payload.settings || { priceLimit };
     const announcement = settings.announcement || {};
     if (el.newPriceLimit) el.newPriceLimit.value = Number(settings.priceLimit || 22).toFixed(2);
+    if (el.groupOrderEnabled) el.groupOrderEnabled.checked = settings.groupOrderEnabled !== false;
     if (el.newSettingsHint) el.newSettingsHint.textContent = `目前上限：$${Number(settings.priceLimit || 22).toFixed(2)}`;
     if (el.announcementEnabled) el.announcementEnabled.checked = Boolean(announcement.enabled);
     if (el.announcementMessageTc) el.announcementMessageTc.value = String(announcement.messageTc || announcement.message || '');
     if (el.announcementMessageSc) el.announcementMessageSc.value = String(announcement.messageSc || '');
     if (el.announcementMessageEn) el.announcementMessageEn.value = String(announcement.messageEn || '');
     if (el.announcementHint) el.announcementHint.textContent = announcement.version ? `目前通告版本：${announcement.version}` : '未有通告版本。';
-    setStatus(`已儲存新版價錢上限：$${Number(settings.priceLimit || 22).toFixed(2)}`);
+    setStatus(`已儲存新版設定：上限 $${Number(settings.priceLimit || 22).toFixed(2)}，多人組合${settings.groupOrderEnabled !== false ? '開啟' : '關閉'}。`);
     showToast('已儲存新版設定');
   } catch (err) {
     setStatus(err.message, true);

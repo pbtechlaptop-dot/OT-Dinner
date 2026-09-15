@@ -2,6 +2,7 @@ const state = {
   appId: document.body && document.body.dataset && document.body.dataset.appId ? document.body.dataset.appId : 'main',
   lang: 'tc',
   priceLimit: 22,
+  groupOrderEnabled: true,
   staff: {},
   drinks: [],
   menu: {},
@@ -1417,6 +1418,26 @@ function memberHasDifferentOrder(dept, member, selectedMembers) {
 }
 
 function renderGroupMembers() {
+  if (!state.groupOrderEnabled) {
+    if (el.groupOrderToggle) {
+      el.groupOrderToggle.checked = false;
+      const toggleWrap = el.groupOrderToggle.closest('label');
+      if (toggleWrap) toggleWrap.classList.add('hidden');
+    }
+    state.groupOrder.active = false;
+    state.groupOrder.members = new Set();
+    state.groupOrder.drinks = [];
+    if (el.nameSelect) el.nameSelect.disabled = false;
+    if (el.groupMembersWrap) el.groupMembersWrap.classList.add('hidden');
+    if (el.groupDrinksWrap) el.groupDrinksWrap.classList.add('hidden');
+    if (el.groupMembersList) el.groupMembersList.innerHTML = '';
+    if (el.groupDrinksList) el.groupDrinksList.innerHTML = '';
+    return;
+  }
+  if (el.groupOrderToggle) {
+    const toggleWrap = el.groupOrderToggle.closest('label');
+    if (toggleWrap) toggleWrap.classList.remove('hidden');
+  }
   const active = Boolean(el.groupOrderToggle && el.groupOrderToggle.checked);
   state.groupOrder.active = active;
   if (el.nameSelect) el.nameSelect.disabled = active;
@@ -2267,6 +2288,7 @@ async function load() {
       api('/api/bootstrap')
     ]);
     state.priceLimit = Number(settings.priceLimit) || 22;
+    state.groupOrderEnabled = settings.groupOrderEnabled !== false;
     state.restaurants = bootstrap.restaurants || [];
     state.restaurantContacts = bootstrap.restaurantContacts || {};
     state.staff = bootstrap.staff || {};
@@ -2313,6 +2335,11 @@ async function loadMenu(restaurant, initialMenu) {
 }
 
 async function submitOrder() {
+  if (!state.groupOrderEnabled && state.groupOrder.active) {
+    state.groupOrder.active = false;
+    state.groupOrder.members = new Set();
+    state.groupOrder.drinks = [];
+  }
   const dept = el.deptSelect.value;
   const members = selectedOrderMembers();
   const name = members.join(' + ');
@@ -2952,6 +2979,12 @@ el.deptSelect.addEventListener('change', () => {
 });
 el.nameSelect.addEventListener('change', renderSelection);
 el.groupOrderToggle.addEventListener('change', () => {
+  if (!state.groupOrderEnabled) {
+    el.groupOrderToggle.checked = false;
+    renderGroupMembers();
+    renderSelection();
+    return;
+  }
   state.groupOrder.active = el.groupOrderToggle.checked;
   state.groupOrder.members = new Set();
   if (state.groupOrder.active && el.nameSelect.value && !memberHasDifferentOrder(el.deptSelect.value, el.nameSelect.value, [])) {

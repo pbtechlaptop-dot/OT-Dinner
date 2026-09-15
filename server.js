@@ -1169,6 +1169,7 @@ function normalizeState(input) {
 function normalizeNewSettings(input) {
   const raw = input && typeof input === 'object' ? input : {};
   const priceLimit = Number(raw.priceLimit);
+  const groupOrderEnabled = raw.groupOrderEnabled === undefined ? true : Boolean(raw.groupOrderEnabled);
   const announcementRaw = raw.announcement && typeof raw.announcement === 'object' ? raw.announcement : {};
   const legacyMessage = normText(announcementRaw.message);
   const messageTc = normText(announcementRaw.messageTc || announcementRaw.tc || legacyMessage);
@@ -1177,6 +1178,7 @@ function normalizeNewSettings(input) {
   const version = normText(announcementRaw.version) || (messageTc || messageSc || messageEn ? '1' : '');
   return {
     priceLimit: Number.isFinite(priceLimit) && priceLimit >= 0 ? priceLimit : 22,
+    groupOrderEnabled,
     announcement: {
       enabled: Boolean(announcementRaw.enabled),
       message: messageTc,
@@ -2823,6 +2825,7 @@ async function handleApi(req, res, urlObj) {
     }
     const currentSettings = await storage.getNewSettings();
     const currentAnnouncement = currentSettings.announcement || {};
+    const groupOrderEnabled = body.groupOrderEnabled === undefined ? true : Boolean(body.groupOrderEnabled);
     const announcementMessageTc = normText(body.announcementMessageTc || body.announcementMessage);
     const announcementMessageSc = normText(body.announcementMessageSc);
     const announcementMessageEn = normText(body.announcementMessageEn);
@@ -2833,6 +2836,7 @@ async function handleApi(req, res, urlObj) {
       || announcementEnabled !== Boolean(currentAnnouncement.enabled);
     const settings = await storage.saveNewSettings({
       priceLimit,
+      groupOrderEnabled,
       announcement: {
         enabled: announcementEnabled,
         messageTc: announcementMessageTc,
@@ -2845,7 +2849,7 @@ async function handleApi(req, res, urlObj) {
       username: admin.username,
       action: 'update',
       section: 'new_settings',
-      summary: `更新新版設定：上限 $${settings.priceLimit}${announcementChanged ? '，通告已更新' : ''}`,
+      summary: `更新新版設定：上限 $${settings.priceLimit}，多人組合${settings.groupOrderEnabled ? '開啟' : '關閉'}${announcementChanged ? '，通告已更新' : ''}`,
       details: settings
     });
     return json(res, 200, { ok: true, settings });
