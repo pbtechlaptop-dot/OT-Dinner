@@ -23,6 +23,7 @@ const state = {
   menuEdit: null,
   adminUsers: [],
   logs: [],
+  todayOrders: { main: [], 'lady-ruby': [] },
   restaurantContacts: [],
   seed: { restaurants: [], staff: {}, drinks: [], menus: {} }
 };
@@ -48,6 +49,7 @@ const el = {
   sectionStaff: document.getElementById('sectionStaff'),
   sectionMenus: document.getElementById('sectionMenus'),
   sectionUsers: document.getElementById('sectionUsers'),
+  sectionTodayOrders: document.getElementById('sectionTodayOrders'),
   sectionLogs: document.getElementById('sectionLogs'),
 
   importFile: document.getElementById('importFile'),
@@ -118,6 +120,9 @@ const el = {
   deleteSelectedLogsBtn: document.getElementById('deleteSelectedLogsBtn'),
   logsHint: document.getElementById('logsHint'),
   adminLogsList: document.getElementById('adminLogsList'),
+  refreshTodayOrdersBtn: document.getElementById('refreshTodayOrdersBtn'),
+  todayOrdersHint: document.getElementById('todayOrdersHint'),
+  todayOrdersList: document.getElementById('todayOrdersList'),
   toast: document.getElementById('toast'),
   busyOverlay: document.getElementById('busyOverlay'),
   busyText: document.getElementById('busyText')
@@ -198,6 +203,56 @@ function setBusy(isBusy, text = '系統處理中，請稍候...') {
   el.busyOverlay.classList.toggle('flex', isBusy);
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function setupCollapsibleSections() {
+  [
+    'sectionImport',
+    'sectionNewSettings',
+    'sectionRestaurants',
+    'sectionDrinks',
+    'sectionStaff',
+    'sectionMenus',
+    'sectionUsers',
+    'sectionTodayOrders',
+    'sectionLogs'
+  ].forEach(id => {
+    const section = document.getElementById(id);
+    if (!section || section.dataset.collapsibleReady === '1') return;
+    const header = section.firstElementChild;
+    if (!header) return;
+    const body = document.createElement('div');
+    body.dataset.collapseBody = '1';
+    while (header.nextSibling) body.appendChild(header.nextSibling);
+    section.appendChild(body);
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ml-auto rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50';
+    button.dataset.collapseToggle = id;
+
+    const setCollapsed = collapsed => {
+      body.classList.toggle('hidden', collapsed);
+      button.textContent = collapsed ? '展開' : '縮小';
+      button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      window.localStorage.setItem(`otDinnerAdminCollapsed:${id}`, collapsed ? '1' : '0');
+    };
+
+    header.classList.add('flex', 'items-center', 'gap-2');
+    button.onclick = () => setCollapsed(!body.classList.contains('hidden'));
+    header.appendChild(button);
+    section.dataset.collapsibleReady = '1';
+    setCollapsed(window.localStorage.getItem(`otDinnerAdminCollapsed:${id}`) === '1');
+  });
+}
+
 function formatImportAdded(added) {
   if (!added || typeof added !== 'object') return '';
   const parts = [];
@@ -259,6 +314,7 @@ function setSectionVisibility() {
   setVisible(el.sectionStaff, hasPermission('staff'));
   setVisible(el.sectionMenus, hasPermission('menus'));
   setVisible(el.sectionUsers, hasPermission('users'));
+  setVisible(el.sectionTodayOrders, hasPermission('reset_main') || hasPermission('reset_lady_ruby'));
   setVisible(el.sectionLogs, state.authenticated);
   setVisible(el.saveBtn, state.isRoot);
   setVisible(el.resetDayBtn, hasPermission('reset_main'));
@@ -731,6 +787,23 @@ async function fetchAdminUsers() {
 async function fetchAdminLogs(limit = 100) {
   const payload = await api(`/api/admin/logs?username=${encodeURIComponent(state.username)}&password=${encodeURIComponent(state.password)}&limit=${encodeURIComponent(limit)}`);
   return Array.isArray(payload.logs) ? payload.logs : [];
+}
+
+async function fetchTodayOrders(app) {
+  const payload = await api(`/api/admin/orders?username=${encodeURIComponent(state.username)}&password=${encodeURIComponent(state.password)}&app=${encodeURIComponent(app)}`);
+  return Array.isArray(payload.orders) ? payload.orders : [];
+}
+
+async function deleteTodayOrder(app, order) {
+  const payload = await api('/api/admin/orders/delete', {
+    method: 'POST',
+    body: JSON.stringify(adminAuthBody({
+      app,
+      dept: order && order.dept,
+      name: order && order.name
+    }))
+  });
+  return Array.isArray(payload.orders) ? payload.orders : [];
 }
 
 async function deleteAdminLog(id) {
@@ -1228,6 +1301,7 @@ function renderAll() {
   renderMenuCategories();
   renderMenuItems();
   renderAdminUsers();
+  renderTodayOrders();
   renderLogs();
   updateCurrentUserText();
   setSectionVisibility();
@@ -1273,6 +1347,91 @@ function updateDeleteSelectedLogsButton() {
     return;
   }
   el.deleteSelectedLogsBtn.disabled = getSelectedAdminLogIds().length === 0;
+}
+
+function orderDeliveryDept(order) {
+  return String((order && (order.pickupDept || order.pickup_dept)) || (order && order.dept) || '').trim();
+}
+
+function renderTodayOrders() {
+  if (!el.todayOrdersList || !el.todayOrdersHint) return;
+  const apps = [
+    { id: 'main', label: '主站', permission: 'reset_main' },
+    { id: 'lady-ruby', label: 'Lady Ruby', permission: 'reset_lady_ruby' }
+  ].filter(app => hasPermission(app.permission));
+
+  if (!apps.length) {
+    el.todayOrdersHint.textContent = '此帳號沒有今日訂單管理權限。';
+    el.todayOrdersList.innerHTML = '';
+    return;
+  }
+
+  const total = apps.reduce((sum, app) => sum + ((state.todayOrders[app.id] || []).length), 0);
+  el.todayOrdersHint.textContent = total ? `今日共有 ${total} 張訂單。` : '今日暫時未有訂單。';
+  el.todayOrdersList.innerHTML = apps.map(app => {
+    const orders = state.todayOrders[app.id] || [];
+    const body = orders.length ? orders.map((order, index) => {
+      const dept = orderDeliveryDept(order) || '-';
+      const name = String(order && order.name || '').trim() || '-';
+      return `<div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+        <div class="min-w-0">
+          <p class="truncate text-sm font-semibold text-pbnavy">${escapeHtml(name)}</p>
+          <p class="text-xs text-slate-500">${escapeHtml(dept)}</p>
+        </div>
+        <button type="button" class="delete-today-order rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700" data-app="${escapeHtml(app.id)}" data-index="${index}">刪除</button>
+      </div>`;
+    }).join('') : '<p class="rounded-md border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500">未有訂單。</p>';
+    return `<section class="rounded-lg border border-slate-200 p-3">
+      <div class="mb-2 flex items-center justify-between gap-2">
+        <h3 class="text-sm font-bold text-pbnavy">${escapeHtml(app.label)}</h3>
+        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">${orders.length} 張</span>
+      </div>
+      <div class="grid gap-2">${body}</div>
+    </section>`;
+  }).join('');
+
+  el.todayOrdersList.querySelectorAll('.delete-today-order').forEach(button => {
+    button.onclick = async () => {
+      const app = String(button.dataset.app || '').trim();
+      const index = Number(button.dataset.index);
+      const order = state.todayOrders[app] && state.todayOrders[app][index];
+      if (!order) return;
+      const name = String(order.name || '').trim();
+      if (!window.confirm(`確定刪除 ${name} 的今日訂單？刪除後請同事重新下單。`)) return;
+      try {
+        button.disabled = true;
+        setBusy(true, '正在刪除今日訂單...');
+        state.todayOrders[app] = await deleteTodayOrder(app, order);
+        await loadAdminLogs({ silent: true });
+        renderTodayOrders();
+        setStatus(`已刪除 ${name} 的今日訂單。`);
+        showToast('已刪除今日訂單');
+      } catch (err) {
+        setStatus(`刪除今日訂單失敗: ${err.message}`, true);
+        showToast('刪除今日訂單失敗', true);
+        handleAdminPasswordError(err);
+      } finally {
+        setBusy(false);
+      }
+    };
+  });
+}
+
+async function loadTodayOrders(options = {}) {
+  const { silent = false } = options;
+  if (!requireAuth()) return;
+  try {
+    const next = { main: [], 'lady-ruby': [] };
+    if (hasPermission('reset_main')) next.main = await fetchTodayOrders('main');
+    if (hasPermission('reset_lady_ruby')) next['lady-ruby'] = await fetchTodayOrders('lady-ruby');
+    state.todayOrders = next;
+    renderTodayOrders();
+  } catch (err) {
+    state.todayOrders = { main: [], 'lady-ruby': [] };
+    renderTodayOrders();
+    if (!silent) setStatus(`載入今日訂單失敗: ${err.message}`, true);
+    handleAdminPasswordError(err);
+  }
 }
 
 function renderLogs() {
@@ -1495,6 +1654,7 @@ async function loadSeed() {
     state.allowedStaffDepartments = Array.isArray(payload.user.staffDepartments) ? payload.user.staffDepartments : [];
     state.isRoot = Boolean(payload.user.isRoot);
     state.adminUsers = hasPermission('users') ? await fetchAdminUsers() : [];
+    await loadTodayOrders({ silent: true });
     state.dirty = false;
     renderAll();
     setStatus('已載入資料。');
@@ -1573,6 +1733,7 @@ async function resetDay(app = 'main') {
       method: 'POST',
       body: JSON.stringify(adminAuthBody({ app }))
     });
+    await loadTodayOrders({ silent: true });
     await loadAdminLogs({ silent: true });
     setStatus(app === 'lady-ruby' ? '已重置 Lady Ruby 今日訂單與餐廳。' : '已重置主站今日訂單與餐廳。');
   } catch (err) {
@@ -1926,6 +2087,7 @@ async function login() {
     } catch {
       state.logs = [];
     }
+    await loadTodayOrders({ silent: true });
     renderAll();
     const tableMissingNote = hasPermission('users') && !state.adminUsers.length
       ? '已登入。若要新增限權用戶，請先在 Supabase 建立 admin_users table。'
@@ -1961,6 +2123,7 @@ function logout() {
   state.menuEdit = null;
   state.adminUsers = [];
   state.logs = [];
+  state.todayOrders = { main: [], 'lady-ruby': [] };
   setAuthUi(false);
   setStatus('登入後可操作。');
   setLoginHint('已登出。');
@@ -1992,6 +2155,7 @@ el.saveStaffBtn.onclick = () => saveSection('staff');
 el.saveMenuBtn.onclick = () => saveSection('menus');
 if (el.saveUsersBtn) el.saveUsersBtn.onclick = saveAdminUsers;
 if (el.refreshLogsBtn) el.refreshLogsBtn.onclick = () => loadAdminLogs();
+if (el.refreshTodayOrdersBtn) el.refreshTodayOrdersBtn.onclick = () => loadTodayOrders();
 if (el.deleteSelectedLogsBtn) {
   el.deleteSelectedLogsBtn.onclick = async () => {
     const ids = getSelectedAdminLogIds();
@@ -2300,5 +2464,6 @@ el.addMenuBtn.onclick = () => {
 
 attachAutoConvert();
 renderNewUserPermissions();
+setupCollapsibleSections();
 loadLoginUsernames();
 setAuthUi(false);

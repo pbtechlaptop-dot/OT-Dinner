@@ -426,6 +426,34 @@ function buildResetLogEntry(admin, appId) {
   });
 }
 
+function buildDeleteOrderLogEntry(admin, appId, order) {
+  const app = normalizeAppId(appId);
+  const target = app === APP_LADY_RUBY ? 'Lady Ruby' : '主站';
+  const dept = orderDeliveryDept(order) || normText(order && order.dept) || '-';
+  const name = normText(order && order.name) || '-';
+  return normalizeAdminLogEntry({
+    username: admin && admin.username,
+    action: 'delete_order',
+    section: 'orders',
+    summary: `刪除${target}今日訂單：${name}`,
+    details: {
+      app,
+      order: {
+        dept: normText(order && order.dept),
+        pickupDept: orderDeliveryDept(order),
+        name,
+        food: normText(order && order.food),
+        addon: normText(order && order.addon),
+        drink: normText(order && order.drink),
+        price: Number(order && order.price || 0)
+      },
+      changes: [
+        { label: '刪除訂單', items: [`${target} / ${dept} / ${name}`] }
+      ]
+    }
+  });
+}
+
 function buildLoginLogEntry(admin) {
   return normalizeAdminLogEntry({
     username: admin && admin.username,
@@ -1983,6 +2011,17 @@ async function saveStateLocal(appId = APP_MAIN, state) {
   writeJson(stateFileForApp(appId), normalizeState(state));
 }
 
+async function deleteOrderLocal(appId = APP_MAIN, order) {
+  const state = await getStateLocal(appId);
+  const before = Array.isArray(state.orders) ? state.orders.length : 0;
+  state.orders = (Array.isArray(state.orders) ? state.orders : []).filter(item => {
+    return !(normText(item.dept) === normText(order && order.dept) && normText(item.name) === normText(order && order.name));
+  });
+  const deleted = state.orders.length !== before;
+  if (deleted) await saveStateLocal(appId, state);
+  return deleted;
+}
+
 async function resetDayLocal(appId = APP_MAIN) {
   writeJson(stateFileForApp(appId), defaultState());
 }
@@ -2084,6 +2123,22 @@ const storage = {
     const normalizedAppId = normalizeAppId(appId);
     if (USE_SUPABASE) return saveStateSupabase(normalizedAppId, state);
     return saveStateLocal(normalizedAppId, state);
+  },
+  async deleteOrder(appId = APP_MAIN, order) {
+    const normalizedAppId = normalizeAppId(appId);
+    const state = await this.getState(normalizedAppId);
+    const existing = (state.orders || []).find(item => {
+      return normText(item.dept) === normText(order && order.dept) && normText(item.name) === normText(order && order.name);
+    });
+    if (!existing) return { deleted: false, order: null, state };
+    if (USE_SUPABASE) {
+      await deleteOrderSupabase(normalizedAppId, state.date, existing);
+      const nextState = await this.getState(normalizedAppId);
+      return { deleted: true, order: existing, state: nextState };
+    }
+    const deleted = await deleteOrderLocal(normalizedAppId, existing);
+    const nextState = await this.getState(normalizedAppId);
+    return { deleted, order: existing, state: nextState };
   },
   resetDay(appId = APP_MAIN) {
     const normalizedAppId = normalizeAppId(appId);
@@ -2958,6 +3013,60 @@ async function handleApi(req, res, urlObj) {
     await storage.resetDay(appId);
     await appendAdminLogSafe(buildResetLogEntry(admin, appId));
     return json(res, 200, { ok: true });
+  }
+
+  if (req.method === 'GET' && pathname === '/api/admin/orders') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const admin = await authenticateAdmin({
+      username: urlObj.searchParams.get('username'),
+      password: urlObj.searchParams.get('password')
+    });
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    const appId = getAppIdFromRequest(urlObj);
+    const neededPermission = appId === APP_LADY_RUBY ? 'reset_lady_ruby' : 'reset_main';
+    if (!requireAdminPermission(admin, neededPermission)) {
+      return json(res, 403, { error: 'You do not have permission to manage orders on this page.' });
+    }
+    const state = await storage.getState(appId);
+    return json(res, 200, {
+      date: state.date,
+      app: normalizeAppId(appId),
+      restaurant: state.restaurant || '',
+      orders: state.orders || []
+    });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/admin/orders/delete') {
+    if (isAuthRateLimited(req, 'admin')) {
+      return json(res, 429, { error: 'Too many failed password attempts. Please try again later.' });
+    }
+    const body = await parseBody(req);
+    const admin = await authenticateAdmin(body);
+    if (!admin) {
+      recordAuthFailure(req, 'admin');
+      return json(res, 403, { error: 'Invalid admin username or password' });
+    }
+    clearAuthFailures(req, 'admin');
+    const appId = getAppIdFromRequest(urlObj, body);
+    const neededPermission = appId === APP_LADY_RUBY ? 'reset_lady_ruby' : 'reset_main';
+    if (!requireAdminPermission(admin, neededPermission)) {
+      return json(res, 403, { error: 'You do not have permission to manage orders on this page.' });
+    }
+    const order = {
+      dept: normText(body && body.dept),
+      name: normText(body && body.name)
+    };
+    if (!order.dept || !order.name) return json(res, 400, { error: 'dept and name are required' });
+    const result = await storage.deleteOrder(appId, order);
+    if (!result.deleted) return json(res, 404, { error: 'Order not found' });
+    await appendAdminLogSafe(buildDeleteOrderLogEntry(admin, appId, result.order));
+    return json(res, 200, { ok: true, orders: (result.state && result.state.orders) || [] });
   }
 
   if (req.method === 'GET' && pathname === '/api/admin/logs') {
