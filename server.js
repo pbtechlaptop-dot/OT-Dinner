@@ -1770,6 +1770,7 @@ async function insertOrdersSupabase(date, appId, orders) {
 }
 
 async function upsertOrderSupabase(appId, date, order) {
+  const orderedAt = normalizeOrderTimestamp(order && order.orderedAt) || nowIso();
   const row = {
     app_id: appId,
     date,
@@ -1781,7 +1782,7 @@ async function upsertOrderSupabase(appId, date, order) {
     addon: normText(order.addon),
     drink: normText(order.drink),
     price: Number(order.price),
-    ordered_at: nowIso()
+    ordered_at: orderedAt
   };
   let result = await supabase.from(TABLES.orders).upsert(row, { onConflict: 'date,app_id,dept,name' });
   if (result.error && isMissingSupabaseColumn(result.error, 'ordered_at')) {
