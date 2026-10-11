@@ -2954,6 +2954,14 @@ async function handleApi(req, res, urlObj) {
     if (!(seed.restaurants || []).includes(contact.restaurant)) {
       return json(res, 400, { error: 'Unknown restaurant' });
     }
+    const existingContacts = await storage.getRestaurantContacts();
+    const existingContact = normalizeRestaurantContact(
+      existingContacts.find(item => item.restaurant === contact.restaurant)
+        || { restaurant: contact.restaurant }
+    );
+    if (JSON.stringify(existingContact) === JSON.stringify(contact)) {
+      return json(res, 200, { ok: true, restaurantContacts: existingContacts });
+    }
     const restaurantContacts = await storage.saveRestaurantContact(contact);
     await appendAdminLogSafe({
       username: admin.username,
