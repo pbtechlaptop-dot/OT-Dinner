@@ -2216,12 +2216,24 @@ function clearAuthFailures(req, scope) {
 
 function parseBody(req) {
   return new Promise((resolve, reject) => {
-    let raw = '';
+    const chunks = [];
+    let totalBytes = 0;
+    let tooLarge = false;
     req.on('data', chunk => {
-      raw += chunk;
-      if (raw.length > JSON_BODY_MAX_BYTES) reject(new Error('Payload too large'));
+      if (tooLarge) return;
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalBytes += buffer.length;
+      if (totalBytes > JSON_BODY_MAX_BYTES) {
+        tooLarge = true;
+        chunks.length = 0;
+        return reject(new Error('Payload too large'));
+      }
+      chunks.push(buffer);
     });
     req.on('end', () => {
+      if (tooLarge) return;
+      // Decode only after joining chunks so split UTF-8 characters stay intact.
+      const raw = Buffer.concat(chunks).toString('utf8');
       if (!raw) return resolve({});
       try {
         resolve(JSON.parse(raw));
