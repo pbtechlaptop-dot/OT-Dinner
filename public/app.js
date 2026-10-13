@@ -2332,6 +2332,20 @@ function formatFoodSummaryLine(food, entry) {
   return `- ${numberPrefix}${escapeHtml(food)} ${t('xLabel')} ${count}`;
 }
 
+function displayOrderTableFood(order) {
+  const rawParts = splitOrderFoodParts(String(order.food || ''));
+  const displayParts = splitOrderFoodParts(displayOrderFood(order.food || ''));
+  const segments = parseAddonSummarySegments(String(order.addon || ''));
+  return displayParts.map((part, index) => {
+    const parsed = parseFoodSummaryPart(part, rawParts[index] || part);
+    if (!isRiceFoodName(parsed.food) && !isRiceFoodName(parsed.raw)) return part;
+    const sizes = matchingAddonSegmentsForFood(segments, parsed.food, parsed.raw, 0)
+      .filter(segment => segmentBelongsToFoodChoice(segment, parsed.food, parsed.raw));
+    if (!sizes.length) return part;
+    return sizes.map(segment => `${parsed.food}（${segment.addon}）${segment.qty > 1 ? ` x ${segment.qty}` : ''}`).join(' + ');
+  }).join(' + ');
+}
+
 function summaryOrderExtraNote(note, foodItems) {
   const selectedOptions = new Set();
   // Options represented by any dish belong to that dish, not the whole order.
@@ -2417,14 +2431,14 @@ function renderOrders() {
   el.ordersBody.innerHTML = orders.map((o, i) => {
     const p = Number(o.price || 0);
     total += p;
-    const addon = stripAddonPriceText(displayOrderAddon(o));
+    const addon = summaryOrderExtraNote(stripAddonPriceText(displayOrderAddon(o)), parseOrderFoodItems(o));
     const deliveryDept = orderDeliveryDept(o);
     const changed = orderHasCustomDelivery(o);
     const deptClass = changed ? ' class="bg-amber-50 font-semibold text-amber-800"' : '';
     const deptTitle = changed ? ` title="${escapeHtml(`${t('dept')}：${o.dept || ''}`)}"` : '';
     const nameClass = orderIsFromOldPage(o) ? ' class="font-semibold text-stone-500"' : '';
     const nameTitle = orderIsFromOldPage(o) ? ' title="舊版下單"' : '';
-    return `<tr><td>${i + 1}</td><td${deptClass}${deptTitle}>${escapeHtml(deliveryDept)}</td><td${nameClass}${nameTitle}>${escapeHtml(o.name)}</td><td>${displayFood(o.food)}</td><td>${escapeHtml(addon)}</td><td>${displayDrinkHtml(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
+    return `<tr><td>${i + 1}</td><td${deptClass}${deptTitle}>${escapeHtml(deliveryDept)}</td><td${nameClass}${nameTitle}>${escapeHtml(o.name)}</td><td>${escapeHtml(displayOrderTableFood(o))}</td><td>${escapeHtml(addon)}</td><td>${displayDrinkHtml(o.drink)}</td><td>${p.toFixed(2)}</td></tr>`;
   }).join('');
   el.totalPrice.textContent = total.toFixed(2);
 

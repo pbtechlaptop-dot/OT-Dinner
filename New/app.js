@@ -1753,8 +1753,8 @@ function renderOrders() {
         <td>${index + 1}</td>
         <td${deptClass}${deptTitle}>${escapeHtml(deliveryDept)}</td>
         <td${nameClass}${nameTitle}>${escapeHtml(order.name || '')}</td>
-        <td>${escapeHtml(displayOrderFood(order.food || ''))}</td>
-        <td>${escapeHtml(displayOrderAddon(order))}</td>
+        <td>${escapeHtml(displayOrderTableFood(order))}</td>
+        <td>${escapeHtml(summaryOrderExtraNote(displayOrderAddon(order), parseOrderFoodItems(order)))}</td>
         <td>${escapeHtml(displayOrderDrink(order.drink || '') || t('noDrink').replace(/-/g, '').trim())}</td>
         <td>${money(order.price)}</td>
       </tr>
@@ -2087,6 +2087,20 @@ function formatFoodSummaryLine(food, entry) {
   }
   const prefix = numbers ? `(${escapeHtml(numbers)}) - ` : '';
   return `- ${prefix}${escapeHtml(food)} x ${Number(entry.count || 0)}`;
+}
+
+function displayOrderTableFood(order) {
+  const rawParts = splitOrderFoodParts(String(order.food || ''));
+  const displayParts = splitOrderFoodParts(displayOrderFood(order.food || ''));
+  const segments = parseAddonSummarySegments(String(order.addon || ''));
+  return displayParts.map((part, index) => {
+    const parsed = parseFoodSummaryPart(part, rawParts[index] || part);
+    if (!isRiceFoodName(parsed.food) && !isRiceFoodName(parsed.raw)) return part;
+    const sizes = matchingAddonSegmentsForFood(segments, parsed.food, parsed.raw, 0)
+      .filter(segment => segmentBelongsToFoodChoice(segment, parsed.food, parsed.raw));
+    if (!sizes.length) return part;
+    return sizes.map(segment => `${parsed.food}（${segment.addon}）${segment.qty > 1 ? ` x ${segment.qty}` : ''}`).join(' + ');
+  }).join(' + ');
 }
 
 function summaryOrderExtraNote(note, foodItems) {
