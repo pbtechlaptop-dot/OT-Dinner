@@ -1771,8 +1771,9 @@ function renderOrders() {
       if (!drinkByDept[dept]) drinkByDept[dept] = {};
       drinkByDept[dept][drink] = (drinkByDept[dept][drink] || 0) + 1;
     });
-    const orderAddon = displayOrderAddon(order);
-    parseOrderFoodItems(order).forEach(({ key, label, qty }) => {
+    const foodItems = parseOrderFoodItems(order);
+    const orderAddon = summaryOrderExtraNote(displayOrderAddon(order), foodItems);
+    foodItems.forEach(({ key, label, qty }) => {
       if (!label) return;
       const foodKey = key || label;
       if (!foodByDept[dept]) foodByDept[dept] = {};
@@ -1805,8 +1806,8 @@ function renderStaffFoodSummary(orders) {
   orders.forEach((order, index) => {
     const dept = orderDeliveryDept(order) || '-';
     if (!byDept[dept]) byDept[dept] = [];
-    const addon = displayOrderAddon(order);
     const foodItems = parseOrderFoodItems(order);
+    const addon = summaryOrderExtraNote(displayOrderAddon(order), foodItems);
     if (foodItems.length) {
       foodItems.forEach(item => {
         const extraNote = summaryExtraNote(item.label || item.key || '', addon);
@@ -2086,6 +2087,22 @@ function formatFoodSummaryLine(food, entry) {
   }
   const prefix = numbers ? `(${escapeHtml(numbers)}) - ` : '';
   return `- ${prefix}${escapeHtml(food)} x ${Number(entry.count || 0)}`;
+}
+
+function summaryOrderExtraNote(note, foodItems) {
+  const selectedOptions = new Set();
+  // Options represented by any dish belong to that dish, not the whole order.
+  foodItems.forEach(item => {
+    String(item.label || '').replace(/[（(]([^）)]*)[）)]/g, (_, optionsText) => {
+      [optionsText, ...optionsText.split(/[+＋、,，/／;；]+/)]
+        .forEach(value => selectedOptions.add(compactSummaryPrefix(value)));
+      return '';
+    });
+  });
+  return String(note || '').split(/[+＋、,，/／;；]+/)
+    .map(part => part.trim())
+    .filter(part => part && !selectedOptions.has(compactSummaryPrefix(part)))
+    .join('，');
 }
 
 function summaryExtraNote(food, note) {

@@ -2332,6 +2332,22 @@ function formatFoodSummaryLine(food, entry) {
   return `- ${numberPrefix}${escapeHtml(food)} ${t('xLabel')} ${count}`;
 }
 
+function summaryOrderExtraNote(note, foodItems) {
+  const selectedOptions = new Set();
+  // Options represented by any dish belong to that dish, not the whole order.
+  foodItems.forEach(item => {
+    String(item.label || '').replace(/[（(]([^）)]*)[）)]/g, (_, optionsText) => {
+      [optionsText, ...optionsText.split(/[+＋、,，/／;；]+/)]
+        .forEach(value => selectedOptions.add(compactSummaryPrefix(value)));
+      return '';
+    });
+  });
+  return String(note || '').split(/[+＋、,，/／;；]+/)
+    .map(part => part.trim())
+    .filter(part => part && !selectedOptions.has(compactSummaryPrefix(part)))
+    .join('，');
+}
+
 function summaryExtraNote(food, note) {
   const rawNote = String(note || '').trim();
   if (!rawNote) return '';
@@ -2423,8 +2439,9 @@ function renderOrders() {
       byDeptDrink[dept][drinkKey] = (byDeptDrink[dept][drinkKey] || 0) + 1;
     });
 
-    const orderAddon = stripAddonPriceText(displayOrderAddon(o));
-    parseOrderFoodItems(o).forEach(({ key, label, qty }) => {
+    const foodItems = parseOrderFoodItems(o);
+    const orderAddon = summaryOrderExtraNote(stripAddonPriceText(displayOrderAddon(o)), foodItems);
+    foodItems.forEach(({ key, label, qty }) => {
       const foodKey = key || label || buildFoodSummaryLabel(o);
       if (!foodKey) return;
       if (!byDeptFood[dept]) byDeptFood[dept] = {};
@@ -2481,8 +2498,8 @@ function renderStaffFoodSummary(orders) {
   orders.forEach((order, index) => {
     const dept = orderDeliveryDept(order) || '-';
     if (!byDept[dept]) byDept[dept] = [];
-    const addon = stripAddonPriceText(displayOrderAddon(order));
     const foodItems = parseOrderFoodItems(order);
+    const addon = summaryOrderExtraNote(stripAddonPriceText(displayOrderAddon(order)), foodItems);
     if (foodItems.length) {
       foodItems.forEach(item => {
         const extraNote = summaryExtraNote(item.label || item.key || '', addon);
