@@ -2335,15 +2335,30 @@ function formatFoodSummaryLine(food, entry) {
 function displayOrderTableFood(order) {
   const rawParts = splitOrderFoodParts(String(order.food || ''));
   const displayParts = splitOrderFoodParts(displayOrderFood(order.food || ''));
-  const segments = parseAddonSummarySegments(String(order.addon || ''));
+  const segments = parseAddonSummarySegments(String(order.addon || '')).flatMap((segment, sourceIndex) =>
+    splitAddonParts(segment.addon).map(addon => ({ ...segment, addon, rawAddon: addon, sourceIndex }))
+  );
   return displayParts.map((part, index) => {
     const parsed = parseFoodSummaryPart(part, rawParts[index] || part);
-    if (!isRiceFoodName(parsed.food) && !isRiceFoodName(parsed.raw)) return part;
-    const sizes = matchingAddonSegmentsForFood(segments, parsed.food, parsed.raw, 0)
+    const options = matchingAddonSegmentsForFood(segments, parsed.food, parsed.raw, 0)
       .filter(segment => segmentBelongsToFoodChoice(segment, parsed.food, parsed.raw));
-    if (!sizes.length) return part;
-    return sizes.map(segment => `${parsed.food}（${segment.addon}）${segment.qty > 1 ? ` x ${segment.qty}` : ''}`).join(' + ');
+    if (!options.length) return part;
+    const selections = new Map();
+    options.forEach(segment => {
+      if (!selections.has(segment.sourceIndex)) selections.set(segment.sourceIndex, { labels: [], qty: segment.qty });
+      selections.get(segment.sourceIndex).labels.push(segment.addon);
+    });
+    return Array.from(selections.values()).map(selection => {
+      const qty = selections.size === 1 ? Math.max(parsed.qty, selection.qty) : selection.qty;
+      return `${parsed.food}（${selection.labels.join('、')}）${qty > 1 ? ` x ${qty}` : ''}`;
+    }).join(' + ');
   }).join(' + ');
+}
+
+function displayOrderTableAddon(order) {
+  const foodItems = splitOrderFoodParts(displayOrderTableFood(order))
+    .map(label => ({ label }));
+  return summaryOrderExtraNote(stripAddonPriceText(displayOrderAddon(order)), foodItems);
 }
 
 function summaryOrderExtraNote(note, foodItems) {
@@ -2431,7 +2446,7 @@ function renderOrders() {
   el.ordersBody.innerHTML = orders.map((o, i) => {
     const p = Number(o.price || 0);
     total += p;
-    const addon = summaryOrderExtraNote(stripAddonPriceText(displayOrderAddon(o)), parseOrderFoodItems(o));
+    const addon = displayOrderTableAddon(o);
     const deliveryDept = orderDeliveryDept(o);
     const changed = orderHasCustomDelivery(o);
     const deptClass = changed ? ' class="bg-amber-50 font-semibold text-amber-800"' : '';

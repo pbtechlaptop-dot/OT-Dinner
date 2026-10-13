@@ -8,7 +8,10 @@ for (const file of ['New/app.js', 'public/app.js']) {
   const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   const names = ['compactSummaryPrefix', 'summaryOrderExtraNote', 'summaryExtraNote',
     'summarySystemOptionKeys', 'addFoodSummaryEntry', 'formatFoodSummaryLine', 'renderStaffFoodSummary',
-    'displayOrderTableFood', 'splitOrderFoodParts', 'parseFoodSummaryPart', 'isRiceFoodName', 'orderMemberNames'];
+    'displayOrderTableFood', 'displayOrderTableAddon', 'splitOrderFoodParts', 'parseFoodSummaryPart', 'isRiceFoodName', 'orderMemberNames',
+    'splitAddonParts', 'matchingAddonSegmentsForFood', 'segmentBelongsToFoodChoice', 'inferAddonSegmentForFood',
+    'stripFoodPrefixFromAddon', 'foodLabelsMatch', 'canonicalAddonPart', 'normalizeAddonForSummary',
+    'parseAddonSummarySegments', 'displayOrderAddon'];
   const functions = names.map(name => {
     const start = source.indexOf(`function ${name}(`);
     const end = source.indexOf('\nfunction ', start + 1);
@@ -17,17 +20,23 @@ for (const file of ['New/app.js', 'public/app.js']) {
   const items = [{ key: 'rice', label: '\u7c73\u98ef\uff08\u5c0f\uff09', qty: 1 },
     { key: 'chicken', label: '\u8106\u76ae\u54b8\u96de\uff08\u534a\u96bb\uff09', qty: 1 }];
   const context = vm.createContext({
+    state: { lang: 'tc' },
     summaryFoodMatch: () => null,
-    splitAddonParts: value => value.split(','),
-    displayOrderAddon: order => order.addon,
     stripAddonPriceText: value => value,
     parseOrderFoodItems: order => order.items || items,
     orderDeliveryDept: order => order.dept,
     escapeHtml: value => value,
     displayOrderFood: value => value,
-    parseAddonSummarySegments: value => value.split(';').filter(Boolean).map(addon => ({ addon, qty: 1 })),
-    matchingAddonSegmentsForFood: segments => segments.filter(segment => ['\u5c0f', '\u5927'].includes(segment.addon)),
-    segmentBelongsToFoodChoice: segment => ['\u5c0f', '\u5927'].includes(segment.addon),
+    displayFood: value => value,
+    toTc: value => value,
+    addonChineseName: () => '',
+    displayAddon: value => value,
+    normalizeOptionChoice: choice => choice,
+    orderOptionLabel: value => value,
+    localOptionLabel: value => value,
+    formatOptionLabel: value => value,
+    storedOptionChineseLabel: value => value,
+    extractEnglishOptionLabel: value => value,
     t: key => key === 'addon' ? 'NOTE' : 'x'
   });
   vm.runInContext(functions, context);
@@ -87,5 +96,38 @@ for (const file of ['New/app.js', 'public/app.js']) {
     assert.match(html, /Total: <span[^>]*>3<\/span>/);
     assert.equal((html.match(/- \(\d+\)/g) || []).length, 2);
     assert.match(html, /x 3/);
+  });
+
+  test(`${file}: all configured choices go in food parentheses while typed notes stay in notes`, () => {
+    const pork = '\u5404\u5f0f\u8c6c\u6252\u98ef';
+    const sauce = '\u6912\u9e7d';
+    const meat = '\u8089';
+    const sweetSour = '\u5495\u5695(\u8089/\u9b5a)\u98ef';
+    const pair = '\u71d2\u5473\u96d9\u62fc\u98ef';
+    const roast = '\u71d2\u8089';
+    const charSiu = '\u53c9\u71d2';
+    const foods = [
+      { name: pork, optionGroups: [{ choices: [{ label: sauce }] }] },
+      { name: sweetSour, optionGroups: [{ choices: [{ label: meat }] }] },
+      { name: pair, optionGroups: [{ choices: [{ label: roast }, { label: charSiu }] }] }
+    ];
+    context.summaryFoodMatch = (raw, display) => foods.find(food => food.name === raw || food.name === display) || null;
+    try {
+      const order = { food: `${pork} + ${sweetSour}`, addon: `${sauce};${meat};\u5c11\u6c41` };
+      assert.equal(context.displayOrderTableFood(order), `${pork}\uff08${sauce}\uff09 + ${sweetSour}\uff08${meat}\uff09`);
+      assert.equal(context.displayOrderTableAddon(order), '\u5c11\u6c41');
+      assert.equal(context.displayOrderTableFood({ food: pair, addon: `${roast}+${charSiu}` }),
+        `${pair}\uff08${roast}\u3001${charSiu}\uff09`);
+      assert.equal(context.displayOrderTableAddon({ food: pork, addon: '\u5c0f\u8fa3' }), '\u5c0f\u8fa3');
+      assert.equal(context.displayOrderTableFood({ food: `${pork} x 2`, addon: sauce }), `${pork}\uff08${sauce}\uff09 x 2`);
+      const scoped = { food: `${pork} + ${sweetSour}`, addon: `${pork}: ${sauce}\uff1b${sweetSour}: ${meat}\uff1b\u5c11\u6c41` };
+      assert.equal(context.displayOrderTableFood(scoped), `${pork}\uff08${sauce}\uff09 + ${sweetSour}\uff08${meat}\uff09`);
+      assert.equal(context.displayOrderTableAddon(scoped), '\u5c11\u6c41');
+      foods[0].optionGroups[0].choices.push({ label: '\u9ed1\u6912' });
+      assert.equal(context.displayOrderTableFood({ food: `${pork} x 2`, addon: `${sauce} x 1;\u9ed1\u6912 x 1` }),
+        `${pork}\uff08${sauce}\uff09 + ${pork}\uff08\u9ed1\u6912\uff09`);
+    } finally {
+      context.summaryFoodMatch = () => null;
+    }
   });
 }
