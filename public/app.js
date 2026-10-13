@@ -2514,36 +2514,25 @@ function renderStaffFoodSummary(orders) {
     if (!byDept[dept]) byDept[dept] = [];
     const foodItems = parseOrderFoodItems(order);
     const addon = summaryOrderExtraNote(stripAddonPriceText(displayOrderAddon(order)), foodItems);
-    if (foodItems.length) {
-      foodItems.forEach(item => {
-        const extraNote = summaryExtraNote(item.label || item.key || '', addon);
-        const details = [
-          item.label || item.key || '',
-          extraNote ? `${t('addon')}: ${extraNote}` : ''
-        ].filter(Boolean).join(' / ');
-        byDept[dept].push({ number: index + 1, details, qty: Number(item.qty || 1) });
-      });
-      return;
-    }
+    const foodText = foodItems.map(item => {
+      const label = item.label || item.key || '';
+      return Number(item.qty || 1) > 1 ? `${label} x ${item.qty}` : label;
+    }).filter(Boolean).join(' + ');
     const details = [
-      displayFood(order.food || ''),
+      foodText || displayFood(order.food || ''),
       addon ? `${t('addon')}: ${addon}` : ''
     ].filter(Boolean).join(' / ');
-    byDept[dept].push({ number: index + 1, details, qty: 1 });
+    const members = orderMemberNames(order);
+    byDept[dept].push({ number: index + 1, details, members });
   });
   return Object.entries(byDept).map(([dept, rows]) => {
-    const count = rows.reduce((sum, row) => sum + Number(row.qty || 1), 0);
-    const groupedRows = {};
+    const people = new Set();
     rows.forEach(row => {
-      const key = row.details || '';
-      if (!groupedRows[key]) groupedRows[key] = { details: key, numbers: [], count: 0 };
-      if (!groupedRows[key].numbers.includes(row.number)) groupedRows[key].numbers.push(row.number);
-      groupedRows[key].count += Number(row.qty || 1);
+      const members = row.members.length ? row.members : [`order-${row.number}`];
+      members.forEach(member => people.add(member));
     });
-    const lines = Object.values(groupedRows).map(row => {
-      const suffix = row.count > 1 ? ` ${t('xLabel')} ${row.count}` : '';
-      return `- (${row.numbers.join(',')}) ${escapeHtml(row.details)}${suffix}`;
-    }).join('<br>');
+    const count = people.size;
+    const lines = rows.map(row => `- (${row.number}) ${escapeHtml(row.details)}`).join('<br>');
     return `<div><strong>${escapeHtml(dept)}:</strong> <span class="ml-2 font-semibold text-slate-700">Total: <span class="text-pborange">${count}</span></span><br>${lines}</div>`;
   }).join('<br>');
 }

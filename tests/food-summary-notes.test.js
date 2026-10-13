@@ -8,7 +8,7 @@ for (const file of ['New/app.js', 'public/app.js']) {
   const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   const names = ['compactSummaryPrefix', 'summaryOrderExtraNote', 'summaryExtraNote',
     'summarySystemOptionKeys', 'addFoodSummaryEntry', 'formatFoodSummaryLine', 'renderStaffFoodSummary',
-    'displayOrderTableFood', 'splitOrderFoodParts', 'parseFoodSummaryPart', 'isRiceFoodName'];
+    'displayOrderTableFood', 'splitOrderFoodParts', 'parseFoodSummaryPart', 'isRiceFoodName', 'orderMemberNames'];
   const functions = names.map(name => {
     const start = source.indexOf(`function ${name}(`);
     const end = source.indexOf('\nfunction ', start + 1);
@@ -21,7 +21,7 @@ for (const file of ['New/app.js', 'public/app.js']) {
     splitAddonParts: value => value.split(','),
     displayOrderAddon: order => order.addon,
     stripAddonPriceText: value => value,
-    parseOrderFoodItems: () => items,
+    parseOrderFoodItems: order => order.items || items,
     orderDeliveryDept: order => order.dept,
     escapeHtml: value => value,
     displayOrderFood: value => value,
@@ -64,5 +64,28 @@ for (const file of ['New/app.js', 'public/app.js']) {
     assert.equal(context.displayOrderTableFood({ food: `${rice} + ${chicken}`, addon: '\u5c0f;\u5c11\u9e7d' }),
       `${items[0].label} + ${chicken}`);
     assert.equal(context.displayOrderTableFood({ food: chicken, addon: '\u5c11\u9e7d' }), chicken);
+  });
+
+  test(`${file}: staff summary counts 13 people with 17 dishes and lists each order separately`, () => {
+    const orders = Array.from({ length: 13 }, (_, index) => ({
+      dept: 'Lady Ruby', name: `Person ${index + 1}`, addon: '',
+      items: index < 4 ? items : [items[1]]
+    }));
+    const html = context.renderStaffFoodSummary(orders);
+    assert.match(html, /Total: <span[^>]*>13<\/span>/);
+    assert.equal((html.match(/- \(\d+\)/g) || []).length, 13);
+    assert.match(html, /- \(1\).* \+ /);
+    assert.match(html, /- \(2\).* \+ /);
+    assert.doesNotMatch(html, /\(1,2\)/);
+  });
+
+  test(`${file}: group members count as people, not dishes or order rows`, () => {
+    const html = context.renderStaffFoodSummary([
+      { dept: 'HQ', name: 'Alan + Ben', addon: '' },
+      { dept: 'HQ', name: 'Cory', addon: '', items: [{ ...items[0], qty: 3 }] }
+    ]);
+    assert.match(html, /Total: <span[^>]*>3<\/span>/);
+    assert.equal((html.match(/- \(\d+\)/g) || []).length, 2);
+    assert.match(html, /x 3/);
   });
 }
