@@ -2334,7 +2334,7 @@ function formatFoodSummaryLine(food, entry) {
 
 function displayOrderTableFood(order) {
   const rawParts = splitOrderFoodParts(String(order.food || ''));
-  const displayParts = splitOrderFoodParts(displayOrderFood(order.food || ''));
+  const displayParts = splitOrderFoodParts(displayFood(order.food || ''));
   const segments = parseAddonSummarySegments(String(order.addon || '')).flatMap((segment, sourceIndex) =>
     splitAddonParts(segment.addon).map(addon => ({ ...segment, addon, rawAddon: addon, sourceIndex }))
   );
