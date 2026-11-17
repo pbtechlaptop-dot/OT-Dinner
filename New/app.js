@@ -183,6 +183,7 @@ const i18n = {
     notSet: '未設定',
     admin: '新版 Admin',
     main: '舊前台',
+    backToMain: '回主頁',
     staffTitle: '2) 同事資料',
     dept: '部門',
     pickupDept: '送餐位置',
@@ -309,6 +310,7 @@ const i18n = {
     notSet: '未设置',
     admin: '新版 Admin',
     main: '旧前台',
+    backToMain: '回主页',
     staffTitle: '2) 人员资料',
     dept: '部门',
     pickupDept: '送餐位置',
@@ -434,6 +436,7 @@ const i18n = {
     notSet: 'Not set',
     admin: 'New Admin',
     main: 'Old Page',
+    backToMain: 'Back to Main',
     staffTitle: '2) Staff',
     dept: 'Department',
     pickupDept: 'Delivery location',
@@ -677,8 +680,8 @@ function updateStaticText() {
   el.restaurantPasswordInput.placeholder = t('enterAdminPassword');
   el.cancelRestaurantBtn.textContent = t('cancel');
   el.setRestaurantBtn.textContent = t('saveRestaurantSettings');
-  el.mainLink.textContent = t('main');
-  el.mainLink.href = state.appId === 'lady-ruby' ? '/lady-ruby/' : '/';
+  el.mainLink.textContent = state.appId === 'lady-ruby' ? t('backToMain') : t('main');
+  el.mainLink.href = state.appId === 'lady-ruby' ? '/new/' : '/';
   el.staffTitle.textContent = t('staffTitle');
   el.deptLabel.textContent = t('dept');
   el.nameLabel.textContent = t('name');
@@ -3094,6 +3097,11 @@ el.exportXlsxBtn.addEventListener('click', exportXlsx);
 el.restaurantModal.addEventListener('click', event => {
   if (event.target === el.restaurantModal) closeRestaurantModal();
 });
+if (state.appId === 'main') {
+  bindHiddenTrigger(el.appTitle, () => {
+    window.location.href = '/lady-ruby/new/';
+  }, { allowHold: false });
+}
 bindHiddenTrigger(el.restaurantTitle, openAdminAccess);
 bindHiddenTrigger(el.staffTitle, openLateOrderAccess, { allowHold: false });
 bindHiddenTrigger(el.foodTitle, openDrinkChangeAccess, { allowHold: false });
