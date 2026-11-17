@@ -2675,7 +2675,10 @@ async function handleApi(req, res, urlObj) {
   if (req.method === 'POST' && pathname === '/api/orders') {
     const body = await parseBody(req);
     const appId = getAppIdFromRequest(urlObj, body);
-    const state = await storage.getState(appId);
+    const [state, priceLimit] = await Promise.all([
+      storage.getState(appId),
+      getOrderPriceLimit()
+    ]);
     if (!state.restaurant) return json(res, 400, { error: 'Please set today restaurant first' });
     const lateOrder = isCutoffPassed(state.cutoffTime);
     if (lateOrder) {
@@ -2695,7 +2698,6 @@ async function handleApi(req, res, urlObj) {
 
     const groupMembers = orderMemberNames(body);
     const groupSize = Math.max(1, groupMembers.length);
-    const priceLimit = await getOrderPriceLimit();
     const maxPrice = priceLimit * groupSize;
     const price = Number(body.price);
     if (price > maxPrice) {
@@ -2733,7 +2735,16 @@ async function handleApi(req, res, urlObj) {
     if (USE_SUPABASE) {
       if (replacingGroup) await deleteOrderSupabase(appId, state.date, existingOrder);
       await upsertOrderSupabase(appId, state.date, clean);
-      return json(res, 200, { ok: true, updated: existed });
+      let orders;
+      try {
+        orders = await getOrdersForStateSupabase(appId, {
+          date: state.date, cutoff_time: state.cutoffTime
+        });
+      } catch {
+        // The write succeeded; let older clients use their existing refresh fallback.
+        console.warn('Order saved, but the updated order list could not be loaded.');
+      }
+      return json(res, 200, { ok: true, updated: existed, orders });
     }
 
     const existingIdentity = existingOrder ? orderIdentityKey(existingOrder) : orderIdentityKey(clean);
@@ -2748,7 +2759,7 @@ async function handleApi(req, res, urlObj) {
 
     state.orders = sortOrdersForDisplay(state.orders);
     await storage.saveState(appId, state);
-    return json(res, 200, { ok: true, updated });
+    return json(res, 200, { ok: true, updated, orders: state.orders });
   }
 
   if (req.method === 'POST' && pathname === '/api/orders/drink-change') {
