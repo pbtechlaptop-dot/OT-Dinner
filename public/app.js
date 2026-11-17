@@ -55,6 +55,10 @@ if (redirectedToLastSuccessfulPage) {
   window.location.replace(state.appId === 'lady-ruby' ? '/lady-ruby/new/' : '/new/');
 }
 
+let startupRequest;
+let restaurantRevision = 0;
+let menuLoadVersion = 0;
+
 let toSc = v => String(v || '');
 let toTc = v => String(v || '');
 try {
@@ -909,7 +913,7 @@ function syncRestaurantLock() {
 }
 
 function openRestaurantModal() {
-  if (!el.restaurantModal) return;
+  if (startupRequest || !el.restaurantModal) return;
   if (el.restaurantSelect) {
     fillSelect(el.restaurantSelect, (state.restaurants || []).map(r => ({ value: r, label: r })), t('selectRestaurant'));
     el.restaurantSelect.value = state.currentRestaurant || '';
@@ -1995,10 +1999,12 @@ function upsertLocalOrder(order) {
 }
 
 async function refreshOrdersSilently() {
-  if (refreshOrdersSilently.inFlight) return;
+  if (startupRequest || el.setRestaurantBtn.disabled || refreshOrdersSilently.inFlight) return;
   refreshOrdersSilently.inFlight = true;
+  const revision = restaurantRevision;
   try {
     const payload = await api(`/api/orders?_=${Date.now()}`);
+    if (revision !== restaurantRevision || startupRequest || el.setRestaurantBtn.disabled) return;
     const nextRestaurant = payload.currentRestaurant || null;
     const nextCutoffTime = payload.cutoffTime || state.defaultCutoffTime;
     const nextCutoffPassed = Boolean(payload.cutoffPassed);
@@ -2009,11 +2015,14 @@ async function refreshOrdersSilently() {
       state.cutoffTime = nextCutoffTime;
       state.cutoffPassed = nextCutoffPassed;
       renderRestaurants();
-      if (restaurantChanged) await loadMenu(state.currentRestaurant);
+      if (restaurantChanged) {
+        await loadMenu(state.currentRestaurant);
+        if (revision !== restaurantRevision) return;
+      }
     }
     const incoming = payload.orders || [];
     const sig = orderSignature(incoming);
-    if (sig !== state.lastOrdersSignature) {
+    if (restaurantChanged || sig !== state.lastOrdersSignature) {
       state.orders = incoming;
       state.lastOrdersSignature = sig;
       renderOrders();
@@ -2591,13 +2600,14 @@ function updateCutoffUi() {
 }
 
 async function loadMenu(restaurant, initialMenu) {
+  const version = ++menuLoadVersion;
   if (!restaurant) {
     state.menu = {};
     buildLookupMaps();
     renderCategories();
     return;
   }
-  if (initialMenu && typeof initialMenu === 'object' && Object.keys(initialMenu).length > 0) {
+  if (initialMenu && typeof initialMenu === 'object') {
     state.menu = initialMenu;
     buildLookupMaps();
     renderCategories();
@@ -2607,45 +2617,53 @@ async function loadMenu(restaurant, initialMenu) {
   buildLookupMaps();
   renderCategories();
   const payload = await api(`/api/menu?restaurant=${encodeURIComponent(restaurant)}`);
+  if (version !== menuLoadVersion || restaurant !== state.currentRestaurant) return;
   state.menu = payload.menu || {};
   buildLookupMaps();
   renderCategories();
 }
 
-async function loadBootstrap() {
-  setBusy(true);
+function loadBootstrap() {
+  if (startupRequest) return startupRequest;
+  restaurantRevision++;
   setDiag(t('diagLoading'));
-  try {
-    const [payload, settings] = await Promise.all([
-      api('/api/bootstrap'),
-      api('/api/new-settings')
-    ]);
+  const basics = api('/api/bootstrap?part=basics').then(payload => {
+    const settings = payload.settings || {};
     state.restaurants = payload.restaurants || [];
     state.restaurantContacts = payload.restaurantContacts || {};
     state.staff = payload.staff || {};
     state.drinks = payload.drinks || [];
+    state.priceLimit = Number(settings.priceLimit) || 22;
+    buildLookupMaps();
+    renderRestaurants();
+    renderDepartments();
+    renderDrinks();
+    showAnnouncementIfNeeded(settings);
+  });
+  const today = api('/api/bootstrap?part=today').then(async payload => {
     state.currentRestaurant = payload.currentRestaurant || null;
     state.cutoffTime = payload.cutoffTime || state.defaultCutoffTime;
     state.cutoffPassed = Boolean(payload.cutoffPassed);
     state.orders = payload.orders || [];
     state.lastOrdersSignature = orderSignature(state.orders);
     state.date = payload.date || '';
-    state.priceLimit = Number(settings && settings.priceLimit) || 22;
-
     el.dateText.textContent = `${t('datePrefix')}${payload.date}`;
     renderRestaurants();
-    renderDepartments();
-    renderDrinks();
-    await loadMenu(state.currentRestaurant, payload.currentMenu || null);
+    await loadMenu(state.currentRestaurant, payload.currentMenu || {});
+    if (el.deptSelect.value) renderNamesForDepartment(el.deptSelect.value);
+  });
+  startupRequest = Promise.allSettled([basics, today]).then(results => {
+    const failure = results.find(result => result.status === 'rejected');
+    if (failure) throw failure.reason;
     renderOrders();
     updateDiagSummary();
-    showAnnouncementIfNeeded(settings);
-  } catch (err) {
+  }).catch(err => {
     setDiag(`${t('loadFailedPrefix')}${err.message}`, true);
     throw err;
-  } finally {
-    setBusy(false);
-  }
+  }).finally(() => {
+    startupRequest = null;
+  });
+  return startupRequest;
 }
 
 function parseImportedPrice(value) {
@@ -2933,7 +2951,7 @@ el.restaurantModal?.addEventListener('click', event => {
 });
 
 el.setRestaurantBtn.addEventListener('click', async () => {
-  if (el.setRestaurantBtn.disabled) return;
+  if (startupRequest || el.setRestaurantBtn.disabled) return;
   const restaurant = el.restaurantSelect.value;
   const changingRestaurant = Boolean(state.currentRestaurant && restaurant && restaurant !== state.currentRestaurant);
   const cutoffTime = getCutoffInputValue();
@@ -2942,8 +2960,10 @@ el.setRestaurantBtn.addEventListener('click', async () => {
   if (!password) return showToast(t('enterAdminPassword'));
   const previousRestaurant = state.currentRestaurant;
   const previousCutoffTime = state.cutoffTime;
+  const previousCutoffPassed = state.cutoffPassed;
   const previousMenu = state.menu;
   const previousFoodLookup = state.foodLookup;
+  restaurantRevision++;
   try {
     setRestaurantSaving(true);
     setBusy(true);
@@ -2951,10 +2971,10 @@ el.setRestaurantBtn.addEventListener('click', async () => {
       method: 'POST',
       body: JSON.stringify({ restaurant, cutoffTime, password, forceChange: changingRestaurant })
     });
-    await loadMenu(restaurant);
     state.currentRestaurant = payload.currentRestaurant;
     state.cutoffTime = payload.cutoffTime || state.defaultCutoffTime;
     state.cutoffPassed = Boolean(payload.cutoffPassed);
+    await loadMenu(state.currentRestaurant);
     el.currentRestaurantText.textContent = `${t('currentRestaurant')}${restaurant}`;
     if (payload.cleared) state.orders = [];
     renderRestaurants();
@@ -2971,6 +2991,7 @@ el.setRestaurantBtn.addEventListener('click', async () => {
   } catch (err) {
     state.currentRestaurant = previousRestaurant;
     state.cutoffTime = previousCutoffTime;
+    state.cutoffPassed = previousCutoffPassed;
     state.menu = previousMenu;
     state.foodLookup = previousFoodLookup;
     buildLookupMaps();
@@ -2991,6 +3012,8 @@ el.setRestaurantBtn.addEventListener('click', async () => {
 
 el.orderForm.addEventListener('submit', async event => {
   event.preventDefault();
+  if (startupRequest) return;
+  if (!state.currentRestaurant) return showToast(t('chooseRestaurantFirst'));
   hideOrderError();
   const selectedFoodOpt = el.foodSelect.options[el.foodSelect.selectedIndex];
   const selectedPrice = selectedFoodOpt && selectedFoodOpt.dataset ? selectedFoodOpt.dataset.price : '';

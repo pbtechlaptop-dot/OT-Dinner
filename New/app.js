@@ -32,6 +32,9 @@ const ANNOUNCEMENT_SEEN_KEY = 'otDinnerAnnouncementSeenVersion';
 const DELIVERY_OVERRIDES_KEY = 'otDinnerDeliveryOverrides';
 const LAST_SUCCESSFUL_PAGE_KEY = 'otDinnerLastSuccessfulPage';
 const announcementDismissedVersions = new Set();
+let startupRequest;
+let restaurantRevision = 0;
+let menuLoadVersion = 0;
 
 function lastSuccessfulPageStorageKey() {
   return `${LAST_SUCCESSFUL_PAGE_KEY}:${state.appId || 'main'}`;
@@ -1618,7 +1621,8 @@ function renderSelection() {
   el.budgetNotice.textContent = balance >= 0
     ? (optionValidation.ok ? t('canAdd', money(balance)) : optionValidation.error)
     : t('overLimit', money(Math.abs(balance)));
-  el.submitBtn.disabled = totals.qty === 0 || totals.total > effectiveLimit || !optionValidation.ok;
+  el.submitBtn.disabled = Boolean(startupRequest) || !state.currentRestaurant
+    || totals.qty === 0 || totals.total > effectiveLimit || !optionValidation.ok;
 }
 
 function renderEntryOptions(entry) {
@@ -2315,43 +2319,61 @@ document.addEventListener('keydown', event => {
   if (modal) modal.classList.add('hidden');
 });
 
-async function load() {
-  setBusy(true);
-  try {
-    const [settings, bootstrap] = await Promise.all([
-      api('/api/new-settings'),
-      api('/api/bootstrap')
-    ]);
+function load() {
+  if (startupRequest) return startupRequest;
+  restaurantRevision++;
+  const basics = api('/api/bootstrap?part=basics').then(bootstrap => {
+    const settings = bootstrap.settings || {};
     state.priceLimit = Number(settings.priceLimit) || 22;
     state.groupOrderEnabled = settings.groupOrderEnabled !== false;
     state.restaurants = bootstrap.restaurants || [];
     state.restaurantContacts = bootstrap.restaurantContacts || {};
     state.staff = bootstrap.staff || {};
     state.drinks = bootstrap.drinks || [];
-    state.menu = {};
-    state.date = bootstrap.date || '';
-    state.orders = applyDeliveryOverrides(bootstrap.orders || []);
-    rememberDeliveryOverrides(state.orders);
-    state.lastOrdersSignature = orderSignature(state.orders);
-    state.currentRestaurant = bootstrap.currentRestaurant || '';
-    state.cutoffTime = bootstrap.cutoffTime || '';
-    state.cutoffPassed = Boolean(bootstrap.cutoffPassed);
     updateStaticText();
     renderDepartments();
     applyLastStaff();
     renderDrinks();
-    await loadMenu(state.currentRestaurant, bootstrap.currentMenu || null);
-    renderSelection();
+    renderGroupMembers();
+    showAnnouncementIfNeeded(settings);
+  });
+  const today = api('/api/bootstrap?part=today', { cache: 'no-store' }).then(async bootstrap => {
+    state.date = bootstrap.date || '';
+    state.orders = applyDeliveryOverrides(bootstrap.orders || []);
+    rememberDeliveryOverrides(state.orders);
+    state.lastOrdersSignature = orderSignature(state.orders);
+    const nextRestaurant = bootstrap.currentRestaurant || '';
+    if (nextRestaurant !== state.currentRestaurant) state.selected.clear();
+    state.currentRestaurant = nextRestaurant;
+    state.cutoffTime = bootstrap.cutoffTime || '';
+    state.cutoffPassed = Boolean(bootstrap.cutoffPassed);
+    updateStaticText();
+    await loadMenu(state.currentRestaurant, bootstrap.currentMenu || {});
+    syncOrderMemberAvailability();
+  });
+  startupRequest = Promise.allSettled([basics, today]).then(results => {
+    const failure = results.find(result => result.status === 'rejected');
+    if (failure) throw failure.reason;
     renderOrders();
     updateDiagSummary();
-    showAnnouncementIfNeeded(settings);
-  } finally {
-    setBusy(false);
-  }
+  }).finally(() => {
+    startupRequest = null;
+    renderSelection();
+  });
+  return startupRequest;
+}
+
+function syncOrderMemberAvailability() {
+  Array.from(el.nameSelect.options || []).forEach(option => {
+    option.disabled = Boolean(option.value && memberIsInGroupOrder(el.deptSelect.value, option.value));
+    if (option.disabled && option.selected) el.nameSelect.value = '';
+  });
+  renderGroupMembers();
 }
 
 async function loadMenu(restaurant, initialMenu) {
-  const hasInitialMenu = initialMenu && typeof initialMenu === 'object' && Object.keys(initialMenu).length > 0;
+  const version = ++menuLoadVersion;
+  const hasInitialMenu = initialMenu && typeof initialMenu === 'object';
   if (!restaurant) {
     state.menu = {};
     renderCategories();
@@ -2364,12 +2386,15 @@ async function loadMenu(restaurant, initialMenu) {
   }
   state.menu = {};
   renderCategories();
-  const payload = await api(`/api/menu?restaurant=${encodeURIComponent(restaurant)}`);
+  const payload = await api(`/api/menu?restaurant=${encodeURIComponent(restaurant)}`, { cache: 'no-store' });
+  if (version !== menuLoadVersion || restaurant !== state.currentRestaurant) return;
   state.menu = payload.menu || {};
   renderCategories();
 }
 
 async function submitOrder() {
+  if (startupRequest) return;
+  if (!state.currentRestaurant) return showToast(t('setRestaurantFirst'));
   if (!state.groupOrderEnabled && state.groupOrder.active) {
     state.groupOrder.active = false;
     state.groupOrder.members = new Set();
@@ -2470,6 +2495,7 @@ function resetStaffForm() {
 }
 
 function openRestaurantModal() {
+  if (startupRequest) return;
   fillSelect(el.restaurantSelect, (state.restaurants || []).map(restaurant => ({
     value: restaurant,
     label: state.lang === 'sc' ? toSc(restaurant) : restaurant
@@ -2534,13 +2560,14 @@ function showAnnouncementIfNeeded(settings) {
 }
 
 async function saveRestaurantSettings() {
-  if (el.setRestaurantBtn.disabled) return;
+  if (startupRequest || el.setRestaurantBtn.disabled) return;
   const restaurant = String(el.restaurantSelect.value || '').trim();
   const cutoffTime = String(el.cutoffTimeInput.value || '').trim();
   const password = String(el.restaurantPasswordInput.value || '').trim();
   if (!restaurant) return showToast(t('chooseRestaurantFirst'));
   if (!password) return showToast(t('enterAdminPassword'));
   const changingRestaurant = Boolean(state.currentRestaurant && restaurant !== state.currentRestaurant);
+  restaurantRevision++;
   try {
     setRestaurantSaving(true);
     setBusy(true);
@@ -2593,25 +2620,35 @@ async function exportXlsx() {
 }
 
 async function refreshOrdersSilently() {
-  if (refreshOrdersSilently.inFlight) return;
+  if (startupRequest || el.setRestaurantBtn.disabled || refreshOrdersSilently.inFlight) return;
   refreshOrdersSilently.inFlight = true;
+  const revision = restaurantRevision;
   try {
     const payload = await api(`/api/orders?_=${Date.now()}`);
+    if (revision !== restaurantRevision || startupRequest || el.setRestaurantBtn.disabled) return;
     const incoming = applyDeliveryOverrides(payload.orders || []);
     const signature = orderSignature(incoming);
     const previousRestaurant = state.currentRestaurant;
     const previousCutoffTime = state.cutoffTime;
-    state.currentRestaurant = payload.currentRestaurant || state.currentRestaurant;
+    state.currentRestaurant = payload.currentRestaurant || '';
     state.cutoffTime = payload.cutoffTime || state.cutoffTime;
     state.cutoffPassed = Boolean(payload.cutoffPassed);
-    if (state.currentRestaurant !== previousRestaurant || state.cutoffTime !== previousCutoffTime) {
+    const restaurantChanged = state.currentRestaurant !== previousRestaurant;
+    if (restaurantChanged || state.cutoffTime !== previousCutoffTime) {
       updateStaticText();
     }
-    if (signature !== state.lastOrdersSignature) {
+    if (restaurantChanged) {
+      state.selected.clear();
+      renderSelection();
+      await loadMenu(state.currentRestaurant);
+      if (revision !== restaurantRevision) return;
+    }
+    if (restaurantChanged || signature !== state.lastOrdersSignature) {
       state.orders = incoming;
       state.lastOrdersSignature = signature;
       rememberDeliveryOverrides(state.orders);
       renderOrders();
+      syncOrderMemberAvailability();
       updateDiagSummary();
     }
   } catch {

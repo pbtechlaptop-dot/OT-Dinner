@@ -1330,22 +1330,22 @@ function addMenuRowsToSeed(seed, menuRows, hasOptionGroupsColumn = true, hasMenu
 
 async function getSeedSupabase(options = {}) {
   const includeMenus = options.includeMenus !== false;
-  const restaurantsRows = await supaSelect(TABLES.restaurants, 'name', { order: [{ column: 'name' }] });
-  let drinksRows = [];
-  let hasPausedColumn = true;
-  try {
-    drinksRows = await supaSelect(TABLES.drinks, 'tc,sc,en,paused', { order: [{ column: 'tc' }] });
-  } catch (err) {
-    if (!isMissingSupabaseColumn(err, 'paused')) throw err;
-    hasPausedColumn = false;
-    drinksRows = await supaSelect(TABLES.drinks, 'tc,sc,en', { order: [{ column: 'tc' }] });
-  }
-  const staffRows = await supaSelect(TABLES.staff, 'dept,name', { order: [{ column: 'dept' }, { column: 'name' }] });
+  const drinkOrder = { order: [{ column: 'tc' }] };
+  const [restaurantsRows, drinks, staffRows] = await Promise.all([
+    supaSelect(TABLES.restaurants, 'name', { order: [{ column: 'name' }] }),
+    supaSelect(TABLES.drinks, 'tc,sc,en,paused', drinkOrder)
+      .then(rows => ({ rows, hasPausedColumn: true }))
+      .catch(async err => {
+        if (!isMissingSupabaseColumn(err, 'paused')) throw err;
+        return { rows: await supaSelect(TABLES.drinks, 'tc,sc,en', drinkOrder), hasPausedColumn: false };
+      }),
+    supaSelect(TABLES.staff, 'dept,name', { order: [{ column: 'dept' }, { column: 'name' }] })
+  ]);
 
   const seed = defaultSeed();
   seed.restaurants = (restaurantsRows || []).map(r => normText(r.name)).filter(Boolean);
 
-  (drinksRows || []).forEach(d => {
+  (drinks.rows || []).forEach(d => {
     const item = normalizeDrinkItem({ tc: d.tc, sc: d.sc, en: d.en, paused: d.paused });
     if (item) seed.drinks.push(item);
   });
@@ -1364,7 +1364,7 @@ async function getSeedSupabase(options = {}) {
   }
 
   const normalizedSeed = normalizeSeed(seed);
-  return hasPausedColumn ? normalizedSeed : applyDrinkFlags(normalizedSeed, readDrinkFlags());
+  return drinks.hasPausedColumn ? normalizedSeed : applyDrinkFlags(normalizedSeed, readDrinkFlags());
 }
 
 async function getMenuSupabase(restaurantInput) {
@@ -1824,7 +1824,7 @@ async function updateOrderDrinkSupabase(appId, date, dept, name, drink) {
   if (result.error) throw new Error(`Supabase update order drink failed: ${result.error.message}`);
 }
 
-async function getStateSupabase(appId = APP_MAIN) {
+async function getAppStateRowSupabase(appId) {
   const stateRowId = APP_STATE_ROW_IDS[normalizeAppId(appId)] || 1;
   let hasCutoffColumn = true;
   let appState = null;
@@ -1854,9 +1854,13 @@ async function getStateSupabase(appId = APP_MAIN) {
     appState = rotatePayload;
   }
 
+  return appState;
+}
+
+async function getOrdersForStateSupabase(appId, appState) {
   const ordersRows = await selectOrdersSupabase(appState.date, normalizeAppId(appId));
 
-  const orders = sortOrdersForDisplay((ordersRows || []).map(o => ({
+  return sortOrdersForDisplay((ordersRows || []).map(o => ({
     dept: normText(o.dept),
     pickupDept: orderDeliveryDept(o),
     sourcePage: orderSourcePage(o),
@@ -1868,13 +1872,19 @@ async function getStateSupabase(appId = APP_MAIN) {
     orderedAt: normalizeOrderTimestamp(o.ordered_at),
     lateOrder: isLateOrderTimestamp(o.ordered_at, appState.cutoff_time || DEFAULT_CUTOFF_TIME)
   })));
+}
 
+function describeAppStateRow(appState) {
   return {
     date: appState.date,
     restaurant: appState.restaurant ? normText(appState.restaurant) : null,
-    cutoffTime: normalizeCutoffTime(appState.cutoff_time) || DEFAULT_CUTOFF_TIME,
-    orders
+    cutoffTime: normalizeCutoffTime(appState.cutoff_time) || DEFAULT_CUTOFF_TIME
   };
+}
+
+async function getStateSupabase(appId = APP_MAIN) {
+  const row = await getAppStateRowSupabase(appId);
+  return { ...describeAppStateRow(row), orders: await getOrdersForStateSupabase(appId, row) };
 }
 
 async function saveStateSupabase(appId = APP_MAIN, input) {
@@ -2059,6 +2069,33 @@ async function getSeedFresh() {
 
 async function getBootstrapSeed() {
   return USE_SUPABASE ? getSeedSupabase({ includeMenus: false }) : getSeedLocal();
+}
+
+async function readTodayPageState(appId) {
+  if (!USE_SUPABASE) {
+    const state = await getStateLocal(appId);
+    const seed = await getSeedLocal();
+    const restaurant = seed.restaurants.includes(state.restaurant) ? state.restaurant : null;
+    return { ...state, restaurant, readOrders: async () => state.orders };
+  }
+
+  const row = await getAppStateRowSupabase(appId);
+  const state = describeAppStateRow(row);
+  if (state.restaurant) {
+    const restaurant = await supaSelect(TABLES.restaurants, 'name', {
+      eq: { name: state.restaurant }, maybeSingle: true
+    });
+    if (!restaurant) state.restaurant = null;
+  }
+  return { ...state, readOrders: () => getOrdersForStateSupabase(appId, row) };
+}
+
+async function getTodayPageData(appId, includeMenu = false) {
+  const { readOrders, restaurant, date, cutoffTime } = await readTodayPageState(appId);
+  const [orders, currentMenu] = restaurant
+    ? await Promise.all([readOrders(), includeMenu ? getMenu(restaurant) : {}])
+    : [[], {}];
+  return { date, currentRestaurant: restaurant, cutoffTime, cutoffPassed: isCutoffPassed(cutoffTime), orders, currentMenu };
 }
 
 async function getMenuLocal(restaurantInput) {
@@ -2501,6 +2538,21 @@ async function handleApi(req, res, urlObj) {
 
   if (req.method === 'GET' && pathname === '/api/bootstrap') {
     const appId = getAppIdFromRequest(urlObj);
+    const part = urlObj.searchParams.get('part');
+    if (part === 'basics') {
+      const [seed, contacts, settings] = await Promise.all([
+        storage.getBootstrapSeed(), storage.getRestaurantContacts(), storage.getNewSettings()
+      ]);
+      return json(res, 200, {
+        restaurants: seed.restaurants,
+        restaurantContacts: contactMapByRestaurant(contacts),
+        staff: getScopedStaff(seed.staff, appId),
+        drinks: seed.drinks,
+        settings
+      });
+    }
+    if (part === 'today') return json(res, 200, await getTodayPageData(appId, true));
+
     const seed = await storage.getBootstrapSeed();
     const restaurantContacts = await storage.getRestaurantContacts();
     const restaurantContactMap = contactMapByRestaurant(restaurantContacts);
@@ -2534,12 +2586,13 @@ async function handleApi(req, res, urlObj) {
   }
 
   if (req.method === 'GET' && pathname === '/api/menu') {
-    const seed = await storage.getBootstrapSeed();
     const appId = getAppIdFromRequest(urlObj);
-    const rawState = await storage.getState(appId);
-    const state = await ensureStateHasValidRestaurant(appId, seed, rawState);
-    const restaurant = urlObj.searchParams.get('restaurant') || state.restaurant;
+    const { restaurant } = await readTodayPageState(appId);
     if (!restaurant) return json(res, 400, { error: 'Restaurant is required' });
+    const requestedRestaurant = urlObj.searchParams.get('restaurant');
+    if (requestedRestaurant && requestedRestaurant !== restaurant) {
+      return json(res, 409, { error: 'The current restaurant has changed' });
+    }
     const menu = await storage.getMenu(restaurant);
     if (!menu || !Object.keys(menu).length) return json(res, 404, { error: 'Menu not found for selected restaurant' });
     return json(res, 200, { restaurant, menu });
@@ -2737,13 +2790,10 @@ async function handleApi(req, res, urlObj) {
 
   if (req.method === 'GET' && pathname === '/api/orders') {
     const appId = getAppIdFromRequest(urlObj);
-    const state = await storage.getState(appId);
+    const { currentMenu, ...today } = await getTodayPageData(appId);
     return json(res, 200, {
-      orders: state.orders,
-      total: state.orders.reduce((sum, o) => sum + Number(o.price || 0), 0),
-      currentRestaurant: state.restaurant || null,
-      cutoffTime: state.cutoffTime || DEFAULT_CUTOFF_TIME,
-      cutoffPassed: isCutoffPassed(state.cutoffTime)
+      ...today,
+      total: today.orders.reduce((sum, o) => sum + Number(o.price || 0), 0)
     });
   }
 
