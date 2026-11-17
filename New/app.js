@@ -3100,7 +3100,7 @@ el.restaurantModal.addEventListener('click', event => {
 if (state.appId === 'main') {
   bindHiddenTrigger(el.appTitle, () => {
     window.location.href = '/lady-ruby/new/';
-  }, { allowHold: false });
+  });
 }
 bindHiddenTrigger(el.restaurantTitle, openAdminAccess);
 bindHiddenTrigger(el.staffTitle, openLateOrderAccess, { allowHold: false });
