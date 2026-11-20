@@ -1,7 +1,7 @@
 ﻿const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { parseStatisticsRange, buildOrderStatistics } = require(path.join(__dirname, 'lib', 'order-statistics.js'));
+const { parseStatisticsRange, buildOrderStatistics, addDishTranslations } = require(path.join(__dirname, 'lib', 'order-statistics.js'));
 const crypto = require('crypto');
 const { URL } = require('url');
 
@@ -2149,7 +2149,33 @@ async function getOrderStatistics(range) {
     }
     logs = normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, []));
   }
-  return { ...buildOrderStatistics(orders, logs, range, APP_TIMEZONE),
+  let statistics = buildOrderStatistics(orders, logs, range, APP_TIMEZONE);
+  let menuLabels = [];
+  if (USE_SUPABASE) {
+    const names = [...new Set(statistics.dishes.filter(item => item.restaurant).map(item => item.food))];
+    const batches = [];
+    for (let offset = 0; offset < names.length; offset += 30) {
+      batches.push(selectStatisticsRows(TABLES.menus, 'restaurant,name_tc,name_sc,name_en', query =>
+        query.in('name_tc', names.slice(offset, offset + 30))));
+    }
+    try {
+      menuLabels = (await Promise.all(batches)).flat();
+    } catch {
+      // Existing statistics remain usable if a current menu translation is unavailable.
+      menuLabels = [];
+    }
+  } else {
+    const seed = await getSeedLocal();
+    for (const [restaurant, categories] of Object.entries(seed.menus || {})) {
+      for (const items of Object.values(categories)) {
+        menuLabels.push(...items.map(item => ({
+          restaurant, name_tc: item.nameTc, name_sc: item.nameSc, name_en: item.nameEn
+        })));
+      }
+    }
+  }
+  statistics = addDishTranslations(statistics, menuLabels);
+  return { ...statistics,
     logsAvailable, storage: USE_SUPABASE ? 'supabase' : 'local' };
 }
 

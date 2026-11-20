@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { parseStatisticsRange, splitFoodItems, buildOrderStatistics } = require('../lib/order-statistics');
+const { parseStatisticsRange, splitFoodItems, buildOrderStatistics, addDishTranslations } = require('../lib/order-statistics');
 const range = { from: '2026-11-01', to: '2026-11-30', app: 'all', includeTests: false };
 const order = (restaurant, food, extra = {}) => ({
   date: '2026-11-18', app_id: 'main', restaurant, food, ...extra
@@ -78,6 +78,35 @@ test('restaurant selection logs count days even without orders, respecting page 
     [{ restaurant: 'A', days: 1 }]);
 });
 
+test('menu translations stay restaurant-scoped and never alter statistics or infer missing translations', () => {
+  const statistics = buildOrderStatistics([order('A', 'Rice'), order('B', 'Rice')], [], range);
+  const translated = addDishTranslations(statistics, [
+    { restaurant: 'A', name_tc: 'Rice', name_sc: '米饭', name_en: 'Steamed Rice' },
+    { restaurant: 'B', name_tc: 'Rice', name_sc: '白饭', name_en: 'White Rice' }
+  ]);
+  assert.equal(translated.dishes.find(item => item.restaurant === 'A').foodEn, 'Steamed Rice');
+  assert.equal(translated.dishes.find(item => item.restaurant === 'B').foodSc, '白饭');
+  assert.deepEqual(translated.summary, statistics.summary);
+  assert.equal(translated.dishes[0].food, 'Rice');
+  assert.equal(addDishTranslations(statistics, []).dishes[0].foodEn, undefined);
+});
+
+test('all three UI languages have matching keys and interpolation fields', () => {
+  const messages = require('../public/statistics/i18n');
+  const keys = Object.keys(messages.tc).sort();
+  for (const lang of ['sc', 'en']) {
+    assert.deepEqual(Object.keys(messages[lang]).sort(), keys);
+    for (const key of keys) {
+      const slots = text => (text.match(/\{\w+\}/g) || []).sort();
+      assert.deepEqual(slots(messages[lang][key]), slots(messages.tc[key]), lang + ':' + key);
+    }
+  }
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public/statistics/index.html'), 'utf8');
+  for (const [, key] of html.matchAll(/data-i18n(?:-aria|-title|-placeholder)?="([^"]+)"/g)) {
+    assert.ok(keys.includes(key), key);
+  }
+});
+
 test('test orders are excluded by default, and page and date filters do not mix locations', () => {
   const rows = [order('A', 'Rice', { addon: '速度測試，非正式訂餐' }),
     order('B', 'Soup', { app_id: 'lady-ruby' }), order('C', 'Toast')];
@@ -101,6 +130,7 @@ test('public statistics API paginates past 1000 rows and never returns private o
       let filtered = table === 'orders' ? rows : [];
       const query = {
         select: () => query, order: () => query,
+        in: (key, values) => { filtered = filtered.filter(row => values.includes(row[key])); return query; },
         eq: (key, value) => { filtered = filtered.filter(row => row[key] === value); return query; },
         gte: (key, value) => { filtered = filtered.filter(row => row[key] >= value); return query; },
         lte: (key, value) => { filtered = filtered.filter(row => row[key] <= value); return query; },

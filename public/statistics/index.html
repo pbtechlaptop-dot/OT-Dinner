@@ -6,73 +6,81 @@
   <meta name="color-scheme" content="light">
   <title>訂餐統計</title>
   <link rel="icon" href="/favicon.svg">
-  <link rel="stylesheet" href="/statistics/styles.css?v=20261121-2">
+  <link rel="stylesheet" href="/statistics/styles.css?v=20261121-4">
 </head>
 <body>
   <header class="topbar">
     <div class="header-inner">
-      <div class="identity"><img src="/icons/icon-v3-192.png" alt="" width="32" height="32"><h1>訂餐統計</h1></div>
-      <a href="/new/">返回訂餐頁 <span aria-hidden="true">↗</span></a>
+      <div class="identity"><img src="/icons/icon-v3-192.png" alt="" width="56" height="56"><h1 data-i18n="title">訂餐統計</h1></div>
+      <div class="header-actions">
+        <div class="language-switch" role="group" data-i18n-aria="language">
+          <button type="button" data-lang="tc" lang="zh-Hant">繁中</button>
+          <button type="button" data-lang="sc" lang="zh-Hans">简中</button>
+          <button type="button" data-lang="en" lang="en">EN</button>
+        </div>
+        <a href="/new/"><span data-i18n="return">返回訂餐頁</span> <span aria-hidden="true">↗</span></a>
+      </div>
     </div>
   </header>
   <main>
     <form id="filters" class="filters">
       <div class="date-fields">
-        <label for="from">開始日期<input id="from" name="from" type="date" required></label>
+        <label for="from"><span data-i18n="from">開始日期</span><input id="from" name="from" type="date" required></label>
         <span class="date-separator" aria-hidden="true">—</span>
-        <label for="to">結束日期<input id="to" name="to" type="date" required></label>
+        <label for="to"><span data-i18n="to">結束日期</span><input id="to" name="to" type="date" required></label>
       </div>
-      <label for="app">訂餐頁面<select id="app" name="app"><option value="all">全部頁面</option><option value="main">主頁</option><option value="lady-ruby">Lady Ruby</option></select></label>
-      <button class="primary" id="query" type="submit">查詢</button>
+      <label for="app"><span data-i18n="source">訂餐頁面</span><select id="app" name="app"><option value="all" data-i18n="all">全部頁面</option><option value="main" data-i18n="main">主頁</option><option value="lady-ruby">Lady Ruby</option></select></label>
+      <button class="primary" id="query" type="submit" data-i18n="query">查詢</button>
       <div class="filter-second-row">
-        <div class="presets" aria-label="日期範圍">
-          <button type="button" data-preset="today">今日</button>
-          <button type="button" data-preset="week">本週</button>
-          <button type="button" data-preset="month">本月</button>
-          <button type="button" data-preset="previous">上月</button>
+        <div class="presets" data-i18n-aria="dateRange">
+          <button type="button" data-preset="today" data-i18n="today">今日</button>
+          <button type="button" data-preset="week" data-i18n="week">本週</button>
+          <button type="button" data-preset="month" data-i18n="month">本月</button>
+          <button type="button" data-preset="previous" data-i18n="previousMonth">上月</button>
         </div>
-        <label class="check"><input id="includeTests" type="checkbox">包含測試訂單</label>
+        <label class="check"><input id="includeTests" type="checkbox"><span data-i18n="includeTests">包含測試訂單</span></label>
       </div>
     </form>
 
-    <div class="report-heading"><h2 id="rangeLabel">本月統計</h2><p id="status" role="status" aria-live="polite">載入中…</p></div>
+    <div class="report-heading"><h2 id="rangeLabel" data-i18n="monthReport">本月統計</h2><p id="status" role="status" aria-live="polite" data-i18n="loading">載入中…</p></div>
     <div id="error" role="alert" hidden></div>
     <div id="report" aria-busy="true">
-      <section class="metrics" aria-label="統計總覽">
-        <div><span>訂單總數</span><strong id="orderCount">—</strong><small>張</small></div>
-        <div><span>餐點總數</span><strong id="servingCount">—</strong><small>份</small></div>
-        <div><span>可統計餐廳</span><strong id="restaurantCount">—</strong><small>間</small></div>
-        <div><span>餐廳未能確認</span><strong id="unknownCount">—</strong><small>張</small></div>
+      <section class="metrics" data-i18n-aria="overview">
+        <div><span data-i18n="totalOrders">訂單總數</span><strong id="orderCount">—</strong><small data-i18n="orderUnit">張</small></div>
+        <div><span data-i18n="totalServings">餐點總數</span><strong id="servingCount">—</strong><small data-i18n="servingUnit">份</small></div>
+        <div><span data-i18n="knownRestaurants">可統計餐廳</span><strong id="restaurantCount">—</strong><small data-i18n="restaurantUnit">間</small></div>
+        <div><span data-i18n="unknownRestaurant">餐廳未能確認</span><strong id="unknownCount">—</strong><small data-i18n="orderUnit">張</small></div>
       </section>
       <p id="coverage" class="coverage"></p>
 
       <section class="restaurant-section">
-        <div class="section-heading"><h2>最常選用餐廳頭三位</h2><span>按選用日數</span></div>
-        <div id="restaurants" class="rank-grid"><p class="empty">載入中…</p></div>
+        <div class="section-heading"><h2 data-i18n="restaurantTop">最常選用餐廳頭三位</h2><span data-i18n="byDays">按選用日數</span></div>
+        <div id="restaurants" class="rank-grid"><p class="empty" data-i18n="loading">載入中…</p></div>
       </section>
 
       <section class="dishes-section">
         <div class="section-heading dishes-heading">
-          <div><h2>熱門菜式</h2><span id="dishCount">按餐點份數</span></div>
+          <div><h2 data-i18n="popularDishes">熱門菜式</h2><span id="dishCount" data-i18n="byServings">按餐點份數</span></div>
           <div class="table-actions">
-            <label class="search-label"><span class="sr-only">搜尋菜式或餐廳</span><input id="search" type="search" placeholder="搜尋菜式或餐廳"></label>
-            <button id="export" type="button" disabled>匯出 CSV</button>
+            <label class="search-label"><span class="sr-only" data-i18n="search">搜尋菜式或餐廳</span><input id="search" type="search" data-i18n-placeholder="search" placeholder="搜尋菜式或餐廳"></label>
+            <button id="export" type="button" data-i18n="exportCsv" disabled>匯出 CSV</button>
           </div>
         </div>
-        <div class="table-scroll" tabindex="0" role="region" aria-label="熱門菜式排名">
+        <div class="table-scroll" tabindex="0" role="region" data-i18n-aria="dishRanking">
           <table>
-            <thead><tr><th class="rank-column" scope="col">排名</th><th scope="col">菜式</th><th scope="col">餐廳</th><th class="numeric" scope="col">份數</th><th class="numeric" scope="col">訂單數</th></tr></thead>
-            <tbody id="dishes"><tr><td colspan="5" class="empty">載入中…</td></tr></tbody>
+            <thead><tr><th class="rank-column" scope="col" data-i18n="rank">排名</th><th scope="col" data-i18n="dish">菜式</th><th scope="col" data-i18n="restaurant">餐廳</th><th class="numeric" scope="col" data-i18n="servings">份數</th><th class="numeric" scope="col" data-i18n="orders">訂單數</th></tr></thead>
+            <tbody id="dishes"><tr><td colspan="5" class="empty" data-i18n="loading">載入中…</td></tr></tbody>
           </table>
         </div>
-        <nav id="pagination" class="pagination" aria-label="菜式分頁">
+        <nav id="pagination" class="pagination" data-i18n-aria="pagination">
           <span id="pageLabel"></span>
-          <div><button id="previous" type="button" aria-label="上一頁" title="上一頁">←</button><button id="next" type="button" aria-label="下一頁" title="下一頁">→</button></div>
+          <div><button id="previous" type="button" data-i18n-aria="previousPage" data-i18n-title="previousPage">←</button><button id="next" type="button" data-i18n-aria="nextPage" data-i18n-title="nextPage">→</button></div>
         </nav>
       </section>
-      <p class="report-note">餐廳同日只計一次，合併頁面時亦不重複計算。日期包含首尾兩日。餐點份數與訂餐人數不同。</p>
+      <p class="report-note" data-i18n="note">餐廳同日只計一次，合併頁面時亦不重複計算。日期包含首尾兩日。餐點份數與訂餐人數不同。</p>
     </div>
   </main>
-  <script src="/statistics/app.js?v=20261121-3"></script>
+  <script src="/statistics/i18n.js?v=20261121-4"></script>
+  <script src="/statistics/app.js?v=20261121-4"></script>
 </body>
 </html>
