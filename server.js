@@ -1,6 +1,7 @@
 ﻿const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { parseStatisticsRange, buildOrderStatistics } = require(path.join(__dirname, 'lib', 'order-statistics.js'));
 const crypto = require('crypto');
 const { URL } = require('url');
 
@@ -1704,27 +1705,27 @@ async function deleteAdminLogsSupabase(ids) {
 
 async function selectOrdersSupabase(date, appId) {
   try {
-    return await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,source_page,app_id,ordered_at', {
+    return await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,source_page,app_id,ordered_at,restaurant', {
       eq: { date, app_id: appId },
       order: [{ column: 'pickup_dept' }, { column: 'dept' }, { column: 'name' }]
     });
   } catch (err) {
     if (isMissingSupabaseColumn(err, 'source_page')) {
-      const rows = await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,app_id,ordered_at', {
+      const rows = await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,app_id,ordered_at,restaurant', {
         eq: { date, app_id: appId },
         order: [{ column: 'pickup_dept' }, { column: 'dept' }, { column: 'name' }]
       });
       return (rows || []).map(row => ({ ...row, source_page: '' }));
     }
     if (isMissingSupabaseColumn(err, 'pickup_dept')) {
-      const rows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,source_page,app_id,ordered_at', {
+      const rows = await supaSelect(TABLES.orders, 'dept,name,food,addon,drink,price,source_page,app_id,ordered_at,restaurant', {
         eq: { date, app_id: appId },
         order: [{ column: 'dept' }, { column: 'name' }]
       });
       return (rows || []).map(row => ({ ...row, pickup_dept: null }));
     }
     if (isMissingSupabaseColumn(err, 'ordered_at')) {
-      const rows = await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,source_page,app_id', {
+      const rows = await supaSelect(TABLES.orders, 'dept,pickup_dept,name,food,addon,drink,price,source_page,app_id,restaurant', {
         eq: { date, app_id: appId },
         order: [{ column: 'pickup_dept' }, { column: 'dept' }, { column: 'name' }]
       });
@@ -1744,11 +1745,12 @@ async function clearOrdersSupabase(date, appId) {
   if (result.error) throw new Error(`Supabase clear orders failed: ${result.error.message}`);
 }
 
-async function insertOrdersSupabase(date, appId, orders) {
+async function insertOrdersSupabase(date, appId, orders, restaurant = '') {
   if (!orders.length) return;
   const rowsWithApp = orders.map(o => ({
     app_id: appId,
     date,
+    restaurant: normText(o.restaurant) || normText(restaurant) || null,
     dept: normText(o.dept),
     pickup_dept: orderDeliveryDept(o),
     source_page: orderSourcePage(o),
@@ -1774,6 +1776,7 @@ async function upsertOrderSupabase(appId, date, order) {
   const row = {
     app_id: appId,
     date,
+    restaurant: normText(order.restaurant) || null,
     dept: normText(order.dept),
     pickup_dept: orderDeliveryDept(order),
     source_page: orderSourcePage(order),
@@ -1862,6 +1865,7 @@ async function getOrdersForStateSupabase(appId, appState) {
 
   return sortOrdersForDisplay((ordersRows || []).map(o => ({
     dept: normText(o.dept),
+    restaurant: normText(o.restaurant) || null,
     pickupDept: orderDeliveryDept(o),
     sourcePage: orderSourcePage(o),
     name: normText(o.name),
@@ -1902,7 +1906,7 @@ async function saveStateSupabase(appId = APP_MAIN, input) {
   if (e1) throw new Error(`Supabase save app_state failed: ${e1.message}`);
 
   await clearOrdersSupabase(state.date, normalizedAppId);
-  await insertOrdersSupabase(state.date, normalizedAppId, state.orders || []);
+  await insertOrdersSupabase(state.date, normalizedAppId, state.orders || [], state.restaurant);
 }
 
 async function resetDaySupabase(appId = APP_MAIN) {
@@ -2096,6 +2100,57 @@ async function getTodayPageData(appId, includeMenu = false) {
     ? await Promise.all([readOrders(), includeMenu ? getMenu(restaurant) : {}])
     : [[], {}];
   return { date, currentRestaurant: restaurant, cutoffTime, cutoffPassed: isCutoffPassed(cutoffTime), orders, currentMenu };
+}
+
+async function selectStatisticsRows(table, columns, filter) {
+  const rows = [];
+  const pageSize = 500;
+  for (let offset = 0; offset < 100000; offset += pageSize) {
+    const { data, error } = await filter(supabase.from(table).select(columns))
+      .order('id', { ascending: true }).range(offset, offset + pageSize - 1);
+    if (error) throw new Error(`Statistics query failed: ${error.message}`);
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) return rows;
+  }
+  throw new Error('資料量太多，請縮短查詢日期範圍。');
+}
+
+async function getOrderStatistics(range) {
+  let orders;
+  let logs;
+  let logsAvailable = true;
+  if (USE_SUPABASE) {
+    const fromTime = new Date(range.from + 'T00:00:00Z');
+    fromTime.setUTCDate(fromTime.getUTCDate() - 1);
+    const toTime = new Date(range.to + 'T00:00:00Z');
+    toTime.setUTCDate(toTime.getUTCDate() + 2);
+    [orders, logs] = await Promise.all([
+      selectStatisticsRows(TABLES.orders, 'id,date,restaurant,food,addon,app_id', query => {
+        let filtered = query.gte('date', range.from).lte('date', range.to);
+        if (range.app !== 'all') filtered = filtered.eq('app_id', range.app);
+        return filtered;
+      }),
+      selectStatisticsRows(TABLES.adminLogs, 'id,created_at,action,details', query =>
+        query.eq('action', 'restaurant').gte('created_at', fromTime.toISOString()).lt('created_at', toTime.toISOString()))
+        .catch(err => {
+          if (!isMissingSupabaseTable(err, TABLES.adminLogs)) throw err;
+          logsAvailable = false;
+          return [];
+        })
+    ]);
+  } else {
+    orders = [];
+    for (const app of APP_IDS) {
+      const state = normalizeState(readJsonSafe(stateFileForApp(app), defaultState()));
+      orders.push(...state.orders.map(order => ({
+        date: state.date, app_id: app, food: order.food, addon: order.addon,
+        restaurant: order.restaurant || null
+      })));
+    }
+    logs = normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, []));
+  }
+  return { ...buildOrderStatistics(orders, logs, range, APP_TIMEZONE),
+    logsAvailable, storage: USE_SUPABASE ? 'supabase' : 'local' };
 }
 
 async function getMenuLocal(restaurantInput) {
@@ -2412,6 +2467,7 @@ function serveStatic(req, reqPath, res) {
   let safePath = reqPath === '/'
     ? '/index.html'
     : ((reqPath === '/admin' || reqPath === '/admin/') ? '/admin.html' : reqPath);
+  if (reqPath === '/statistics' || reqPath === '/statistics/') safePath = '/statistics/index.html';
   if (isLadyRubyPage) safePath = '/lady-ruby.html';
   if (isLadyRubyNewPage) {
     baseDir = NEW_PUBLIC_DIR;
@@ -2511,6 +2567,17 @@ function normalizeAdminSection(section) {
 async function handleApi(req, res, urlObj) {
   assertSupabaseServiceRole();
   const pathname = (urlObj.pathname || '/').replace(/\/+$/, '') || '/';
+
+  if (req.method === 'GET' && pathname === '/api/statistics') {
+    let range;
+    try {
+      range = parseStatisticsRange(urlObj.searchParams, todayISO());
+    } catch (err) {
+      return json(res, 400, { error: err.message });
+    }
+    const statistics = await getOrderStatistics(range);
+    return json(res, 200, statistics);
+  }
 
   if (req.method === 'POST' && pathname === '/api/private-access') {
     if (isAuthRateLimited(req, 'private-access')) {
@@ -2719,6 +2786,7 @@ async function handleApi(req, res, urlObj) {
     const replacingGroup = Boolean(existingOrder && orderIdentityKey(existingOrder) !== orderIdentityKey(submittedOrder));
     const clean = {
       dept: submittedOrder.dept,
+      restaurant: normText(existingOrder && existingOrder.restaurant) || state.restaurant,
       pickupDept: normText(body.pickupDept || body.pickup_dept) || submittedOrder.dept,
       sourcePage: normText(body.sourcePage || body.source_page) || 'old',
       name: submittedOrder.name,

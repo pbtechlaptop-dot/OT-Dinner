@@ -33,6 +33,7 @@ function setup({ orders = [], late = false, ...overrides } = {}) {
     read: async (day, app) => {
       calls.push(['read', app, day]);
       return [{ dept: saved.dept, name: saved.name, food: saved.food, price: saved.price,
+        restaurant: saved.restaurant,
         pickup_dept: saved.pickupDept, source_page: saved.sourcePage,
         ordered_at: saved.orderedAt, addon: saved.addon, drink: saved.drink }];
     },
@@ -125,6 +126,17 @@ test('editing keeps original order time and returns updated status', async () =>
   assert.equal(app.saved().orderedAt, originalTime);
   assert.equal(result.data.orders[0].food, 'Noodles');
   assert.equal(result.data.orders[0].sourcePage, 'new');
+  assert.equal(app.saved().restaurant, 'Cafe A');
+  assert.equal(result.data.orders[0].restaurant, 'Cafe A');
+});
+
+test('restaurant snapshot comes from server state and preserves an existing snapshot on edit', async () => {
+  const created = setup();
+  await created.submit({ ...requestOrder, restaurant: 'Untrusted client value' });
+  assert.equal(created.saved().restaurant, 'Cafe A');
+  const edited = setup({ orders: [{ ...initialOrder, restaurant: 'Original Cafe' }] });
+  await edited.submit({ ...requestOrder, restaurant: 'Untrusted client value' });
+  assert.equal(edited.saved().restaurant, 'Original Cafe');
 });
 
 test('group split removes the replaced identity and preserves its original timestamp', async () => {
