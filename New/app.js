@@ -33,6 +33,7 @@ const DELIVERY_OVERRIDES_KEY = 'otDinnerDeliveryOverrides';
 const LAST_SUCCESSFUL_PAGE_KEY = 'otDinnerLastSuccessfulPage';
 const announcementDismissedVersions = new Set();
 let startupRequest;
+let restaurantLoadState = 'loading';
 let restaurantRevision = 0;
 let menuLoadVersion = 0;
 
@@ -161,6 +162,8 @@ const i18n = {
     exportCsv: '匯出 CSV',
     exportXlsx: '匯出 XLSX',
     setRestaurant: '設定餐廳',
+    restaurantLoading: '餐廳資料載入中…',
+    restaurantLoadFailed: '載入失敗，請重新整理',
     restaurantModalTitle: '設定今日餐廳',
     restaurantModalHint: '輸入密碼後，選擇餐廳及截單時間。',
     restaurantPicker: '選擇餐廳',
@@ -288,6 +291,8 @@ const i18n = {
     exportCsv: '导出 CSV',
     exportXlsx: '导出 XLSX',
     setRestaurant: '设置餐厅',
+    restaurantLoading: '餐厅资料载入中…',
+    restaurantLoadFailed: '载入失败，请刷新',
     restaurantModalTitle: '设置今日餐厅',
     restaurantModalHint: '输入密码后，选择餐厅及截单时间。',
     restaurantPicker: '选择餐厅',
@@ -414,6 +419,8 @@ const i18n = {
     exportCsv: 'Export CSV',
     exportXlsx: 'Export XLSX',
     setRestaurant: 'Set Restaurant',
+    restaurantLoading: 'Loading restaurants…',
+    restaurantLoadFailed: 'Load failed, refresh page',
     restaurantModalTitle: 'Set Today Restaurant',
     restaurantModalHint: 'Enter the password, then choose the restaurant and cutoff time.',
     restaurantPicker: 'Choose Restaurant',
@@ -671,7 +678,7 @@ function updateStaticText() {
   el.exportCsvLink.textContent = t('exportCsv');
   el.exportCsvLink.href = withAppParam('/api/export/csv');
   el.exportXlsxBtn.textContent = t('exportXlsx');
-  el.openRestaurantModalBtn.textContent = t('setRestaurant');
+  setRestaurantLoadState();
   el.restaurantModalTitle.textContent = t('restaurantModalTitle');
   el.restaurantModalHint.textContent = t('restaurantModalHint');
   el.restaurantPickerLabel.textContent = t('restaurantPicker');
@@ -2325,6 +2332,7 @@ document.addEventListener('keydown', event => {
 function load() {
   if (startupRequest) return startupRequest;
   restaurantRevision++;
+  setRestaurantLoadState('loading');
   const basics = api('/api/bootstrap?part=basics').then(bootstrap => {
     const settings = bootstrap.settings || {};
     state.priceLimit = Number(settings.priceLimit) || 22;
@@ -2359,6 +2367,10 @@ function load() {
     if (failure) throw failure.reason;
     renderOrders();
     updateDiagSummary();
+    setRestaurantLoadState('ready');
+  }).catch(err => {
+    setRestaurantLoadState('failed');
+    throw err;
   }).finally(() => {
     startupRequest = null;
     renderSelection();
@@ -2497,7 +2509,21 @@ function resetStaffForm() {
   renderGroupDrinks();
 }
 
+function setRestaurantLoadState(status = restaurantLoadState) {
+  restaurantLoadState = status;
+  const button = el.openRestaurantModalBtn;
+  if (!button) return;
+  const loading = status === 'loading';
+  button.disabled = status !== 'ready';
+  button.textContent = t(status === 'ready' ? 'setRestaurant'
+    : loading ? 'restaurantLoading' : 'restaurantLoadFailed');
+  button.setAttribute('aria-busy', String(loading));
+  button.classList.toggle('opacity-60', status !== 'ready');
+  button.classList.toggle('cursor-wait', loading);
+}
+
 function openRestaurantModal() {
+  if (restaurantLoadState !== 'ready') return;
   if (startupRequest) return;
   fillSelect(el.restaurantSelect, (state.restaurants || []).map(restaurant => ({
     value: restaurant,

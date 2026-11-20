@@ -32,7 +32,7 @@
       <h2 id="restaurantTitle">1) 今日餐廳</h2>
       <div class="restaurant-action">
         <p id="restaurantActionHint">如需要改餐廳或截單時間，按設定餐廳並輸入密碼。</p>
-        <button id="openRestaurantModalBtn" class="btn" type="button">設定餐廳</button>
+        <button id="openRestaurantModalBtn" class="btn" type="button" disabled aria-busy="true">餐廳資料載入中…</button>
       </div>
       <div class="restaurant-info">
         <p id="restaurantCurrentText">目前：未設定</p>
@@ -206,6 +206,6 @@
   </div>
   <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="app.js?v=20261118-3"></script>
+  <script src="app.js?v=20261121-1"></script>
 </body>
 </html>

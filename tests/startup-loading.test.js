@@ -17,8 +17,9 @@ function loadFunctions(file, names, globals) {
 
 function deferred() {
   let resolve;
-  const promise = new Promise(done => { resolve = done; });
-  return { promise, resolve };
+  let reject;
+  const promise = new Promise((done, fail) => { resolve = done; reject = fail; });
+  return { promise, resolve, reject };
 }
 
 test('today data skips both queries when no restaurant is configured or the selection was removed', async () => {
@@ -80,16 +81,23 @@ test('today starts orders and only the selected menu together after reading the 
 
 for (const file of ['public/app.js', 'New/app.js']) {
   const loadName = file === 'public/app.js' ? 'loadBootstrap' : 'load';
-  test(`${file} makes staff selectable before today's data and ignores stale menu responses`, async () => {
+  for (const failToday of [false, true]) {
+  test(`${file} keeps restaurants locked until loading completes (failure: ${failToday})`, async () => {
     const basics = deferred();
     const today = deferred();
     const staleMenu = deferred();
     const departmentReady = deferred();
     const state = { currentRestaurant: '', selected: new Map(), defaultCutoffTime: '13:00' };
     const calls = [];
-    const el = { dateText: {}, deptSelect: { value: '' }, nameSelect: { options: [] } };
-    const funcs = loadFunctions(file, [loadName, 'loadMenu'], {
-      state, el, startupRequest: null, restaurantRevision: 0, menuLoadVersion: 0,
+    const attributes = {};
+    const button = {
+      disabled: false, textContent: '',
+      setAttribute: (key, value) => { attributes[key] = value; },
+      classList: { toggle: () => {} }
+    };
+    const el = { openRestaurantModalBtn: button, dateText: {}, deptSelect: { value: '' }, nameSelect: { options: [] } };
+    const funcs = loadFunctions(file, [loadName, 'loadMenu', 'setRestaurantLoadState'], {
+      state, el, startupRequest: null, restaurantLoadState: 'loading', restaurantRevision: 0, menuLoadVersion: 0,
       api: url => {
         calls.push(url);
         if (url.endsWith('basics')) return basics.promise;
@@ -106,12 +114,28 @@ for (const file of ['public/app.js', 'New/app.js']) {
       updateDiagSummary: () => {}, syncOrderMemberAvailability: () => {}
     });
     const initial = funcs[loadName]();
+    assert.equal(button.disabled, true);
+    assert.equal(button.textContent, 'restaurantLoading');
+    assert.equal(attributes['aria-busy'], 'true');
     assert.deepEqual(calls, ['/api/bootstrap?part=basics', '/api/bootstrap?part=today']);
     basics.resolve({ staff: { HQ: ['Alan'] } });
     await departmentReady.promise;
     assert.deepEqual(state.staff, { HQ: ['Alan'] });
+    assert.equal(button.disabled, true);
+    if (failToday) {
+      const failure = assert.rejects(initial, /Network failed/);
+      today.reject(new Error('Network failed'));
+      await failure;
+      assert.equal(button.disabled, true);
+      assert.equal(button.textContent, 'restaurantLoadFailed');
+      assert.equal(attributes['aria-busy'], 'false');
+      return;
+    }
     today.resolve({ currentRestaurant: 'Old', currentMenu: { Meals: ['old'] }, orders: [] });
     await initial;
+    assert.equal(button.disabled, false);
+    assert.equal(button.textContent, 'setRestaurant');
+    assert.equal(attributes['aria-busy'], 'false');
     assert.deepEqual(state.menu, { Meals: ['old'] });
     assert.equal(calls.length, 2);
 
@@ -122,6 +146,7 @@ for (const file of ['public/app.js', 'New/app.js']) {
     await late;
     assert.deepEqual(state.menu, { Meals: ['new'] });
   });
+  }
 }
 
 test('public startup routes keep each location and its menu separate', async () => {

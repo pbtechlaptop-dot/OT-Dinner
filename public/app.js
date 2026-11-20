@@ -56,6 +56,7 @@ if (redirectedToLastSuccessfulPage) {
 }
 
 let startupRequest;
+let restaurantLoadState = 'loading';
 let restaurantRevision = 0;
 let menuLoadVersion = 0;
 
@@ -81,6 +82,8 @@ const i18n = {
     backToMain: '返回主版',
     secRestaurant: '1) 今日餐廳',
     setRestaurant: '設定餐廳',
+    restaurantLoading: '餐廳資料載入中…',
+    restaurantLoadFailed: '載入失敗，請重新整理',
     restaurantPicker: '選擇餐廳',
     restaurantActionHint: '按設定餐廳後，再於彈出的畫面選擇餐廳及截單時間。',
     secOrder: '2) 填寫訂單',
@@ -168,6 +171,8 @@ const i18n = {
     backToMain: '返回主版',
     secRestaurant: '1) 今日餐厅',
     setRestaurant: '设置餐厅',
+    restaurantLoading: '餐厅资料载入中…',
+    restaurantLoadFailed: '载入失败，请刷新',
     restaurantPicker: '选择餐厅',
     restaurantActionHint: '按设置餐厅后，再于弹出的画面选择餐厅及截单时间。',
     secOrder: '2) 填写订单',
@@ -255,6 +260,8 @@ const i18n = {
     backToMain: 'Main Page',
     secRestaurant: '1) Restaurant',
     setRestaurant: 'Set Restaurant',
+    restaurantLoading: 'Loading restaurants…',
+    restaurantLoadFailed: 'Load failed, refresh page',
     restaurantPicker: 'Choose Restaurant',
     restaurantActionHint: 'Click Set Restaurant, then choose the restaurant and cutoff time in the popup.',
     secOrder: '2) Place Order',
@@ -789,6 +796,7 @@ function applyI18n() {
   const pageTitle = state.appId === 'lady-ruby' ? t('appTitleLadyRuby') : t('appTitle');
   if (el.appTitle) el.appTitle.textContent = pageTitle;
   document.title = pageTitle;
+  setRestaurantLoadState();
   if (el.lateOrderPanel) updateLateOrderText();
   if (!el.orderErrorNotice || el.orderErrorNotice.classList.contains('hidden')) return;
   if (state.cutoffPassed) showOrderError(t('orderBlockedNotice'));
@@ -912,7 +920,21 @@ function syncRestaurantLock() {
   }
 }
 
+function setRestaurantLoadState(status = restaurantLoadState) {
+  restaurantLoadState = status;
+  const button = el.openRestaurantModalBtn;
+  if (!button) return;
+  const loading = status === 'loading';
+  button.disabled = status !== 'ready';
+  button.textContent = t(status === 'ready' ? 'setRestaurant'
+    : loading ? 'restaurantLoading' : 'restaurantLoadFailed');
+  button.setAttribute('aria-busy', String(loading));
+  button.classList.toggle('opacity-60', status !== 'ready');
+  button.classList.toggle('cursor-wait', loading);
+}
+
 function openRestaurantModal() {
+  if (restaurantLoadState !== 'ready') return;
   if (startupRequest || !el.restaurantModal) return;
   if (el.restaurantSelect) {
     fillSelect(el.restaurantSelect, (state.restaurants || []).map(r => ({ value: r, label: r })), t('selectRestaurant'));
@@ -2626,6 +2648,7 @@ async function loadMenu(restaurant, initialMenu) {
 function loadBootstrap() {
   if (startupRequest) return startupRequest;
   restaurantRevision++;
+  setRestaurantLoadState('loading');
   setDiag(t('diagLoading'));
   const basics = api('/api/bootstrap?part=basics').then(payload => {
     const settings = payload.settings || {};
@@ -2657,7 +2680,9 @@ function loadBootstrap() {
     if (failure) throw failure.reason;
     renderOrders();
     updateDiagSummary();
+    setRestaurantLoadState('ready');
   }).catch(err => {
+    setRestaurantLoadState('failed');
     setDiag(`${t('loadFailedPrefix')}${err.message}`, true);
     throw err;
   }).finally(() => {
