@@ -47,19 +47,18 @@
     el.unknownCount.textContent = number.format(summary.unknownOrders);
     const coverage = ['餐廳已記錄：' + number.format(summary.recordedOrders) + ' 張',
       '按當日操作記錄推算：' + number.format(summary.inferredOrders) + ' 張'];
-    if (summary.unknownOrders) coverage.push(number.format(summary.unknownOrders) + ' 張餐廳未能確認，未計入餐廳排名');
+    if (summary.unknownOrders) coverage.push(number.format(summary.unknownOrders) + ' 張舊單無法確認所屬餐廳');
     if (summary.excludedTests) coverage.push('已排除 ' + number.format(summary.excludedTests) + ' 張速度測試單');
     if (!data.logsAvailable) coverage.push('歷史餐廳操作記錄未能取得');
     if (data.storage === 'local') coverage.push('本機資料');
     el.coverage.textContent = coverage.join(' · ');
-    const max = data.restaurants[0]?.orders || 1;
+    const max = data.restaurants[0]?.days || 1;
     el.restaurants.innerHTML = data.restaurants.map((item, index) =>
       '<article class="rank-item"><div class="rank-title"><span class="rank-number">0' + (index + 1) +
       '</span><h3>' + escape(item.restaurant) + '</h3></div><div class="rank-values"><strong>' +
-      number.format(item.orders) + '</strong><span>張訂單</span><span class="servings">' +
-      number.format(item.servings) + ' 份餐點</span></div><div class="bar-track"><div class="bar-fill" style="width:' +
-      Math.round(item.orders / max * 100) + '%"></div></div></article>').join('') ||
-      '<p class="empty">' + (summary.orders ? '此日期範圍未有可確認餐廳的訂單' : '此日期範圍沒有訂單') + '</p>';
+      number.format(item.days) + '</strong><span>日選用</span></div><div class="bar-track"><div class="bar-fill" style="width:' +
+      Math.round(item.days / max * 100) + '%"></div></div></article>').join('') ||
+      '<p class="empty">此日期範圍未有可確認的餐廳使用記錄</p>';
     renderDishes();
   }
 

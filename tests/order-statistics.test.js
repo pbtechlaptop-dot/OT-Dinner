@@ -31,13 +31,13 @@ test('dish quantities are separate from orders and plus signs inside dish names 
   assert.equal(result.dishes[0].servings, 3);
 });
 
-test('restaurant top three uses orders, dishes use servings, and equal dish names stay restaurant-scoped', () => {
+test('restaurant top three uses days, dishes use servings, and equal dish names stay restaurant-scoped', () => {
   const rows = [order('A', 'Rice x 2'), order('A', 'Soup'), order('B', 'Rice x 5'),
     order('C', 'Chicken'), order('D', 'Toast'), order('A', 'Rice', { date: '2026-12-01' })];
   const result = buildOrderStatistics(rows, [], range);
   assert.equal(result.restaurants.length, 3);
   assert.equal(result.restaurants[0].restaurant, 'A');
-  assert.equal(result.restaurants[0].orders, 2);
+  assert.equal(result.restaurants[0].days, 1);
   assert.equal(result.dishes[0].restaurant, 'B');
   assert.equal(result.dishes[0].servings, 5);
   assert.equal(result.summary.orders, 5);
@@ -54,8 +54,28 @@ test('legacy attribution requires a single restaurant for the same business date
   const switched = buildOrderStatistics(rows, [log('B', 'main', { previousRestaurant: 'A' })], range);
   assert.equal(switched.summary.inferredOrders, 0);
   const explicit = buildOrderStatistics([order('C', 'Rice')], [log('A'), log('B')], range);
-  assert.equal(explicit.restaurants[0].restaurant, 'C');
+  assert.equal(explicit.dishes[0].restaurant, 'C');
+  assert.equal(explicit.restaurants.some(item => item.restaurant === 'C'), true);
   assert.equal(explicit.summary.recordedOrders, 1);
+});
+
+test('many orders on one day cannot outrank a restaurant used on two days', () => {
+  const rows = [
+    ...Array.from({ length: 50 }, () => order('A', 'Rice')),
+    order('B', 'Soup'), order('B', 'Soup', { date: '2026-11-19' }),
+    order('B', 'Soup', { app_id: 'lady-ruby', date: '2026-11-19' })
+  ];
+  const result = buildOrderStatistics(rows, [], range);
+  assert.deepEqual(result.restaurants, [{ restaurant: 'B', days: 2 }, { restaurant: 'A', days: 1 }]);
+});
+
+test('restaurant selection logs count days even without orders, respecting page and date filters', () => {
+  const records = [log('A'), log('A'), log('A', 'lady-ruby'), log('B', 'lady-ruby'),
+    { ...log('A'), created_at: '2026-10-01T00:00:00Z' }];
+  assert.deepEqual(buildOrderStatistics([], records, range).restaurants,
+    [{ restaurant: 'A', days: 1 }, { restaurant: 'B', days: 1 }]);
+  assert.deepEqual(buildOrderStatistics([], records, { ...range, app: 'main' }).restaurants,
+    [{ restaurant: 'A', days: 1 }]);
 });
 
 test('test orders are excluded by default, and page and date filters do not mix locations', () => {
