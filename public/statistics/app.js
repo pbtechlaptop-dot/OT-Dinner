@@ -2,7 +2,7 @@
   'use strict';
   const el = Object.fromEntries([
     'filters', 'from', 'to', 'app', 'query', 'includeTests', 'rangeLabel', 'status', 'error',
-    'report', 'orderCount', 'servingCount', 'restaurantCount', 'legacyCount', 'coverage',
+    'report', 'orderCount', 'servingCount', 'restaurantCount', 'coverage',
     'restaurants', 'dishCount', 'search', 'export', 'dishes', 'pagination', 'pageLabel', 'previous', 'next'
   ].map(id => [id, document.getElementById(id)]));
   const PAGE_SIZE = 25;
@@ -84,9 +84,7 @@
     el.orderCount.textContent = number.format(summary.orders);
     el.servingCount.textContent = number.format(summary.servings);
     el.restaurantCount.textContent = number.format(summary.restaurants);
-    el.legacyCount.textContent = number.format(summary.legacySkipped);
     const coverage = [t('snapshotOnly')];
-    if (summary.legacySkipped) coverage.push(t('legacySkipped', { count: number.format(summary.legacySkipped) }));
     if (summary.excludedTests) coverage.push(t('excludedTests', { count: number.format(summary.excludedTests) }));
     if (data.storage === 'local') coverage.push(t('localData'));
     el.coverage.textContent = coverage.join(' · ');
