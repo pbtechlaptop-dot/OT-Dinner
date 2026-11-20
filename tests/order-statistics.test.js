@@ -8,10 +8,6 @@ const range = { from: '2026-11-01', to: '2026-11-30', app: 'all', includeTests: 
 const order = (restaurant, food, extra = {}) => ({
   date: '2026-11-18', app_id: 'main', restaurant, food, ...extra
 });
-const log = (restaurant, app = 'main', extra = {}) => ({
-  action: 'restaurant', created_at: '2026-11-17T22:00:00Z',
-  details: { restaurant, app, ...extra }
-});
 
 test('range accepts valid inclusive dates and rejects impossible or reversed dates and invalid scope', () => {
   assert.equal(parseStatisticsRange(new URLSearchParams(), '2026-11-21').from, '2026-11-01');
@@ -24,7 +20,7 @@ test('dish quantities are separate from orders and plus signs inside dish names 
   assert.deepEqual(splitFoodItems('Rice x 2 + Chicken（A + B） + Soup × 3'), [
     { food: 'Rice', servings: 2 }, { food: 'Chicken（A + B）', servings: 1 }, { food: 'Soup', servings: 3 }
   ]);
-  const result = buildOrderStatistics([order('A', 'Rice + Rice x 2')], [], range);
+  const result = buildOrderStatistics([order('A', 'Rice + Rice x 2')], range);
   assert.equal(result.summary.orders, 1);
   assert.equal(result.summary.servings, 3);
   assert.equal(result.dishes[0].orders, 1);
@@ -34,7 +30,7 @@ test('dish quantities are separate from orders and plus signs inside dish names 
 test('restaurant top three uses days, dishes use servings, and equal dish names stay restaurant-scoped', () => {
   const rows = [order('A', 'Rice x 2'), order('A', 'Soup'), order('B', 'Rice x 5'),
     order('C', 'Chicken'), order('D', 'Toast'), order('A', 'Rice', { date: '2026-12-01' })];
-  const result = buildOrderStatistics(rows, [], range);
+  const result = buildOrderStatistics(rows, range);
   assert.equal(result.restaurants.length, 3);
   assert.equal(result.restaurants[0].restaurant, 'A');
   assert.equal(result.restaurants[0].days, 1);
@@ -44,19 +40,20 @@ test('restaurant top three uses days, dishes use servings, and equal dish names 
   assert.equal(result.dishes.filter(row => row.food === 'Rice').length, 2);
 });
 
-test('legacy attribution requires a single restaurant for the same business date and app', () => {
-  const rows = [order(null, 'Rice'), order(null, 'Soup', { app_id: 'lady-ruby' })];
-  const result = buildOrderStatistics(rows, [log('A'), log('A')], range);
-  assert.equal(result.summary.inferredOrders, 1);
-  assert.equal(result.summary.unknownOrders, 1);
-  const ambiguous = buildOrderStatistics(rows, [log('A'), log('B')], range);
-  assert.equal(ambiguous.summary.inferredOrders, 0);
-  const switched = buildOrderStatistics(rows, [log('B', 'main', { previousRestaurant: 'A' })], range);
-  assert.equal(switched.summary.inferredOrders, 0);
-  const explicit = buildOrderStatistics([order('C', 'Rice')], [log('A'), log('B')], range);
-  assert.equal(explicit.dishes[0].restaurant, 'C');
-  assert.equal(explicit.restaurants.some(item => item.restaurant === 'C'), true);
-  assert.equal(explicit.summary.recordedOrders, 1);
+test('legacy orders without a restaurant never enter totals, dishes, days or rankings', () => {
+  const rows = [order(null, 'Rice'), order('', 'Soup', { app_id: 'lady-ruby' }), order('  ', 'Toast')];
+  const result = buildOrderStatistics(rows, range);
+  assert.equal(result.summary.orders, 0);
+  assert.equal(result.summary.servings, 0);
+  assert.equal(result.summary.legacySkipped, 3);
+  assert.deepEqual(result.restaurants, []);
+  assert.deepEqual(result.dishes, []);
+  assert.deepEqual(result.daily, []);
+  const mixed = buildOrderStatistics([...rows, order('C', 'Rice')], range);
+  assert.equal(mixed.summary.orders, 1);
+  assert.equal(mixed.summary.legacySkipped, 3);
+  assert.equal(mixed.dishes[0].restaurant, 'C');
+  assert.equal(mixed.restaurants[0].restaurant, 'C');
 });
 
 test('many orders on one day cannot outrank a restaurant used on two days', () => {
@@ -65,21 +62,16 @@ test('many orders on one day cannot outrank a restaurant used on two days', () =
     order('B', 'Soup'), order('B', 'Soup', { date: '2026-11-19' }),
     order('B', 'Soup', { app_id: 'lady-ruby', date: '2026-11-19' })
   ];
-  const result = buildOrderStatistics(rows, [], range);
+  const result = buildOrderStatistics(rows, range);
   assert.deepEqual(result.restaurants, [{ restaurant: 'B', days: 2 }, { restaurant: 'A', days: 1 }]);
 });
 
-test('restaurant selection logs count days even without orders, respecting page and date filters', () => {
-  const records = [log('A'), log('A'), log('A', 'lady-ruby'), log('B', 'lady-ruby'),
-    { ...log('A'), created_at: '2026-10-01T00:00:00Z' }];
-  assert.deepEqual(buildOrderStatistics([], records, range).restaurants,
-    [{ restaurant: 'A', days: 1 }, { restaurant: 'B', days: 1 }]);
-  assert.deepEqual(buildOrderStatistics([], records, { ...range, app: 'main' }).restaurants,
-    [{ restaurant: 'A', days: 1 }]);
+test('empty orders produce empty restaurant rankings', () => {
+  assert.deepEqual(buildOrderStatistics([], range).restaurants, []);
 });
 
 test('menu translations stay restaurant-scoped and never alter statistics or infer missing translations', () => {
-  const statistics = buildOrderStatistics([order('A', 'Rice'), order('B', 'Rice')], [], range);
+  const statistics = buildOrderStatistics([order('A', 'Rice'), order('B', 'Rice')], range);
   const translated = addDishTranslations(statistics, [
     { restaurant: 'A', name_tc: 'Rice', name_sc: '米饭', name_en: 'Steamed Rice' },
     { restaurant: 'B', name_tc: 'Rice', name_sc: '白饭', name_en: 'White Rice' }
@@ -110,12 +102,12 @@ test('all three UI languages have matching keys and interpolation fields', () =>
 test('test orders are excluded by default, and page and date filters do not mix locations', () => {
   const rows = [order('A', 'Rice', { addon: '速度測試，非正式訂餐' }),
     order('B', 'Soup', { app_id: 'lady-ruby' }), order('C', 'Toast')];
-  assert.equal(buildOrderStatistics(rows, [], range).summary.excludedTests, 1);
-  assert.equal(buildOrderStatistics(rows, [], { ...range, includeTests: true }).summary.orders, 3);
-  const ruby = buildOrderStatistics(rows, [], { ...range, app: 'lady-ruby' });
+  assert.equal(buildOrderStatistics(rows, range).summary.excludedTests, 1);
+  assert.equal(buildOrderStatistics(rows, { ...range, includeTests: true }).summary.orders, 3);
+  const ruby = buildOrderStatistics(rows, { ...range, app: 'lady-ruby' });
   assert.equal(ruby.summary.orders, 1);
   assert.equal(ruby.restaurants[0].restaurant, 'B');
-  assert.equal(buildOrderStatistics([], [], range).dishes.length, 0);
+  assert.equal(buildOrderStatistics([], range).dishes.length, 0);
 });
 
 test('public statistics API paginates past 1000 rows and never returns private order fields', async () => {
@@ -127,6 +119,7 @@ test('public statistics API paginates past 1000 rows and never returns private o
   const pages = [];
   const client = {
     from(table) {
+      assert.notEqual(table, 'admin_logs', 'Statistics must not read or infer from activity logs');
       let filtered = table === 'orders' ? rows : [];
       const query = {
         select: () => query, order: () => query,

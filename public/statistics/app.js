@@ -2,7 +2,7 @@
   'use strict';
   const el = Object.fromEntries([
     'filters', 'from', 'to', 'app', 'query', 'includeTests', 'rangeLabel', 'status', 'error',
-    'report', 'orderCount', 'servingCount', 'restaurantCount', 'unknownCount', 'coverage',
+    'report', 'orderCount', 'servingCount', 'restaurantCount', 'legacyCount', 'coverage',
     'restaurants', 'dishCount', 'search', 'export', 'dishes', 'pagination', 'pageLabel', 'previous', 'next'
   ].map(id => [id, document.getElementById(id)]));
   const PAGE_SIZE = 25;
@@ -84,12 +84,10 @@
     el.orderCount.textContent = number.format(summary.orders);
     el.servingCount.textContent = number.format(summary.servings);
     el.restaurantCount.textContent = number.format(summary.restaurants);
-    el.unknownCount.textContent = number.format(summary.unknownOrders);
-    const coverage = [t('recorded', { count: number.format(summary.recordedOrders) }),
-      t('inferred', { count: number.format(summary.inferredOrders) })];
-    if (summary.unknownOrders) coverage.push(t('unknownOrders', { count: number.format(summary.unknownOrders) }));
+    el.legacyCount.textContent = number.format(summary.legacySkipped);
+    const coverage = [t('snapshotOnly')];
+    if (summary.legacySkipped) coverage.push(t('legacySkipped', { count: number.format(summary.legacySkipped) }));
     if (summary.excludedTests) coverage.push(t('excludedTests', { count: number.format(summary.excludedTests) }));
-    if (!data.logsAvailable) coverage.push(t('noLogs'));
     if (data.storage === 'local') coverage.push(t('localData'));
     el.coverage.textContent = coverage.join(' · ');
     const max = data.restaurants[0]?.days || 1;

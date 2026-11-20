@@ -2117,27 +2117,12 @@ async function selectStatisticsRows(table, columns, filter) {
 
 async function getOrderStatistics(range) {
   let orders;
-  let logs;
-  let logsAvailable = true;
   if (USE_SUPABASE) {
-    const fromTime = new Date(range.from + 'T00:00:00Z');
-    fromTime.setUTCDate(fromTime.getUTCDate() - 1);
-    const toTime = new Date(range.to + 'T00:00:00Z');
-    toTime.setUTCDate(toTime.getUTCDate() + 2);
-    [orders, logs] = await Promise.all([
-      selectStatisticsRows(TABLES.orders, 'id,date,restaurant,food,addon,app_id', query => {
-        let filtered = query.gte('date', range.from).lte('date', range.to);
-        if (range.app !== 'all') filtered = filtered.eq('app_id', range.app);
-        return filtered;
-      }),
-      selectStatisticsRows(TABLES.adminLogs, 'id,created_at,action,details', query =>
-        query.eq('action', 'restaurant').gte('created_at', fromTime.toISOString()).lt('created_at', toTime.toISOString()))
-        .catch(err => {
-          if (!isMissingSupabaseTable(err, TABLES.adminLogs)) throw err;
-          logsAvailable = false;
-          return [];
-        })
-    ]);
+    orders = await selectStatisticsRows(TABLES.orders, 'id,date,restaurant,food,addon,app_id', query => {
+      let filtered = query.gte('date', range.from).lte('date', range.to);
+      if (range.app !== 'all') filtered = filtered.eq('app_id', range.app);
+      return filtered;
+    });
   } else {
     orders = [];
     for (const app of APP_IDS) {
@@ -2147,9 +2132,8 @@ async function getOrderStatistics(range) {
         restaurant: order.restaurant || null
       })));
     }
-    logs = normalizeAdminLogs(readJsonSafe(ADMIN_LOGS_FILE, []));
   }
-  let statistics = buildOrderStatistics(orders, logs, range, APP_TIMEZONE);
+  let statistics = buildOrderStatistics(orders, range);
   let menuLabels = [];
   if (USE_SUPABASE) {
     const names = [...new Set(statistics.dishes.filter(item => item.restaurant).map(item => item.food))];
@@ -2175,8 +2159,7 @@ async function getOrderStatistics(range) {
     }
   }
   statistics = addDishTranslations(statistics, menuLabels);
-  return { ...statistics,
-    logsAvailable, storage: USE_SUPABASE ? 'supabase' : 'local' };
+  return { ...statistics, storage: USE_SUPABASE ? 'supabase' : 'local' };
 }
 
 async function getMenuLocal(restaurantInput) {
