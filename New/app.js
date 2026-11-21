@@ -161,6 +161,7 @@ const i18n = {
     loadedSummary: (restaurants, restaurant, cutoff, orders) => `載入成功：餐廳 ${restaurants} 間，今日餐廳 ${restaurant}，截單 ${cutoff}，訂單 ${orders} 張`,
     exportCsv: '匯出 CSV',
     exportXlsx: '匯出 XLSX',
+    orderStatistics: '訂餐統計',
     setRestaurant: '設定餐廳',
     restaurantLoading: '餐廳資料載入中…',
     restaurantLoadFailed: '載入失敗，請重新整理',
@@ -290,6 +291,7 @@ const i18n = {
     loadedSummary: (restaurants, restaurant, cutoff, orders) => `载入成功：餐厅 ${restaurants} 间，今日餐厅 ${restaurant}，截单 ${cutoff}，订单 ${orders} 张`,
     exportCsv: '导出 CSV',
     exportXlsx: '导出 XLSX',
+    orderStatistics: '订餐统计',
     setRestaurant: '设置餐厅',
     restaurantLoading: '餐厅资料载入中…',
     restaurantLoadFailed: '载入失败，请刷新',
@@ -418,6 +420,7 @@ const i18n = {
     loadedSummary: (restaurants, restaurant, cutoff, orders) => `Loaded: ${restaurants} restaurants, today's restaurant ${restaurant}, cutoff ${cutoff}, ${orders} orders`,
     exportCsv: 'Export CSV',
     exportXlsx: 'Export XLSX',
+    orderStatistics: 'Order Statistics',
     setRestaurant: 'Set Restaurant',
     restaurantLoading: 'Loading restaurants…',
     restaurantLoadFailed: 'Load failed, refresh page',
@@ -678,6 +681,8 @@ function updateStaticText() {
   el.exportCsvLink.textContent = t('exportCsv');
   el.exportCsvLink.href = withAppParam('/api/export/csv');
   el.exportXlsxBtn.textContent = t('exportXlsx');
+  const statisticsLink = document.getElementById('statisticsLink');
+  if (statisticsLink) statisticsLink.textContent = t('orderStatistics');
   setRestaurantLoadState();
   el.restaurantModalTitle.textContent = t('restaurantModalTitle');
   el.restaurantModalHint.textContent = t('restaurantModalHint');
